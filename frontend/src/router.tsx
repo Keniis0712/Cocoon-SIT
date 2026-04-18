@@ -1,25 +1,42 @@
-﻿import type { ReactNode } from "react";
+import { Suspense, lazy, type ComponentType, type ReactNode } from "react";
 import { Navigate, createBrowserRouter } from "react-router-dom";
 
-import MainLayout from "@/components/MainLayout";
-import AuditsWorkbenchPage from "@/pages/AuditsWorkbench";
-import CharactersPage from "@/pages/Characters";
-import ChatGroupsPage from "@/pages/ChatGroupsPage";
-import CocoonMemoryPage from "@/pages/CocoonMemoryPage";
-import CocoonWorkspacePage from "@/pages/CocoonWorkspace";
-import CocoonsPage from "@/pages/Cocoons";
-import EmbeddingProvidersPage from "@/pages/EmbeddingProvidersPage";
-import GroupsPage from "@/pages/Groups";
-import InsightsPage from "@/pages/Insights";
-import InvitesPage from "@/pages/Invites";
-import LoginPage from "@/pages/Login";
-import MePage from "@/pages/Me";
-import MergesPage from "@/pages/Merges";
-import ProvidersPage from "@/pages/Providers";
-import SettingsPage from "@/pages/Settings";
-import TagsPage from "@/pages/TagsPage";
-import UsersPage from "@/pages/Users";
 import { useUserStore } from "@/store/useUserStore";
+
+const MainLayout = lazy(() => import("@/components/MainLayout"));
+const AuditsWorkbenchPage = lazy(() => import("@/pages/AuditsWorkbench"));
+const CharactersPage = lazy(() => import("@/pages/Characters"));
+const ChatGroupsPage = lazy(() => import("@/pages/ChatGroupsPage"));
+const CocoonMemoryPage = lazy(() => import("@/pages/CocoonMemoryPage"));
+const CocoonWorkspacePage = lazy(() => import("@/pages/CocoonWorkspace"));
+const CocoonsPage = lazy(() => import("@/pages/Cocoons"));
+const EmbeddingProvidersPage = lazy(() => import("@/pages/EmbeddingProvidersPage"));
+const GroupsPage = lazy(() => import("@/pages/Groups"));
+const InsightsPage = lazy(() => import("@/pages/Insights"));
+const InvitesPage = lazy(() => import("@/pages/Invites"));
+const LoginPage = lazy(() => import("@/pages/Login"));
+const MePage = lazy(() => import("@/pages/Me"));
+const MergesPage = lazy(() => import("@/pages/Merges"));
+const ProvidersPage = lazy(() => import("@/pages/Providers"));
+const SettingsPage = lazy(() => import("@/pages/Settings"));
+const TagsPage = lazy(() => import("@/pages/TagsPage"));
+const UsersPage = lazy(() => import("@/pages/Users"));
+
+function RouteFallback() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center px-6 text-sm text-muted-foreground">
+      Loading page...
+    </div>
+  );
+}
+
+function renderLazyPage(Component: ComponentType) {
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <Component />
+    </Suspense>
+  );
+}
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const isLoggedIn = useUserStore((state) => state.isLoggedIn);
@@ -35,35 +52,27 @@ export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/cocoons" replace /> },
   {
     path: "/login",
-    element: (
-      <LoginRoute>
-        <LoginPage />
-      </LoginRoute>
-    ),
+    element: <LoginRoute>{renderLazyPage(LoginPage)}</LoginRoute>,
   },
   {
-    element: (
-      <ProtectedRoute>
-        <MainLayout />
-      </ProtectedRoute>
-    ),
+    element: <ProtectedRoute>{renderLazyPage(MainLayout)}</ProtectedRoute>,
     children: [
-      { path: "/cocoons", element: <CocoonsPage /> },
-      { path: "/cocoons/:cocoonId", element: <CocoonWorkspacePage /> },
-      { path: "/cocoons/:cocoonId/memories", element: <CocoonMemoryPage /> },
-      { path: "/chat-groups", element: <ChatGroupsPage /> },
-      { path: "/tags", element: <TagsPage /> },
-      { path: "/characters", element: <CharactersPage /> },
-      { path: "/groups", element: <GroupsPage /> },
-      { path: "/invites", element: <InvitesPage /> },
-      { path: "/merges", element: <MergesPage /> },
-      { path: "/providers", element: <ProvidersPage /> },
-      { path: "/embedding-providers", element: <EmbeddingProvidersPage /> },
-      { path: "/users", element: <UsersPage /> },
-      { path: "/audits", element: <AuditsWorkbenchPage /> },
-      { path: "/insights", element: <InsightsPage /> },
-      { path: "/settings", element: <SettingsPage /> },
-      { path: "/me", element: <MePage /> },
+      { path: "/cocoons", element: renderLazyPage(CocoonsPage) },
+      { path: "/cocoons/:cocoonId", element: renderLazyPage(CocoonWorkspacePage) },
+      { path: "/cocoons/:cocoonId/memories", element: renderLazyPage(CocoonMemoryPage) },
+      { path: "/chat-groups", element: renderLazyPage(ChatGroupsPage) },
+      { path: "/tags", element: renderLazyPage(TagsPage) },
+      { path: "/characters", element: renderLazyPage(CharactersPage) },
+      { path: "/groups", element: renderLazyPage(GroupsPage) },
+      { path: "/invites", element: renderLazyPage(InvitesPage) },
+      { path: "/merges", element: renderLazyPage(MergesPage) },
+      { path: "/providers", element: renderLazyPage(ProvidersPage) },
+      { path: "/embedding-providers", element: renderLazyPage(EmbeddingProvidersPage) },
+      { path: "/users", element: renderLazyPage(UsersPage) },
+      { path: "/audits", element: renderLazyPage(AuditsWorkbenchPage) },
+      { path: "/insights", element: renderLazyPage(InsightsPage) },
+      { path: "/settings", element: renderLazyPage(SettingsPage) },
+      { path: "/me", element: renderLazyPage(MePage) },
     ],
   },
 ]);

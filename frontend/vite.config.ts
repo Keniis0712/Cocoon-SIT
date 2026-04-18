@@ -10,6 +10,42 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replace(/\\/g, "/");
+          if (!normalizedId.includes("node_modules")) {
+            return undefined;
+          }
+          if (normalizedId.includes("/echarts/")) {
+            return "vendor-charts";
+          }
+          if (
+            normalizedId.includes("/react/") ||
+            normalizedId.includes("/react-dom/") ||
+            normalizedId.includes("/react-router") ||
+            normalizedId.includes("/@remix-run/") ||
+            normalizedId.includes("/scheduler/") ||
+            normalizedId.includes("/use-sync-external-store/")
+          ) {
+            return "vendor-framework";
+          }
+          if (
+            normalizedId.includes("/i18next") ||
+            normalizedId.includes("/react-i18next") ||
+            normalizedId.includes("/i18next-browser-languagedetector/")
+          ) {
+            return "vendor-i18n";
+          }
+          if (normalizedId.includes("/axios/") || normalizedId.includes("/@cocoon-sit/ts-sdk/")) {
+            return "vendor-api";
+          }
+          return undefined;
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {

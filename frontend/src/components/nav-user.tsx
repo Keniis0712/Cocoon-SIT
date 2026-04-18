@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import { changeAppLanguage } from "@/i18n";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,7 +47,7 @@ export function NavUser() {
   }
 
   function toggleLanguage() {
-    void i18n.changeLanguage(i18n.resolvedLanguage === "zh" ? "en" : "zh");
+    void changeAppLanguage(i18n.resolvedLanguage === "zh" ? "en" : "zh");
   }
 
   return (

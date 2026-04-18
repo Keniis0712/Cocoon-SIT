@@ -1,9 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import { Languages, Loader2, Moon, ShieldCheck, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
+import { changeAppLanguage } from "@/i18n";
 import { getPublicFeatures, login, register } from "@/api/user";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Toaster } from "@/components/ui/sonner";
 import { useTheme } from "@/hooks/use-theme";
 import { useUserStore } from "@/store/useUserStore";
 
@@ -99,7 +98,7 @@ export default function LoginPage() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => i18n.changeLanguage(i18n.resolvedLanguage === "zh" ? "en" : "zh")}
+          onClick={() => void changeAppLanguage(i18n.resolvedLanguage === "zh" ? "en" : "zh")}
         >
           <Languages className="h-5 w-5" />
         </Button>
@@ -108,26 +107,13 @@ export default function LoginPage() {
           size="icon"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         >
-          <AnimatePresence mode="wait">
-            {theme === "dark" ? (
-              <motion.div key="sun" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                <Sun className="h-5 w-5" />
-              </motion.div>
-            ) : (
-              <motion.div key="moon" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                <Moon className="h-5 w-5" />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <span className="inline-flex transition-transform duration-200 ease-out">
+            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </span>
         </Button>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="relative z-10"
-      >
+      <div className="relative z-10">
         <Card className="w-full min-w-0 max-w-2xl border-border/60 bg-card/85 shadow-2xl backdrop-blur-sm md:min-w-[42rem]">
           <CardHeader className="space-y-3 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
@@ -234,9 +220,7 @@ export default function LoginPage() {
             </CardFooter>
           </form>
         </Card>
-      </motion.div>
-
-      <Toaster />
+      </div>
     </div>
   );
 }

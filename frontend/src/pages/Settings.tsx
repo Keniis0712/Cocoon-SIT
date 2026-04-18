@@ -3,6 +3,7 @@ import { Languages, MoonStar, Save } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { changeAppLanguage } from "@/i18n";
 import { listModelProviders } from "@/api/providers";
 import { getSystemSettings, triggerRollbackCleanup, updateSystemSettings } from "@/api/settings";
 import type { SystemSettingsUpdate } from "@/api/types";
@@ -288,7 +289,7 @@ export default function SettingsPage() {
               <CardContent className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
                   <Label>{t("common.language")}</Label>
-                  <Select value={currentLanguage} onValueChange={(value) => void i18n.changeLanguage(value)}>
+                  <Select value={currentLanguage} onValueChange={(value) => void changeAppLanguage(value)}>
                     <SelectTrigger>
                       <SelectValue placeholder={t("common.language")} />
                     </SelectTrigger>
