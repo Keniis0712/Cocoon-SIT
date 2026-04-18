@@ -1,0 +1,46 @@
+# VCS and editor noise
+.git/
+.gitignore
+.dockerignore
+.VSCodeCounter/
+
+# Local runtime and temp output
+.artifacts/
+.tmp_pytest/
+coverage/
+htmlcov/
+.pnpm-store/
+
+# Python caches and virtualenvs
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv/
+backend/.venv/
+backend/.coverage
+backend/.artifacts/
+.tmp_pytest
+
+# Node install/build output
+node_modules/
+**/node_modules/
+frontend/node_modules/
+packages/*/node_modules/
+frontend/dist/
+packages/ts-sdk/node_modules/
+
+# Local env files
+.env
+.env.*
+!.env.example
+!deploy/.env.example
+!frontend/.env.example
+
+# Docs and local notes are not needed in image builds
+docs/
+current-architecture.md
+frontend-architecture.md

@@ -1,0 +1,104 @@
+from __future__ import annotations
+
+from datetime import timezone
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user, get_db, require_permission
+from app.models import Message
+from app.schemas.common import AcceptedResponse
+from app.schemas.workspace.cocoons import (
+    ChatMessageCreate,
+    ChatMessageOut,
+    RetryReplyRequest,
+    UserMessageEditRequest,
+)
+from app.services.workspace.message_dispatch_service import MessageDispatchService
+
+
+router = APIRouter()
+
+
+def _accepted_response_for_action(action) -> AcceptedResponse:
+    debounce_until = None
+    if action.debounce_until is not None:
+        debounce_until = int(action.debounce_until.replace(tzinfo=timezone.utc).timestamp())
+    return AcceptedResponse(action_id=action.id, status=action.status, debounce_until=debounce_until)
+
+
+@router.get("/{cocoon_id}/messages", response_model=list[ChatMessageOut])
+def list_messages(
+    cocoon_id: str,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+    _=Depends(require_permission("cocoons:read")),
+) -> list[Message]:
+    db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=False)
+    return list(
+        db.scalars(
+            select(Message).where(Message.cocoon_id == cocoon_id).order_by(Message.created_at.asc())
+        ).all()
+    )
+
+
+@router.post("/{cocoon_id}/messages", status_code=202, response_model=AcceptedResponse)
+def send_message(
+    cocoon_id: str,
+    payload: ChatMessageCreate,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+    _=Depends(require_permission("cocoons:write")),
+) -> AcceptedResponse:
+    db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=True)
+    service: MessageDispatchService = db.info["container"].message_dispatch_service
+    try:
+        action = service.enqueue_chat_message(
+            db,
+            cocoon_id,
+            content=payload.content,
+            client_request_id=payload.client_request_id,
+            timezone=payload.timezone,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return _accepted_response_for_action(action)
+
+
+@router.patch("/{cocoon_id}/user_message", status_code=202, response_model=AcceptedResponse)
+def edit_user_message(
+    cocoon_id: str,
+    payload: UserMessageEditRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+    _=Depends(require_permission("cocoons:write")),
+) -> AcceptedResponse:
+    db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=True)
+    message = db.get(Message, payload.message_id)
+    if not message or message.cocoon_id != cocoon_id or message.role != "user":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User message not found")
+    action = db.info["container"].message_dispatch_service.enqueue_user_message_edit(
+        db,
+        cocoon_id,
+        message=message,
+        content=payload.content,
+    )
+    return _accepted_response_for_action(action)
+
+
+@router.post("/{cocoon_id}/reply/retry", status_code=202, response_model=AcceptedResponse)
+def retry_reply(
+    cocoon_id: str,
+    payload: RetryReplyRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+    _=Depends(require_permission("cocoons:write")),
+) -> AcceptedResponse:
+    db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=True)
+    action = db.info["container"].message_dispatch_service.enqueue_retry(
+        db,
+        cocoon_id,
+        message_id=payload.message_id,
+    )
+    return _accepted_response_for_action(action)

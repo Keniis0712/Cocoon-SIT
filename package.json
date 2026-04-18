@@ -1,0 +1,16 @@
+{
+  "name": "cocoon-sit-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.8.0",
+  "scripts": {
+    "backend:test": "backend\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider backend\\tests",
+    "frontend:dev": "corepack pnpm --dir frontend dev",
+    "frontend:build": "corepack pnpm --dir frontend build",
+    "sdk:generate": "corepack pnpm --dir packages/ts-sdk generate",
+    "sdk:typecheck": "corepack pnpm --dir packages/ts-sdk typecheck",
+    "sdk:sync": "cd backend && .\\.venv\\Scripts\\python.exe -m app.main --dump-openapi && cd .. && corepack pnpm --dir packages/ts-sdk generate",
+    "sdk:verify": "corepack pnpm run sdk:typecheck && corepack pnpm run backend:test",
+    "lint": "corepack pnpm --dir frontend lint"
+  }
+}
