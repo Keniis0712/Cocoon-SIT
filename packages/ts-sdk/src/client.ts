@@ -96,6 +96,10 @@ export class CocoonApiClient {
     return this.request<Schemas["TokenPair"]>("/api/v1/auth/login", { method: "POST", body });
   }
 
+  register(body: Schemas["RegisterRequest"]) {
+    return this.request<Schemas["TokenPair"]>("/api/v1/auth/register", { method: "POST", body });
+  }
+
   refresh(body: Schemas["RefreshRequest"]) {
     return this.request<Schemas["TokenPair"]>("/api/v1/auth/refresh", { method: "POST", body });
   }
@@ -106,6 +110,10 @@ export class CocoonApiClient {
 
   me() {
     return this.request<Schemas["UserOut"]>("/api/v1/auth/me");
+  }
+
+  getPublicFeatures() {
+    return this.request<Schemas["PublicFeaturesOut"]>("/api/v1/auth/features");
   }
 
   listUsers() {
@@ -140,6 +148,26 @@ export class CocoonApiClient {
     return this.request<Schemas["InviteOut"]>("/api/v1/invites", { method: "POST", body });
   }
 
+  revokeInvite(code: string) {
+    return this.request<Schemas["InviteRevokeResult"]>(`/api/v1/invites/${code}`, { method: "DELETE" });
+  }
+
+  listInviteGrants() {
+    return this.request<Schemas["InviteGrantOut"][]>("/api/v1/invites/grants");
+  }
+
+  createInviteGrant(body: Schemas["InviteGrantCreate"]) {
+    return this.request<Schemas["InviteGrantOut"]>("/api/v1/invites/grants", { method: "POST", body });
+  }
+
+  getMyInviteSummary() {
+    return this.request<Schemas["InviteSummaryOut"]>("/api/v1/invites/summary/me");
+  }
+
+  getGroupInviteSummary(groupId: string) {
+    return this.request<Schemas["InviteSummaryOut"]>(`/api/v1/invites/summary/groups/${groupId}`);
+  }
+
   redeemInvite(code: string, body: Schemas["InviteRedeemRequest"]) {
     return this.request<Schemas["InviteRedeemResult"]>(`/api/v1/invites/${code}/redeem`, { method: "POST", body });
   }
@@ -152,6 +180,14 @@ export class CocoonApiClient {
     return this.request<Schemas["GroupOut"]>("/api/v1/groups", { method: "POST", body });
   }
 
+  updateGroup(groupId: string, body: Schemas["GroupUpdate"]) {
+    return this.request<Schemas["GroupOut"]>(`/api/v1/groups/${groupId}`, { method: "PATCH", body });
+  }
+
+  deleteGroup(groupId: string) {
+    return this.request<Schemas["GroupOut"]>(`/api/v1/groups/${groupId}`, { method: "DELETE" });
+  }
+
   listGroupMembers(groupId: string) {
     return this.request<Schemas["GroupMemberOut"][]>(`/api/v1/groups/${groupId}/members`);
   }
@@ -160,6 +196,12 @@ export class CocoonApiClient {
     return this.request<Schemas["GroupMemberOut"]>(`/api/v1/groups/${groupId}/members`, {
       method: "POST",
       body,
+    });
+  }
+
+  removeGroupMember(groupId: string, userId: string) {
+    return this.request<Schemas["GroupMemberOut"]>(`/api/v1/groups/${groupId}/members/${userId}`, {
+      method: "DELETE",
     });
   }
 
@@ -178,6 +220,12 @@ export class CocoonApiClient {
     });
   }
 
+  deleteCharacter(characterId: string) {
+    return this.request<Schemas["CharacterOut"]>(`/api/v1/characters/${characterId}`, {
+      method: "DELETE",
+    });
+  }
+
   listCharacterAcl(characterId: string) {
     return this.request<Schemas["CharacterAclOut"][]>(`/api/v1/characters/${characterId}/acl`);
   }
@@ -186,6 +234,12 @@ export class CocoonApiClient {
     return this.request<Schemas["CharacterAclOut"]>(`/api/v1/characters/${characterId}/acl`, {
       method: "POST",
       body,
+    });
+  }
+
+  deleteCharacterAcl(characterId: string, aclId: string) {
+    return this.request<Schemas["CharacterAclOut"]>(`/api/v1/characters/${characterId}/acl/${aclId}`, {
+      method: "DELETE",
     });
   }
 
@@ -200,6 +254,25 @@ export class CocoonApiClient {
   updateProvider(providerId: string, body: Schemas["ModelProviderCreate"]) {
     return this.request<Schemas["ModelProviderOut"]>(`/api/v1/providers/${providerId}`, {
       method: "PATCH",
+      body,
+    });
+  }
+
+  deleteProvider(providerId: string) {
+    return this.request<Schemas["ModelProviderOut"]>(`/api/v1/providers/${providerId}`, {
+      method: "DELETE",
+    });
+  }
+
+  syncProviderModels(providerId: string) {
+    return this.request<Schemas["AvailableModelOut"][]>(`/api/v1/providers/${providerId}/sync-models`, {
+      method: "POST",
+    });
+  }
+
+  testProvider(providerId: string, body: Schemas["ProviderTestRequest"]) {
+    return this.request<Schemas["ProviderTestOut"]>(`/api/v1/providers/${providerId}/test`, {
+      method: "POST",
       body,
     });
   }
@@ -260,6 +333,18 @@ export class CocoonApiClient {
     return this.request<Schemas["TagOut"]>(`/api/v1/tags/${tagId}`, { method: "PATCH", body });
   }
 
+  deleteTag(tagId: string) {
+    return this.request<Schemas["TagOut"]>(`/api/v1/tags/${tagId}`, { method: "DELETE" });
+  }
+
+  getSystemSettings() {
+    return this.request<Schemas["SystemSettingsOut"]>("/api/v1/settings");
+  }
+
+  updateSystemSettings(body: Schemas["SystemSettingsUpdate"]) {
+    return this.request<Schemas["SystemSettingsOut"]>("/api/v1/settings", { method: "PUT", body });
+  }
+
   listPromptTemplates() {
     return this.request<Schemas["PromptTemplateDetail"][]>("/api/v1/prompt-templates");
   }
@@ -275,6 +360,12 @@ export class CocoonApiClient {
     return this.request<Schemas["PromptTemplateOut"]>(`/api/v1/prompt-templates/${templateType}`, {
       method: "PUT",
       body,
+    });
+  }
+
+  resetPromptTemplate(templateType: string) {
+    return this.request<Schemas["PromptTemplateOut"]>(`/api/v1/prompt-templates/${templateType}/reset`, {
+      method: "POST",
     });
   }
 
@@ -298,6 +389,10 @@ export class CocoonApiClient {
     return this.request<Schemas["CocoonOut"]>(`/api/v1/cocoons/${cocoonId}`, { method: "PATCH", body });
   }
 
+  deleteCocoon(cocoonId: string) {
+    return this.request<Schemas["CocoonOut"]>(`/api/v1/cocoons/${cocoonId}`, { method: "DELETE" });
+  }
+
   getSessionState(cocoonId: string) {
     return this.request<Schemas["SessionStateOut"]>(`/api/v1/cocoons/${cocoonId}/state`);
   }
@@ -314,6 +409,12 @@ export class CocoonApiClient {
     return this.request<Schemas["CocoonTagBindResult"]>(`/api/v1/cocoons/${cocoonId}/tags`, {
       method: "POST",
       body,
+    });
+  }
+
+  unbindCocoonTag(cocoonId: string, tagId: string) {
+    return this.request<Schemas["CocoonTagBindResult"]>(`/api/v1/cocoons/${cocoonId}/tags/${tagId}`, {
+      method: "DELETE",
     });
   }
 
@@ -353,6 +454,12 @@ export class CocoonApiClient {
     return this.request<Schemas["DurableJobOut"]>(`/api/v1/memory/${cocoonId}/compact`, {
       method: "POST",
       body,
+    });
+  }
+
+  deleteMemory(cocoonId: string, memoryId: string) {
+    return this.request<Schemas["MemoryChunkOut"]>(`/api/v1/memory/${cocoonId}/${memoryId}`, {
+      method: "DELETE",
     });
   }
 

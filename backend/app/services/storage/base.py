@@ -11,5 +11,9 @@ class ArtifactStore(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def read_text(self, relative_path: str) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
     def delete(self, relative_path: str) -> None:
         raise NotImplementedError

@@ -6,7 +6,7 @@ import {
   Binary,
   BarChart3,
   BrainCircuit,
-  Boxes,
+  FileCode2,
   FileSearch,
   FolderTree,
   GitMerge,
@@ -31,6 +31,7 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { hasAnyPermission } from "@/lib/permissions";
 import { useUserStore } from "@/store/useUserStore";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -38,31 +39,49 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const userInfo = useUserStore((state) => state.userInfo);
 
   const workspaceItems = [
-    { title: t("nav.cocoons"), url: "/cocoons", icon: <BrainCircuit /> },
-    { title: t("nav.characters"), url: "/characters", icon: <Users /> },
-    { title: t("nav.merges"), url: "/merges", icon: <GitMerge /> },
-    { title: "Tags", url: "/tags", icon: <Tags /> },
-  ];
+    hasAnyPermission(userInfo, ["cocoons:read", "cocoons:write"])
+      ? { title: t("nav.cocoons"), url: "/cocoons", icon: <BrainCircuit /> }
+      : null,
+    hasAnyPermission(userInfo, ["characters:read", "characters:write"])
+      ? { title: t("nav.characters"), url: "/characters", icon: <Users /> }
+      : null,
+    hasAnyPermission(userInfo, ["merges:write"])
+      ? { title: t("nav.merges"), url: "/merges", icon: <GitMerge /> }
+      : null,
+    hasAnyPermission(userInfo, ["tags:read", "tags:write"])
+      ? { title: t("nav.tags"), url: "/tags", icon: <Tags /> }
+      : null,
+  ].filter(Boolean) as { title: string; url: string; icon: ReactNode }[];
 
   const collaborationItems = [
-    { title: t("nav.groups"), url: "/groups", icon: <FolderTree /> },
-    { title: "Chat Groups", url: "/chat-groups", icon: <Boxes /> },
-    { title: t("nav.invites"), url: "/invites", icon: <KeyRound /> },
-  ];
+    hasAnyPermission(userInfo, ["users:read", "users:write"])
+      ? { title: t("nav.groups"), url: "/groups", icon: <FolderTree /> }
+      : null,
+    hasAnyPermission(userInfo, ["users:read", "users:write"])
+      ? { title: t("nav.invites"), url: "/invites", icon: <KeyRound /> }
+      : null,
+  ].filter(Boolean) as { title: string; url: string; icon: ReactNode }[];
 
   const managementItems = [
-    userInfo?.can_manage_users
+    hasAnyPermission(userInfo, ["users:read", "users:write"])
       ? { title: t("nav.users"), url: "/users", icon: <Users /> }
       : null,
-    userInfo?.can_manage_providers
+    hasAnyPermission(userInfo, ["providers:read", "providers:write"])
       ? { title: t("nav.providers"), url: "/providers", icon: <Binary /> }
       : null,
-    userInfo?.can_manage_providers
-      ? { title: "Embedding", url: "/embedding-providers", icon: <Binary /> }
+    hasAnyPermission(userInfo, ["prompt_templates:read", "prompt_templates:write"])
+      ? { title: t("nav.prompts"), url: "/prompt-templates", icon: <FileCode2 /> }
       : null,
-    userInfo?.can_audit ? { title: t("nav.audits"), url: "/audits", icon: <FileSearch /> } : null,
-    userInfo?.can_manage_system ? { title: t("nav.insights"), url: "/insights", icon: <BarChart3 /> } : null,
-    userInfo?.can_manage_system
+    hasAnyPermission(userInfo, ["providers:read", "providers:write"])
+      ? { title: t("nav.embeddingProviders"), url: "/embedding-providers", icon: <Binary /> }
+      : null,
+    hasAnyPermission(userInfo, ["audits:read"])
+      ? { title: t("nav.audits"), url: "/audits", icon: <FileSearch /> }
+      : null,
+    hasAnyPermission(userInfo, ["insights:read"])
+      ? { title: t("nav.insights"), url: "/insights", icon: <BarChart3 /> }
+      : null,
+    hasAnyPermission(userInfo, ["artifacts:cleanup", "roles:write", "prompt_templates:write"])
       ? { title: t("nav.settings"), url: "/settings", icon: <Settings2 /> }
       : null,
   ].filter(Boolean) as { title: string; url: string; icon: ReactNode }[];

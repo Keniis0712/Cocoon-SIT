@@ -57,3 +57,16 @@ class PromptTemplateAdminService:
             actor_user_id=user.id,
         )
         return PromptTemplateOut.model_validate(template)
+
+    def reset_template(
+        self,
+        session: Session,
+        template_type: str,
+        user: User,
+    ) -> PromptTemplateOut:
+        template = self.prompt_service.reset_template(
+            session=session,
+            template_type=template_type,
+            actor_user_id=user.id,
+        )
+        return PromptTemplateOut.model_validate(template)

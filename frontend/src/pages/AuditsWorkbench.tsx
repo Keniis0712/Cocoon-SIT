@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  ChevronDown,
   Clock3,
   FileSearch,
   GitBranch,
@@ -17,12 +18,13 @@ import { useSearchParams } from "react-router-dom";
 
 import { getAuditRun, getAuditTimeline, listAuditRuns } from "@/api/adminAudits";
 import { getCocoons } from "@/api/cocoons";
-import type { AuditArtifactRead, AuditRunDetail, AuditRunListItem, AuditTimelineItem, CocoonRead } from "@/api/types";
+import type { AuditArtifactRead, AuditRunDetail, AuditRunListItem, AuditStepRead, AuditTimelineItem, CocoonRead } from "@/api/types";
 import AccessCard from "@/components/AccessCard";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,7 +37,10 @@ function formatDate(value: string | null | undefined) {
 function SummaryMetric({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
   return (
     <div className="rounded-2xl border border-border/70 p-4 text-sm">
-      <div className="mb-3 flex items-center gap-2 text-muted-foreground">{icon}<span>{label}</span></div>
+      <div className="mb-3 flex items-center gap-2 text-muted-foreground">
+        {icon}
+        <span>{label}</span>
+      </div>
       <div className="font-medium">{value}</div>
     </div>
   );
@@ -45,41 +50,109 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function renderValue(value: unknown, depth = 0): ReactNode {
+function humanizeKey(value: string) {
+  return value.replace(/_/g, " ");
+}
+
+function StructuredValue({
+  value,
+  label,
+  depth = 0,
+}: {
+  value: unknown;
+  label?: string;
+  depth?: number;
+}) {
+  const { t } = useTranslation();
+  const triggerLabel = label || t("audits.data");
+
   if (Array.isArray(value)) {
     if (!value.length) return <span className="text-muted-foreground">[]</span>;
     return (
-      <div className="space-y-2">
-        {value.map((item, index) => (
-          <div key={`${depth}-${index}`} className="rounded-xl border border-border/60 bg-background/60 p-3">
-            <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Item {index + 1}</div>
-            {renderValue(item, depth + 1)}
+      <Collapsible className="rounded-xl border border-border/60 bg-background/40">
+        <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
+          <div>
+            <div className="text-sm font-medium">{triggerLabel}</div>
+            <div className="text-xs text-muted-foreground">{t("audits.arrayCount", { count: value.length })}</div>
           </div>
-        ))}
-      </div>
+          <ChevronDown className="size-4 text-muted-foreground transition data-[state=open]:rotate-180" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="border-t border-border/60 px-4 py-3">
+          <div className="space-y-2">
+            {value.map((item, index) => (
+              <StructuredValue
+                key={`${depth}-${index}`}
+                value={item}
+                label={t("audits.arrayItem", { index: index + 1 })}
+                depth={depth + 1}
+              />
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     );
   }
+
   if (isRecord(value)) {
-    const entries = Object.entries(value);
+    const entries = Object.entries(value).filter(([, item]) => item !== undefined);
     if (!entries.length) return <span className="text-muted-foreground">{"{}"}</span>;
     return (
-      <div className="grid gap-2">
-        {entries.map(([key, item]) => (
-          <div key={`${depth}-${key}`} className="rounded-xl border border-border/60 bg-background/60 p-3">
-            <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">{key.replace(/_/g, " ")}</div>
-            {renderValue(item, depth + 1)}
+      <Collapsible className="rounded-xl border border-border/60 bg-background/40">
+        <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
+          <div>
+            <div className="text-sm font-medium">{triggerLabel}</div>
+            <div className="text-xs text-muted-foreground">{t("audits.fieldCount", { count: entries.length })}</div>
           </div>
-        ))}
-      </div>
+          <ChevronDown className="size-4 text-muted-foreground transition data-[state=open]:rotate-180" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="border-t border-border/60 px-4 py-3">
+          <div className="grid gap-2">
+            {entries.map(([key, item]) => (
+              <StructuredValue key={`${depth}-${key}`} value={item} label={humanizeKey(key)} depth={depth + 1} />
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     );
   }
+
   if (value === null || value === undefined || value === "") return <span className="text-muted-foreground">-</span>;
   if (typeof value === "boolean") return <Badge variant={value ? "default" : "secondary"}>{String(value)}</Badge>;
   return <span className="whitespace-pre-wrap break-words text-sm leading-6">{String(value)}</span>;
 }
 
-function artifactMap(artifacts: AuditArtifactRead[]) {
-  return new Map(artifacts.map((item) => [item.artifact_type, item]));
+function describeRelationEndpoint(
+  link: AuditRunDetail["links"][number],
+  artifactsById: Map<string, AuditArtifactRead>,
+  stepsById: Map<string, AuditStepRead>,
+  stepTitle: (value: string) => string,
+  artifactTitle: (value: string) => string,
+  side: "source" | "target",
+) {
+  const artifactId = side === "source" ? link.source_artifact_id : link.target_artifact_id;
+  const stepId = side === "source" ? link.source_step_id : link.target_step_id;
+
+  if (artifactId) {
+    const artifact = artifactsById.get(artifactId);
+    return {
+      type: "artifact",
+      title: artifact ? artifactTitle(String(artifact.artifact_type)) : artifactTitle("unknown"),
+      id: artifactId,
+    };
+  }
+  if (stepId) {
+    const step = stepsById.get(stepId);
+    return {
+      type: "step",
+      title: step ? stepTitle(step.step_name) : stepId,
+      id: stepId,
+    };
+  }
+  return {
+    type: "unknown",
+    title: "-",
+    id: null,
+  };
 }
 
 export default function AuditsWorkbenchPage() {
@@ -104,16 +177,15 @@ export default function AuditsWorkbenchPage() {
 
   useEffect(() => {
     if (!canAudit) return;
-    async function loadCocoons() {
+    void (async () => {
       const response = await getCocoons(1, 100);
       setCocoons(response.items);
-    }
-    void loadCocoons();
+    })();
   }, [canAudit]);
 
   useEffect(() => {
     if (!canAudit) return;
-    async function loadRuns() {
+    void (async () => {
       setIsLoading(true);
       try {
         const cocoonId = selectedCocoonId !== "all" ? Number(selectedCocoonId) : undefined;
@@ -136,8 +208,7 @@ export default function AuditsWorkbenchPage() {
       } finally {
         setIsLoading(false);
       }
-    }
-    void loadRuns();
+    })();
   }, [canAudit, selectedCocoonId, query, roundUid, statusFilter, triggerType, decision, page]);
 
   async function openRun(item: AuditRunListItem) {
@@ -154,12 +225,36 @@ export default function AuditsWorkbenchPage() {
     () => cocoons.find((item) => String(item.id) === selectedCocoonId) || null,
     [cocoons, selectedCocoonId],
   );
-  const artifacts = useMemo(() => artifactMap(selectedRun?.artifacts || []), [selectedRun]);
-  const statusLabel = (value: string | null | undefined) => value ? t(`audits.statusValues.${value}`, { defaultValue: value }) : "-";
-  const triggerLabel = (value: string | null | undefined) => value ? t(`audits.triggerValues.${value}`, { defaultValue: value }) : "-";
-  const decisionLabel = (value: string | null | undefined) => value ? t(`audits.decisionValues.${value}`, { defaultValue: value }) : "-";
-  const operationLabel = (value: string | null | undefined) => value ? t(`audits.operationValues.${value}`, { defaultValue: value }) : "-";
+  const statusLabel = (value: string | null | undefined) =>
+    value ? t(`audits.statusValues.${value}`, { defaultValue: value }) : "-";
+  const triggerLabel = (value: string | null | undefined) =>
+    value ? t(`audits.triggerValues.${value}`, { defaultValue: value }) : "-";
+  const decisionLabel = (value: string | null | undefined) =>
+    value ? t(`audits.decisionValues.${value}`, { defaultValue: value }) : "-";
+  const operationLabel = (value: string | null | undefined) =>
+    value ? t(`audits.operationValues.${value}`, { defaultValue: value }) : "-";
   const artifactTitle = (value: string) => t(`audits.artifacts.${value}`, { defaultValue: value });
+  const stepTitle = (value: string) => t(`audits.stepNames.${value}`, { defaultValue: value });
+  const relationTitle = (value: string) => t(`audits.relationTypes.${value}`, { defaultValue: value });
+
+  const artifactsById = useMemo(() => {
+    const map = new Map<string, AuditArtifactRead>();
+    for (const artifact of selectedRun?.artifacts || []) {
+      if (artifact.raw_uid) {
+        map.set(artifact.raw_uid, artifact);
+      }
+    }
+    return map;
+  }, [selectedRun]);
+  const stepsById = useMemo(() => {
+    const map = new Map<string, AuditStepRead>();
+    for (const step of selectedRun?.steps || []) {
+      if (step.raw_uid) {
+        map.set(step.raw_uid, step);
+      }
+    }
+    return map;
+  }, [selectedRun]);
 
   if (!canAudit) return <AccessCard description={t("audits.noPermission")} />;
 
@@ -173,7 +268,10 @@ export default function AuditsWorkbenchPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base"><FileSearch className="size-4 text-primary" />{t("audits.filters")}</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileSearch className="size-4 text-primary" />
+                {t("audits.filters")}
+              </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
               <div className="grid gap-2">
@@ -252,7 +350,7 @@ export default function AuditsWorkbenchPage() {
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span>{triggerLabel(item.trigger_type)}</span>
-                    <span>{item.model_name || t("audits.unknownModel")}</span>
+                    {item.model_name ? <span>{item.model_name}</span> : null}
                     <span>{formatDate(item.created_at)}</span>
                   </div>
                   <div className="mt-2 line-clamp-2 text-sm text-muted-foreground">
@@ -269,7 +367,10 @@ export default function AuditsWorkbenchPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base"><ListTree className="size-4 text-primary" />{t("audits.timelineTitle")}</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ListTree className="size-4 text-primary" />
+                {t("audits.timelineTitle")}
+              </CardTitle>
               <CardDescription>{t("audits.timelineDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -360,40 +461,63 @@ export default function AuditsWorkbenchPage() {
                 </Card>
 
                 <div className="grid gap-3">
-                  {[
-                    ["input_metadata", "Inputs"],
-                    ["meta_result", "Meta Decision"],
-                    ["state_after", "State Delta"],
-                    ["schedule_after", "Schedule Result"],
-                    ["pull_candidates", "Pull Candidates"],
-                    ["pull_selected", "Pull Selection"],
-                    ["merge_candidates", "Merge Candidates"],
-                    ["merge_selected", "Merge Selection"],
-                    ["generator_output", "Generator Output"],
-                    ["retrieved_memories", "Retrieved Memories"],
-                    ["internal_events", "Internal Events"],
-                  ].map(([artifactType, title]) => {
-                    const artifact = artifacts.get(artifactType);
-                    if (!artifact) return null;
-                    return (
-                      <Card key={artifactType} className="border-border/70 bg-background/30">
-                        <CardHeader><CardTitle className="text-base">{artifactTitle(String(artifactType))}</CardTitle></CardHeader>
-                        <CardContent>{renderValue(artifact.payload)}</CardContent>
-                      </Card>
-                    );
-                  })}
+                  {selectedRun.artifacts.map((artifact) => (
+                    <Collapsible key={`${artifact.artifact_type}-${artifact.id}`} className="rounded-xl border border-border/70 bg-background/30">
+                      <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 px-6 py-4 text-left">
+                        <div>
+                          <div className="text-base font-semibold">{artifactTitle(String(artifact.artifact_type))}</div>
+                          {artifact.title ? <div className="mt-1 text-sm text-muted-foreground">{artifact.title}</div> : null}
+                        </div>
+                        <ChevronDown className="size-4 text-muted-foreground transition data-[state=open]:rotate-180" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="border-t border-border/70 px-6 py-4">
+                        <StructuredValue value={artifact.payload} label={artifactTitle(String(artifact.artifact_type))} />
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ))}
+                  {!selectedRun.artifacts.length ? <div className="text-sm text-muted-foreground">{t("audits.traceEmpty")}</div> : null}
                 </div>
 
                 <Card className="border-border/70 bg-background/30">
-                  <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Link2 className="size-4 text-primary" />{t("audits.linksTitle")}</CardTitle></CardHeader>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Link2 className="size-4 text-primary" />
+                      {t("audits.relationsTitle")}
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent className="space-y-3">
-                    {selectedRun.links.map((link) => (
-                      <div key={link.id} className="rounded-2xl border border-border/70 p-4 text-sm">
-                        <div className="font-medium">{link.label || link.link_type}</div>
-                        <div className="text-xs text-muted-foreground">{t(`audits.linkTypes.${link.link_type}`, { defaultValue: link.link_type })} · {link.target_uid || link.target_id || "-"}</div>
-                      </div>
-                    ))}
-                    {!selectedRun.links.length ? <div className="text-sm text-muted-foreground">{t("audits.linksEmpty")}</div> : null}
+                    {selectedRun.links.map((link) => {
+                      const source = describeRelationEndpoint(link, artifactsById, stepsById, stepTitle, artifactTitle, "source");
+                      const target = describeRelationEndpoint(link, artifactsById, stepsById, stepTitle, artifactTitle, "target");
+                      return (
+                        <Collapsible key={link.id} className="rounded-2xl border border-border/70">
+                          <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
+                            <div>
+                              <div className="font-medium">{relationTitle(link.relation)}</div>
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {source.title} → {target.title}
+                              </div>
+                            </div>
+                            <ChevronDown className="size-4 text-muted-foreground transition data-[state=open]:rotate-180" />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="border-t border-border/70 px-4 py-3 text-sm">
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div className="rounded-xl border border-border/60 bg-background/50 p-3">
+                                <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("audits.relationSource")}</div>
+                                <div className="mt-2 font-medium">{source.title}</div>
+                                <div className="mt-1 text-xs text-muted-foreground">{source.id || "-"}</div>
+                              </div>
+                              <div className="rounded-xl border border-border/60 bg-background/50 p-3">
+                                <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("audits.relationTarget")}</div>
+                                <div className="mt-2 font-medium">{target.title}</div>
+                                <div className="mt-1 text-xs text-muted-foreground">{target.id || "-"}</div>
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      );
+                    })}
+                    {!selectedRun.links.length ? <div className="text-sm text-muted-foreground">{t("audits.relationsEmpty")}</div> : null}
                   </CardContent>
                 </Card>
               </div>

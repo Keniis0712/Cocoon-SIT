@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { isAxiosError } from "axios";
-import { ArrowLeft, ChevronUp, Loader2, MemoryStick, Plus, RefreshCcw, X } from "lucide-react";
+import { ArrowLeft, ChevronUp, Loader2, MemoryStick, Plus, RefreshCcw } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
-import { compactCocoonContext, connectCocoonWorkspaceSocket, getCocoon, getCocoonMessages, retryCocoonReply, sendCocoonMessage, updateCocoon } from "@/api/cocoons";
+import { compactCocoonContext, getCocoon, getCocoonMessages, getCocoonSessionState, retryCocoonReply, sendCocoonMessage, updateCocoon } from "@/api/cocoons";
 import { listModelProviders } from "@/api/providers";
 import { bindCocoonTags, listTags } from "@/api/tags";
 import type { AvailableModelRead, CocoonRead, MessageRead, RuntimeWsEvent, TagRead } from "@/api/types";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useCocoonWs } from "@/hooks/useCocoonWs";
 import { useChatSessionStore } from "@/store/useChatSessionStore";
 
 function formatTime(value: string | null | undefined) {
@@ -30,7 +31,6 @@ export default function CocoonWorkspacePage() {
   const cocoonId = Number(params.cocoonId);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const typingStartedAtRef = useRef<number | null>(null);
-  const socketRef = useRef<WebSocket | null>(null);
   const hasAutoScrolledRef = useRef(false);
 
   const [selectedCocoon, setSelectedCocoon] = useState<CocoonRead | null>(null);
@@ -75,13 +75,20 @@ export default function CocoonWorkspacePage() {
     resetSession(cocoonId);
     hasAutoScrolledRef.current = false;
     void loadWorkspace(true);
-    connectSocket();
-
-    return () => {
-      socketRef.current?.close();
-      socketRef.current = null;
-    };
   }, [cocoonId]);
+
+  useCocoonWs({
+    cocoonId,
+    enabled: Number.isFinite(cocoonId) && cocoonId > 0,
+    onEvent: handleSocketEvent,
+    onRecover: async () => {
+      await loadWorkspace(false);
+      toast.success("Realtime connection restored");
+    },
+    onError: (message) => {
+      setError(cocoonId, message);
+    },
+  });
 
   useEffect(() => {
     if (!viewportRef.current) return;
@@ -91,19 +98,11 @@ export default function CocoonWorkspacePage() {
     }
   }, [visibleMessages.length]);
 
-  function connectSocket() {
-    socketRef.current?.close();
-    socketRef.current = connectCocoonWorkspaceSocket(cocoonId, {
-      onMessage: handleSocketEvent,
-      onError: () => {
-        setError(cocoonId, "Realtime connection error");
-      },
-    });
-  }
-
   function handleSocketEvent(event: RuntimeWsEvent) {
     if (event.type === "reply_started") {
-      upsertMessage(cocoonId, event.user_message);
+      if ("user_message" in event && event.user_message) {
+        upsertMessage(cocoonId, event.user_message);
+      }
       setStreamingAssistant(cocoonId, "");
       applyStatePatch(cocoonId, { dispatchState: "running", dispatchReason: null });
       return;
@@ -113,7 +112,11 @@ export default function CocoonWorkspacePage() {
       return;
     }
     if (event.type === "reply_done") {
-      upsertMessage(cocoonId, event.assistant_message);
+      if ("assistant_message" in event && event.assistant_message) {
+        upsertMessage(cocoonId, event.assistant_message);
+      } else {
+        void loadWorkspace(false);
+      }
       setStreamingAssistant(cocoonId, "");
       applyStatePatch(cocoonId, { dispatchState: "idle", dispatchReason: null });
       queueMicrotask(() => {
@@ -129,6 +132,7 @@ export default function CocoonWorkspacePage() {
         personaJson: event.persona_json,
         activeTags: event.active_tags,
         currentModelId: event.current_model_id,
+        currentWakeupTaskId: event.current_wakeup_task_id ?? null,
         dispatchState: "idle",
         dispatchReason: null,
       });
@@ -138,6 +142,7 @@ export default function CocoonWorkspacePage() {
       applyStatePatch(cocoonId, {
         dispatchState: event.status || "queued",
         dispatchReason: event.reason ?? null,
+        debounceUntil: event.debounce_until ?? null,
       });
       return;
     }
@@ -154,8 +159,9 @@ export default function CocoonWorkspacePage() {
       setIsLoading(true);
     }
     try {
-      const [cocoon, messageResponse, providerResponse, tagItems] = await Promise.all([
+      const [cocoon, sessionState, messageResponse, providerResponse, tagItems] = await Promise.all([
         getCocoon(cocoonId),
+        getCocoonSessionState(cocoonId),
         getCocoonMessages(cocoonId, null, 50),
         listModelProviders(1, 100),
         listTags(),
@@ -172,10 +178,14 @@ export default function CocoonWorkspacePage() {
       setSelectedTagIds((cocoon.tags || []).map((item: { id: number }) => item.id));
       setMessages(cocoonId, sortedMessages);
       applyStatePatch(cocoonId, {
-        activeTags: cocoon.tags?.map((item) => item.name) || [],
-        currentModelId: cocoon.selected_model_id,
-        dispatchState: cocoon.dispatch_job?.status || cocoon.dispatch_status,
+        relationScore: sessionState.relation_score,
+        personaJson: sessionState.persona_json,
+        activeTags: sessionState.active_tags,
+        currentModelId: sessionState.current_model_id ?? cocoon.selected_model_id,
+        currentWakeupTaskId: sessionState.current_wakeup_task_id,
+        dispatchState: sessionState.dispatch_status || cocoon.dispatch_job?.status || cocoon.dispatch_status,
         dispatchReason: null,
+        debounceUntil: sessionState.debounce_until,
       });
       setHasMore(sortedMessages.length < messageResponse.total);
       setError(cocoonId, null);
@@ -230,7 +240,11 @@ export default function CocoonWorkspacePage() {
         typing_hint_ms: typingHint,
       });
       upsertMessage(cocoonId, result.user_message);
-      applyStatePatch(cocoonId, { dispatchState: result.dispatch_status, dispatchReason: null });
+      applyStatePatch(cocoonId, {
+        dispatchState: result.dispatch_status,
+        dispatchReason: null,
+        debounceUntil: result.debounce_until,
+      });
       setMessageInput("");
       typingStartedAtRef.current = null;
       queueMicrotask(() => {
@@ -289,11 +303,7 @@ export default function CocoonWorkspacePage() {
     setIsCompacting(true);
     try {
       const result = await compactCocoonContext(cocoonId, { mode: "manual" });
-      if (result.triggered) {
-        toast.success(`Compacted ${result.selected_message_count} messages into ${result.persisted_count} memories`);
-      } else {
-        toast.success(result.reason || "No context needed compaction");
-      }
+      toast.success(`Compaction job queued: ${result.status}`);
       await loadWorkspace(false);
     } catch (error) {
       console.error(error);
@@ -321,10 +331,6 @@ export default function CocoonWorkspacePage() {
       setIsUpdatingTags(false);
       setAddTagValue("__add");
     }
-  }
-
-  async function handleRemoveTag(tagId: number) {
-    await persistTagIds(selectedTagIds.filter((item) => item !== tagId));
   }
 
   async function handleAddTag(value: string) {
@@ -461,19 +467,20 @@ export default function CocoonWorkspacePage() {
               <div className="rounded-2xl border border-border/70 bg-background/60 p-3">
                 <div className="flex flex-wrap gap-2">
                   {(selectedCocoon?.tags || []).map((tag) => (
-                    <Badge key={tag.id} variant="secondary" className="gap-1 pr-1">
-                      <span>{tag.name}</span>
-                      <button
-                        type="button"
-                        className="rounded-full p-0.5 hover:bg-black/10"
-                        disabled={isUpdatingTags}
-                        onClick={() => void handleRemoveTag(tag.id)}
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </Badge>
+                    <button
+                      key={tag.id}
+                      type="button"
+                      className="inline-flex items-center rounded-full"
+                      onClick={() => void persistTagIds(selectedTagIds.filter((id) => id !== tag.id))}
+                      disabled={isUpdatingTags}
+                    >
+                      <Badge variant="secondary">{tag.name} x</Badge>
+                    </button>
                   ))}
                   {!selectedCocoon?.tags?.length ? <span className="text-sm text-muted-foreground">No tags enabled</span> : null}
+                </div>
+                <div className="mt-3 text-xs text-muted-foreground">
+                  Click an existing tag to remove it, or add more tags below.
                 </div>
                 <div className="mt-3">
                   <Select value={addTagValue} onValueChange={(value) => void handleAddTag(value)} disabled={isUpdatingTags || !availableAddableTags.length}>
@@ -515,7 +522,15 @@ export default function CocoonWorkspacePage() {
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">Dispatch: {session?.dispatchState || selectedCocoon?.dispatch_status || "idle"}</Badge>
                 <Badge variant="outline">Relation: {session?.relationScore ?? "-"}</Badge>
+                <Badge variant="outline">
+                  Wakeup: {session?.currentWakeupTaskId ? `#${session.currentWakeupTaskId}` : "none"}
+                </Badge>
               </div>
+              {session?.debounceUntil ? (
+                <div className="mt-3 text-xs text-muted-foreground">
+                  Debounced until {formatTime(session.debounceUntil)}
+                </div>
+              ) : null}
               {session?.dispatchReason ? <div className="mt-3 text-xs text-muted-foreground">{session.dispatchReason}</div> : null}
               {session?.lastError ? <div className="mt-3 text-sm text-destructive">{session.lastError}</div> : null}
             </div>

@@ -1,6 +1,7 @@
 from sqlalchemy import select
 
 from app.models import PromptTemplate, PromptTemplateRevision, Role, User
+from app.services.prompts.registry import DEFAULT_TEMPLATES
 from app.services.security.encryption import hash_secret
 
 
@@ -76,3 +77,25 @@ def test_rbac_blocks_prompt_template_write_for_operator(client):
         },
     )
     assert response.status_code == 403
+
+
+def test_prompt_template_can_reset_to_default(client, auth_headers):
+    update_response = client.put(
+        "/api/v1/prompt-templates/system",
+        headers=auth_headers,
+        json={
+            "name": "Custom System",
+            "description": "Temporary override",
+            "content": "Custom {{ character_settings }}",
+        },
+    )
+    assert update_response.status_code == 200, update_response.text
+
+    reset_response = client.post("/api/v1/prompt-templates/system/reset", headers=auth_headers)
+    assert reset_response.status_code == 200, reset_response.text
+
+    listing = client.get("/api/v1/prompt-templates", headers=auth_headers)
+    assert listing.status_code == 200
+    system_template = next(item for item in listing.json() if item["template_type"] == "system")
+    assert system_template["active_revision"]["content"] == DEFAULT_TEMPLATES["system"][1]
+    assert system_template["description"] == ""

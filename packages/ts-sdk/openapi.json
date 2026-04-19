@@ -68,6 +68,47 @@
         }
       }
     },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Register",
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/refresh": {
       "post": {
         "tags": [
@@ -174,6 +215,27 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/auth/features": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Public Features",
+        "operationId": "public_features_api_v1_auth_features_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicFeaturesOut"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/users": {
@@ -512,6 +574,200 @@
         ]
       }
     },
+    "/api/v1/invites/{code}": {
+      "delete": {
+        "tags": [
+          "invites"
+        ],
+        "summary": "Revoke Invite",
+        "operationId": "revoke_invite_api_v1_invites__code__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteRevokeResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invites/grants": {
+      "get": {
+        "tags": [
+          "invites"
+        ],
+        "summary": "List Invite Grants",
+        "operationId": "list_invite_grants_api_v1_invites_grants_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InviteGrantOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Invite Grants Api V1 Invites Grants Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "invites"
+        ],
+        "summary": "Create Invite Grant",
+        "operationId": "create_invite_grant_api_v1_invites_grants_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteGrantCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteGrantOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/invites/summary/me": {
+      "get": {
+        "tags": [
+          "invites"
+        ],
+        "summary": "Get My Invite Summary",
+        "operationId": "get_my_invite_summary_api_v1_invites_summary_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteSummaryOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/invites/summary/groups/{group_id}": {
+      "get": {
+        "tags": [
+          "invites"
+        ],
+        "summary": "Get Group Invite Summary",
+        "operationId": "get_group_invite_summary_api_v1_invites_summary_groups__group_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteSummaryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invites/{code}/redeem": {
       "post": {
         "tags": [
@@ -643,6 +899,108 @@
         ]
       }
     },
+    "/api/v1/groups/{group_id}": {
+      "patch": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Update Group",
+        "operationId": "update_group_api_v1_groups__group_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Delete Group",
+        "operationId": "delete_group_api_v1_groups__group_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/groups/{group_id}/members": {
       "get": {
         "tags": [
@@ -725,6 +1083,62 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupMemberOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/groups/{group_id}/members/{user_id}": {
+      "delete": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Remove Group Member",
+        "operationId": "remove_group_member_api_v1_groups__group_id__members__user_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -878,6 +1292,51 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "characters"
+        ],
+        "summary": "Delete Character",
+        "operationId": "delete_character_api_v1_characters__character_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Character Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacterOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/characters/{character_id}/acl": {
@@ -962,6 +1421,62 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacterAclOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/characters/{character_id}/acl/{acl_id}": {
+      "delete": {
+        "tags": [
+          "characters"
+        ],
+        "summary": "Delete Character Acl",
+        "operationId": "delete_character_acl_api_v1_characters__character_id__acl__acl_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Character Id"
+            }
+          },
+          {
+            "name": "acl_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Acl Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1100,6 +1615,159 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ModelProviderOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "providers"
+        ],
+        "summary": "Delete Provider",
+        "operationId": "delete_provider_api_v1_providers__provider_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelProviderOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/providers/{provider_id}/sync-models": {
+      "post": {
+        "tags": [
+          "providers"
+        ],
+        "summary": "Sync Provider Models",
+        "operationId": "sync_provider_models_api_v1_providers__provider_id__sync_models_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AvailableModelOut"
+                  },
+                  "title": "Response Sync Provider Models Api V1 Providers  Provider Id  Sync Models Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/providers/{provider_id}/test": {
+      "post": {
+        "tags": [
+          "providers"
+        ],
+        "summary": "Test Provider",
+        "operationId": "test_provider_api_v1_providers__provider_id__test_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderTestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderTestOut"
                 }
               }
             }
@@ -1610,6 +2278,121 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "tags"
+        ],
+        "summary": "Delete Tag",
+        "operationId": "delete_tag_api_v1_tags__tag_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tag Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get System Settings",
+        "operationId": "get_system_settings_api_v1_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Update System Settings",
+        "operationId": "update_system_settings_api_v1_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/prompt-templates": {
@@ -1730,6 +2513,53 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptTemplateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prompt-templates/{template_type}/reset": {
+      "post": {
+        "tags": [
+          "prompt-templates"
+        ],
+        "summary": "Reset Prompt Template",
+        "operationId": "reset_prompt_template_api_v1_prompt_templates__template_type__reset_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "template_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Type"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1890,6 +2720,51 @@
         ],
         "summary": "Get Cocoon",
         "operationId": "get_cocoon_api_v1_cocoons__cocoon_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cocoon_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cocoon Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CocoonOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "cocoons"
+        ],
+        "summary": "Delete Cocoon",
+        "operationId": "delete_cocoon_api_v1_cocoons__cocoon_id__delete",
         "security": [
           {
             "HTTPBearer": []
@@ -2333,6 +3208,62 @@
         }
       }
     },
+    "/api/v1/cocoons/{cocoon_id}/tags/{tag_id}": {
+      "delete": {
+        "tags": [
+          "cocoons"
+        ],
+        "summary": "Unbind Cocoon Tag",
+        "operationId": "unbind_cocoon_tag_api_v1_cocoons__cocoon_id__tags__tag_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cocoon_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cocoon Id"
+            }
+          },
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tag Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CocoonTagBindResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/cocoons/{cocoon_id}/rollback": {
       "post": {
         "tags": [
@@ -2481,6 +3412,62 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DurableJobOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memory/{cocoon_id}/{memory_id}": {
+      "delete": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Delete Memory",
+        "operationId": "delete_memory_api_v1_memory__cocoon_id___memory_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cocoon_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cocoon Id"
+            }
+          },
+          {
+            "name": "memory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Memory Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryChunkOut"
                 }
               }
             }
@@ -3059,6 +4046,29 @@
         ],
         "title": "AcceptedResponse"
       },
+      "AllowedModelOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "provider_id": {
+            "type": "string",
+            "title": "Provider Id"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "provider_id",
+          "model_name"
+        ],
+        "title": "AllowedModelOut"
+      },
       "ArtifactCleanupRequest": {
         "properties": {
           "artifact_ids": {
@@ -3112,6 +4122,9 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Metadata Json"
+          },
+          "payload_json": {
+            "title": "Payload Json"
           },
           "expires_at": {
             "anyOf": [
@@ -3880,14 +4893,38 @@
             "title": "Parent Id"
           },
           "default_temperature": {
-            "type": "number",
-            "title": "Default Temperature",
-            "default": 0.7
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Temperature"
           },
           "max_context_messages": {
-            "type": "integer",
-            "title": "Max Context Messages",
-            "default": 12
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Context Messages"
+          },
+          "auto_compaction_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Compaction Enabled"
           }
         },
         "type": "object",
@@ -3920,6 +4957,18 @@
             "type": "string",
             "title": "Selected Model Id"
           },
+          "default_temperature": {
+            "type": "number",
+            "title": "Default Temperature"
+          },
+          "max_context_messages": {
+            "type": "integer",
+            "title": "Max Context Messages"
+          },
+          "auto_compaction_enabled": {
+            "type": "boolean",
+            "title": "Auto Compaction Enabled"
+          },
           "parent_id": {
             "anyOf": [
               {
@@ -3944,6 +4993,9 @@
           "owner_user_id",
           "character_id",
           "selected_model_id",
+          "default_temperature",
+          "max_context_messages",
+          "auto_compaction_enabled",
           "parent_id",
           "created_at"
         ],
@@ -4547,6 +5599,24 @@
         ],
         "title": "GroupOut"
       },
+      "GroupUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "title": "GroupUpdate"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4701,6 +5771,34 @@
               }
             ],
             "title": "Expires At"
+          },
+          "created_for_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created For User Id"
+          },
+          "source_type": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Source Type",
+            "default": "ADMIN_OVERRIDE"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
           }
         },
         "type": "object",
@@ -4708,6 +5806,140 @@
           "code"
         ],
         "title": "InviteCreate"
+      },
+      "InviteGrantCreate": {
+        "properties": {
+          "target_type": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Target Type"
+          },
+          "target_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Target Id"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Amount",
+            "default": 1
+          },
+          "is_unlimited": {
+            "type": "boolean",
+            "title": "Is Unlimited",
+            "default": false
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_type",
+          "target_id"
+        ],
+        "title": "InviteGrantCreate"
+      },
+      "InviteGrantOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "invite_code_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite Code Id"
+          },
+          "granted_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Granted By User Id"
+          },
+          "source_type": {
+            "type": "string",
+            "title": "Source Type"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "target_type": {
+            "type": "string",
+            "title": "Target Type"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "quota": {
+            "type": "integer",
+            "title": "Quota"
+          },
+          "is_unlimited": {
+            "type": "boolean",
+            "title": "Is Unlimited"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "invite_code_id",
+          "granted_by_user_id",
+          "source_type",
+          "source_id",
+          "target_type",
+          "target_id",
+          "quota",
+          "is_unlimited",
+          "note",
+          "created_at"
+        ],
+        "title": "InviteGrantOut"
       },
       "InviteOut": {
         "properties": {
@@ -4730,6 +5962,32 @@
             ],
             "title": "Created By User Id"
           },
+          "created_for_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created For User Id"
+          },
+          "source_type": {
+            "type": "string",
+            "title": "Source Type"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
           "quota_total": {
             "type": "integer",
             "title": "Quota Total"
@@ -4750,10 +6008,27 @@
             ],
             "title": "Expires At"
           },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
           }
         },
         "type": "object",
@@ -4761,10 +6036,15 @@
           "id",
           "code",
           "created_by_user_id",
+          "created_for_user_id",
+          "source_type",
+          "source_id",
           "quota_total",
           "quota_used",
           "expires_at",
-          "created_at"
+          "revoked_at",
+          "created_at",
+          "updated_at"
         ],
         "title": "InviteOut"
       },
@@ -4809,6 +6089,53 @@
           "quota_used"
         ],
         "title": "InviteRedeemResult"
+      },
+      "InviteRevokeResult": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "revoked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Revoked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "revoked_at"
+        ],
+        "title": "InviteRevokeResult"
+      },
+      "InviteSummaryOut": {
+        "properties": {
+          "target_type": {
+            "type": "string",
+            "title": "Target Type"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "invite_quota_remaining": {
+            "type": "integer",
+            "title": "Invite Quota Remaining"
+          },
+          "invite_quota_unlimited": {
+            "type": "boolean",
+            "title": "Invite Quota Unlimited"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_type",
+          "target_id",
+          "invite_quota_remaining",
+          "invite_quota_unlimited"
+        ],
+        "title": "InviteSummaryOut"
       },
       "LoginRequest": {
         "properties": {
@@ -5358,6 +6685,120 @@
         ],
         "title": "ProviderCredentialOut"
       },
+      "ProviderTestOut": {
+        "properties": {
+          "provider_id": {
+            "type": "string",
+            "title": "Provider Id"
+          },
+          "selected_model_id": {
+            "type": "string",
+            "title": "Selected Model Id"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "reply": {
+            "type": "string",
+            "title": "Reply"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/ProviderUsageOut"
+          },
+          "raw_response": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Raw Response"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_id",
+          "selected_model_id",
+          "model_name",
+          "reply",
+          "usage",
+          "raw_response"
+        ],
+        "title": "ProviderTestOut"
+      },
+      "ProviderTestRequest": {
+        "properties": {
+          "selected_model_id": {
+            "type": "string",
+            "title": "Selected Model Id"
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "selected_model_id",
+          "prompt"
+        ],
+        "title": "ProviderTestRequest"
+      },
+      "ProviderUsageOut": {
+        "properties": {
+          "prompt_tokens": {
+            "type": "integer",
+            "title": "Prompt Tokens",
+            "default": 0
+          },
+          "completion_tokens": {
+            "type": "integer",
+            "title": "Completion Tokens",
+            "default": 0
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "ProviderUsageOut"
+      },
+      "PublicFeaturesOut": {
+        "properties": {
+          "allow_registration": {
+            "type": "boolean",
+            "title": "Allow Registration"
+          },
+          "max_chat_turns": {
+            "type": "integer",
+            "title": "Max Chat Turns"
+          },
+          "allowed_models": {
+            "items": {
+              "$ref": "#/components/schemas/AllowedModelOut"
+            },
+            "type": "array",
+            "title": "Allowed Models"
+          },
+          "rollback_retention_days": {
+            "type": "integer",
+            "title": "Rollback Retention Days"
+          },
+          "rollback_cleanup_interval_hours": {
+            "type": "integer",
+            "title": "Rollback Cleanup Interval Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "allow_registration",
+          "max_chat_turns",
+          "allowed_models",
+          "rollback_retention_days",
+          "rollback_cleanup_interval_hours"
+        ],
+        "title": "PublicFeaturesOut"
+      },
       "PullEnqueueResult": {
         "properties": {
           "job_id": {
@@ -5456,6 +6897,44 @@
           "refresh_token"
         ],
         "title": "RefreshRequest"
+      },
+      "RegisterRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "title": "Password"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "invite_code": {
+            "type": "string",
+            "minLength": 4,
+            "title": "Invite Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password",
+          "invite_code"
+        ],
+        "title": "RegisterRequest"
       },
       "RelationScorePoint": {
         "properties": {
@@ -5644,6 +7123,192 @@
           "current_wakeup_task_id"
         ],
         "title": "SessionStateOut"
+      },
+      "SystemSettingsOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "allow_registration": {
+            "type": "boolean",
+            "title": "Allow Registration"
+          },
+          "max_chat_turns": {
+            "type": "integer",
+            "title": "Max Chat Turns"
+          },
+          "allowed_model_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Model Ids"
+          },
+          "default_cocoon_temperature": {
+            "type": "number",
+            "title": "Default Cocoon Temperature"
+          },
+          "default_max_context_messages": {
+            "type": "integer",
+            "title": "Default Max Context Messages"
+          },
+          "default_auto_compaction_enabled": {
+            "type": "boolean",
+            "title": "Default Auto Compaction Enabled"
+          },
+          "private_chat_debounce_seconds": {
+            "type": "integer",
+            "title": "Private Chat Debounce Seconds"
+          },
+          "rollback_retention_days": {
+            "type": "integer",
+            "title": "Rollback Retention Days"
+          },
+          "rollback_cleanup_interval_hours": {
+            "type": "integer",
+            "title": "Rollback Cleanup Interval Hours"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "allow_registration",
+          "max_chat_turns",
+          "allowed_model_ids",
+          "default_cocoon_temperature",
+          "default_max_context_messages",
+          "default_auto_compaction_enabled",
+          "private_chat_debounce_seconds",
+          "rollback_retention_days",
+          "rollback_cleanup_interval_hours",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SystemSettingsOut"
+      },
+      "SystemSettingsUpdate": {
+        "properties": {
+          "allow_registration": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allow Registration"
+          },
+          "max_chat_turns": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Chat Turns"
+          },
+          "allowed_model_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Model Ids"
+          },
+          "default_cocoon_temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Cocoon Temperature"
+          },
+          "default_max_context_messages": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Max Context Messages"
+          },
+          "default_auto_compaction_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Auto Compaction Enabled"
+          },
+          "private_chat_debounce_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Private Chat Debounce Seconds"
+          },
+          "rollback_retention_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rollback Retention Days"
+          },
+          "rollback_cleanup_interval_hours": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rollback Cleanup Interval Hours"
+          }
+        },
+        "type": "object",
+        "title": "SystemSettingsUpdate"
       },
       "TagCreate": {
         "properties": {

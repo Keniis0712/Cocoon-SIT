@@ -10,8 +10,11 @@
 ## 对外接口
 
 - `resolve_chat_provider(provider_kind)`
+- `resolve_embedding_provider(provider_kind)`
 
 ## 交互方式
 
 - 由 `ProviderRegistry` 调用。
-- 当前支持 `mock` 和 `openai_compatible`，未知类型回退到 `mock`。
+- Chat provider 当前支持 `mock` 和 `openai_compatible`。
+- Embedding provider 当前支持 `local_cpu` 和 `openai_compatible`。
+- 未知类型会直接报错，而不是静默回退到内置 mock。

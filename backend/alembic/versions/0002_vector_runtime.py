@@ -1,6 +1,6 @@
 """vector memory and runtime contracts
 
-Revision ID: 0002_vector_memory_and_runtime_contracts
+Revision ID: 0002_vector_runtime
 Revises: 0001_initial
 Create Date: 2026-04-18
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from app.models.vector import PGVector
 
 
-revision = "0002_vector_memory_and_runtime_contracts"
+revision = "0002_vector_runtime"
 down_revision = "0001_initial"
 branch_labels = None
 depends_on = None

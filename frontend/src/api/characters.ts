@@ -1,4 +1,4 @@
-import { apiCall, unsupportedFeature } from "./client";
+import { apiCall } from "./client";
 import {
   rememberLegacyId,
   rememberLegacyStringId,
@@ -135,7 +135,9 @@ export function updateCharacter(id: number, data: Partial<CharacterPayload>): Pr
 }
 
 export function deleteCharacter(_id: number) {
-  return unsupportedFeature("Deleting characters is not supported by the current backend");
+  return apiCall(async (client) => {
+    return mapCharacter(await client.deleteCharacter(resolveActualId("character", _id)));
+  });
 }
 
 export function getCharacterAcl(characterId: number): Promise<CharacterAclEntryRead[]> {
@@ -144,7 +146,7 @@ export function getCharacterAcl(characterId: number): Promise<CharacterAclEntryR
   });
 }
 
-export function replaceCharacterAcl(
+export function appendCharacterAclEntries(
   characterId: number,
   entries: CharacterAclEntryWrite[],
 ): Promise<CharacterAclEntryRead[]> {
@@ -172,7 +174,28 @@ export function deleteCharacterAclEntry(
   _granteeType: string,
   _granteeId: string,
 ) {
-  return unsupportedFeature("Removing character ACL entries is not supported by the current backend");
+  return apiCall(async (client) => {
+    const entries = await client.listCharacterAcl(resolveActualId("character", _characterId));
+    const matched = entries.find((item) => {
+      const subjectType = item.subject_type;
+      const rawSubjectId =
+        subjectType === "USER"
+          ? rememberLegacyStringId("user", item.subject_id)
+          : subjectType === "GROUP"
+            ? rememberLegacyStringId("group", item.subject_id)
+            : item.subject_id;
+      return subjectType === _granteeType && rawSubjectId === _granteeId;
+    });
+    if (!matched) {
+      throw new Error("Character ACL entry not found");
+    }
+    return mapAcl(
+      await client.deleteCharacterAcl(
+        resolveActualId("character", _characterId),
+        String(matched.id),
+      ),
+    );
+  });
 }
 
 export function getCharacterEffectiveAcl(

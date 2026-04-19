@@ -58,6 +58,18 @@ class PromptTemplateService:
             actor_user_id=actor_user_id,
         )
 
+    def reset_template(
+        self,
+        session: Session,
+        template_type: str,
+        actor_user_id: str | None,
+    ) -> PromptTemplate:
+        return self.prompt_revision_service.reset_template(
+            session=session,
+            template_type=template_type,
+            actor_user_id=actor_user_id,
+        )
+
     def render(
         self,
         session: Session,

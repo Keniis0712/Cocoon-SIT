@@ -5,7 +5,9 @@ from sqlalchemy import select
 from app.models import (
     ActionDispatch,
     AuditArtifact,
+    AuditLink,
     AuditRun,
+    AuditStep,
     FailedRound,
     MemoryChunk,
     MemoryTag,
@@ -44,7 +46,20 @@ def test_round_cleanup_for_retry_removes_assistant_side_effects(client, default_
         run = AuditRun(cocoon_id=default_cocoon_id, action_id=action.id, operation_type="chat")
         session.add(run)
         session.flush()
-        session.add(AuditArtifact(run_id=run.id, kind="generator_output", metadata_json={}))
+        step = AuditStep(run_id=run.id, step_name="generator_node")
+        session.add(step)
+        session.flush()
+        artifact = AuditArtifact(run_id=run.id, step_id=step.id, kind="generator_output", metadata_json={})
+        session.add(artifact)
+        session.flush()
+        session.add(
+            AuditLink(
+                run_id=run.id,
+                source_step_id=step.id,
+                target_artifact_id=artifact.id,
+                relation="produced_by",
+            )
+        )
         session.add(FailedRound(cocoon_id=default_cocoon_id, action_id=action.id, reason="x"))
         session.commit()
         user_message_id = user_message.id
@@ -59,6 +74,9 @@ def test_round_cleanup_for_retry_removes_assistant_side_effects(client, default_
         assert session.get(Message, assistant_message_id) is None
         assert session.scalars(select(MemoryChunk).where(MemoryChunk.cocoon_id == default_cocoon_id)).first() is None
         assert session.scalars(select(AuditRun).where(AuditRun.action_id == action.id)).first() is None
+        assert session.scalars(select(AuditStep).where(AuditStep.run_id == run.id)).first() is None
+        assert session.scalars(select(AuditArtifact).where(AuditArtifact.run_id == run.id)).first() is None
+        assert session.scalars(select(AuditLink).where(AuditLink.run_id == run.id)).first() is None
         assert session.scalars(select(FailedRound).where(FailedRound.action_id == action.id)).first() is None
 
 

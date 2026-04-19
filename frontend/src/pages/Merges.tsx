@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { GitMerge, Layers3, RefreshCcw, ShieldCheck, Sparkles, TriangleAlert } from "lucide-react";
+import { GitMerge, Layers3, RefreshCcw, ShieldCheck, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -336,11 +336,11 @@ export default function MergesPage() {
                 jobs.map((job) => (
                   <button key={job.merge_uid} type="button" onClick={() => void openJob(job)} className="w-full rounded-2xl border border-border/70 p-4 text-left transition hover:border-primary/40 hover:bg-accent/40">
                     <div className="mb-2 flex items-center justify-between gap-3">
-                      <div className="font-medium">#{job.id} · {job.strategy}</div>
+                      <div className="font-medium">{job.merge_uid}</div>
                       <Badge variant={job.status === "success" ? "default" : job.status === "error" ? "destructive" : "secondary"}>{job.status}</Badge>
                     </div>
-                    <div className="text-xs text-muted-foreground">{job.merge_uid}</div>
-                    <div className="mt-2 text-sm text-muted-foreground">{t("merges.lineage", { source: job.source_cocoon_id, target: job.target_cocoon_id })}</div>
+                    <div className="text-xs text-muted-foreground">{t("merges.lineage", { source: job.source_cocoon_id, target: job.target_cocoon_id })}</div>
+                    <div className="mt-2 text-xs text-muted-foreground">{formatDate(job.created_at)}</div>
                   </button>
                 ))
               )}
@@ -363,7 +363,7 @@ export default function MergesPage() {
             ) : selectedJob ? (
               <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <SummaryMetric icon={<ShieldCheck className="size-4" />} label={t("common.status")} value={<Badge variant={selectedJob.status === "completed" ? "default" : selectedJob.status === "failed" ? "destructive" : "secondary"}>{selectedJob.status}</Badge>} />
+                  <SummaryMetric icon={<ShieldCheck className="size-4" />} label={t("common.status")} value={<Badge variant={selectedJob.status === "success" ? "default" : selectedJob.status === "error" ? "destructive" : "secondary"}>{selectedJob.status}</Badge>} />
                   <SummaryMetric icon={<GitMerge className="size-4" />} label={t("merges.strategy")} value={selectedJob.strategy} />
                   <SummaryMetric icon={<Layers3 className="size-4" />} label={t("merges.candidateCount")} value={selectedJob.candidate_count} />
                   <SummaryMetric icon={<Sparkles className="size-4" />} label={t("merges.mergedCount")} value={selectedJob.merged_count} />
@@ -373,9 +373,8 @@ export default function MergesPage() {
                     <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">{t("merges.inputParams")}</div>
                     <div className="space-y-2">
                       <div>{t("merges.lineage", { source: selectedJob.source_cocoon_id, target: selectedJob.target_cocoon_id })}</div>
-                      <div>{t("merges.modelName")}: {selectedJob.model_name || "-"}</div>
-                      <div>{t("merges.createdBy")}: {selectedJob.created_by || "-"}</div>
                       <div>{t("merges.mergeUid")}: <span className="break-all">{selectedJob.merge_uid}</span></div>
+                      <div>{t("merges.strategy")}: {selectedJob.strategy}</div>
                     </div>
                   </div>
                   <div className="rounded-2xl border border-border/70 p-4 text-sm">
@@ -387,12 +386,6 @@ export default function MergesPage() {
                     </div>
                   </div>
                 </div>
-                {selectedJob.error_detail ? (
-                  <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-sm">
-                    <div className="mb-2 flex items-center gap-2 text-destructive"><TriangleAlert className="size-4" />{t("merges.errorDetail")}</div>
-                    <div className="whitespace-pre-wrap leading-6 text-foreground/90">{selectedJob.error_detail}</div>
-                  </div>
-                ) : null}
                 <div className="space-y-3">
                   <div className="text-sm font-medium">{t("merges.traceTitle")}</div>
                   {traceEntries.length === 0 ? (

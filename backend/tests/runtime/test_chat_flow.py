@@ -50,6 +50,14 @@ def test_chat_flow_with_websocket(client, worker_runtime, auth_headers, default_
         audit_runs = list(session.scalars(select(AuditRun).where(AuditRun.action_id == action_id)).all())
         assert audit_runs
 
+    detail = client.get(f"/api/v1/audits/{audit_runs[0].id}", headers=auth_headers)
+    assert detail.status_code == 200, detail.text
+    artifacts = detail.json()["artifacts"]
+    generator_output = next(item for item in artifacts if item["kind"] == "generator_output")
+    assert generator_output["payload_json"]["content"]
+    meta_output = next(item for item in artifacts if item["kind"] == "meta_output")
+    assert meta_output["payload_json"]["decision"] in {"reply", "silence"}
+
 
 def test_websocket_requires_authentication(client, default_cocoon_id):
     with pytest.raises(WebSocketDisconnect):

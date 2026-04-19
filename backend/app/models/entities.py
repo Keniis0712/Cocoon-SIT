@@ -34,6 +34,7 @@ from app.models.jobs import (
     WakeupTask,
 )
 from app.models.prompts import PromptTemplate, PromptTemplateRevision, PromptVariable
+from app.models.system import SystemSettings
 from app.models.workspace import (
     Cocoon,
     CocoonTagBinding,
@@ -83,6 +84,7 @@ __all__ = [
     "ProviderCredential",
     "Role",
     "SessionState",
+    "SystemSettings",
     "TagRegistry",
     "User",
     "UserGroup",

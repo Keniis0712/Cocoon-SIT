@@ -1,44 +1,46 @@
-import { unsupportedFeature } from "./client";
+import { apiCall } from "./client";
+import { rememberLegacyId, resolveActualId } from "./id-map";
 import type { SystemSettingsRead, SystemSettingsUpdate } from "./types";
 
-const DEFAULT_SETTINGS: SystemSettingsRead = {
-  allow_registration: false,
-  max_chat_turns: 0,
-  allowed_model_ids: [],
-  default_max_context_tokens: 0,
-  default_max_rounds: 0,
-  default_compact_memory_max_items: 0,
-  default_auto_compaction_trigger_rounds: 0,
-  default_auto_compaction_message_count: 0,
-  default_auto_compaction_memory_max_items: 0,
-  default_manual_compaction_message_count: 0,
-  default_manual_compaction_memory_max_items: 0,
-  default_manual_compaction_mode: "all",
-  dispatch_thread_pool_max_workers: 0,
-  llm_max_concurrency: 0,
-  embedding_max_concurrency: 0,
-  private_chat_debounce_ms: 0,
-  group_chat_debounce_ms: 0,
-  typing_debounce_max_extra_ms: 0,
-  idle_followup_medium_turn_threshold: 0,
-  idle_followup_high_turn_threshold: 0,
-  idle_followup_low_activity_seconds: 0,
-  idle_followup_medium_activity_seconds: 0,
-  idle_followup_high_activity_seconds: 0,
-  rollback_retention_days: 0,
-  rollback_cleanup_interval_hours: 0,
-  created_at: "",
-  updated_at: "",
-};
+function mapSettings(item: {
+  allow_registration: boolean;
+  max_chat_turns: number;
+  allowed_model_ids: string[];
+  default_cocoon_temperature: number;
+  default_max_context_messages: number;
+  default_auto_compaction_enabled: boolean;
+  private_chat_debounce_seconds: number;
+  rollback_retention_days: number;
+  rollback_cleanup_interval_hours: number;
+  created_at: string;
+  updated_at: string;
+}): SystemSettingsRead {
+  return {
+    allow_registration: item.allow_registration,
+    max_chat_turns: item.max_chat_turns,
+    allowed_model_ids: (item.allowed_model_ids || []).map((modelId) => rememberLegacyId("model", modelId)),
+    default_cocoon_temperature: item.default_cocoon_temperature,
+    default_max_context_messages: item.default_max_context_messages,
+    default_auto_compaction_enabled: item.default_auto_compaction_enabled,
+    private_chat_debounce_seconds: item.private_chat_debounce_seconds,
+    rollback_retention_days: item.rollback_retention_days,
+    rollback_cleanup_interval_hours: item.rollback_cleanup_interval_hours,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  };
+}
+
+function serializeUpdate(data: SystemSettingsUpdate) {
+  return {
+    ...data,
+    allowed_model_ids: data.allowed_model_ids?.map((modelId) => resolveActualId("model", modelId)),
+  };
+}
 
 export function getSystemSettings(): Promise<SystemSettingsRead> {
-  return Promise.resolve(DEFAULT_SETTINGS);
+  return apiCall(async (client) => mapSettings(await client.getSystemSettings()));
 }
 
-export function updateSystemSettings(_data: SystemSettingsUpdate): Promise<SystemSettingsRead> {
-  return unsupportedFeature("System settings are not exposed by the current backend");
-}
-
-export function triggerRollbackCleanup(): Promise<Record<string, number>> {
-  return unsupportedFeature("Rollback cleanup is not exposed by the current backend");
+export function updateSystemSettings(data: SystemSettingsUpdate): Promise<SystemSettingsRead> {
+  return apiCall(async (client) => mapSettings(await client.updateSystemSettings(serializeUpdate(data))));
 }

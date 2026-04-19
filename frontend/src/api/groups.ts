@@ -1,4 +1,4 @@
-import { apiCall, unsupportedFeature } from "./client";
+import { apiCall } from "./client";
 import {
   rememberLegacyId,
   rememberLegacyStringId,
@@ -34,9 +34,9 @@ export function listGroups(page: number, page_size: number, params?: { q?: strin
         name: item.name,
         owner_uid: item.owner_user_id ? rememberLegacyStringId("user", item.owner_user_id) : "",
         parent_group_id: null,
-        group_path: item.name,
-        invite_quota_remaining: 0,
-        invite_quota_unlimited: false,
+        group_path: null,
+        invite_quota_remaining: null,
+        invite_quota_unlimited: null,
         description: null,
         created_at: item.created_at,
         updated_at: item.created_at,
@@ -54,10 +54,10 @@ export function createGroup(data: GroupCreatePayload): Promise<GroupRead> {
       name: group.name,
       owner_uid: group.owner_user_id ? rememberLegacyStringId("user", group.owner_user_id) : "",
       parent_group_id: null,
-      group_path: group.name,
-      invite_quota_remaining: 0,
-      invite_quota_unlimited: false,
-      description: data.description ?? null,
+      group_path: null,
+      invite_quota_remaining: null,
+      invite_quota_unlimited: null,
+      description: null,
       created_at: group.created_at,
       updated_at: group.created_at,
     };
@@ -65,11 +65,29 @@ export function createGroup(data: GroupCreatePayload): Promise<GroupRead> {
 }
 
 export function updateGroup(_gid: string, _data: GroupUpdatePayload): Promise<GroupRead> {
-  return unsupportedFeature("Editing groups is not supported by the current backend");
+  return apiCall(async (client) => {
+    const updated = await client.updateGroup(resolveActualId("group", _gid), {
+      name: _data.name ?? undefined,
+    });
+    return {
+      gid: rememberLegacyStringId("group", updated.id),
+      name: updated.name,
+      owner_uid: updated.owner_user_id ? rememberLegacyStringId("user", updated.owner_user_id) : "",
+      parent_group_id: null,
+      group_path: null,
+      invite_quota_remaining: null,
+      invite_quota_unlimited: null,
+      description: null,
+      created_at: updated.created_at,
+      updated_at: updated.created_at,
+    };
+  });
 }
 
 export function deleteGroup(_gid: string) {
-  return unsupportedFeature("Deleting groups is not supported by the current backend");
+  return apiCall(async (client) => {
+    await client.deleteGroup(resolveActualId("group", _gid));
+  });
 }
 
 export function listGroupMembers(gid: string, page: number, page_size: number): Promise<PageResp<GroupMemberRead>> {
@@ -100,14 +118,25 @@ export function addGroupMember(gid: string, user_uid: string): Promise<GroupMemb
 }
 
 export function removeGroupMember(_gid: string, _user_uid: string) {
-  return unsupportedFeature("Removing group members is not supported by the current backend");
+  return apiCall(async (client) => {
+    const item = await client.removeGroupMember(resolveActualId("group", _gid), resolveActualId("user", _user_uid));
+    return {
+      id: rememberLegacyId("group-member", item.id),
+      group_id: rememberLegacyStringId("group", item.group_id),
+      user_uid: rememberLegacyStringId("user", item.user_id),
+      created_at: item.created_at,
+    };
+  });
 }
 
 export function getGroupInviteSummary(gid: string): Promise<InviteSummary> {
-  return Promise.resolve({
-    target_type: "GROUP",
-    target_id: gid,
-    invite_quota_remaining: 0,
-    invite_quota_unlimited: false,
+  return apiCall(async (client) => {
+    const summary = await client.getGroupInviteSummary(resolveActualId("group", gid));
+    return {
+      target_type: "GROUP",
+      target_id: rememberLegacyStringId("group", summary.target_id),
+      invite_quota_remaining: summary.invite_quota_remaining,
+      invite_quota_unlimited: summary.invite_quota_unlimited,
+    };
   });
 }

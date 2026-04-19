@@ -1,4 +1,4 @@
-import { apiCall, unsupportedFeature } from "./client";
+import { apiCall } from "./client";
 import { rememberLegacyId, resolveActualId } from "./id-map";
 import type { TagPayload, TagRead } from "./types";
 
@@ -61,6 +61,13 @@ export function updateTag(tagId: number, payload: Partial<TagPayload>) {
   });
 }
 
+export function deleteTag(tagId: number) {
+  return apiCall(async (client) => {
+    const deleted = await client.deleteTag(resolveActualId("tag", tagId));
+    return mapTag(deleted);
+  });
+}
+
 export function bindCocoonTags(cocoonId: number, tagIds: number[]) {
   return apiCall(async (client) => {
     const actualCocoonId = resolveActualId("cocoon", cocoonId);
@@ -74,8 +81,10 @@ export function bindCocoonTags(cocoonId: number, tagIds: number[]) {
       }
     }
 
-    if (existingIds.size > desiredIds.length) {
-      return unsupportedFeature("Removing tags is not supported by the current backend");
+    for (const tagId of existingIds) {
+      if (!desiredIds.includes(tagId)) {
+        await client.unbindCocoonTag(actualCocoonId, tagId);
+      }
     }
 
     const [tags, bindings] = await Promise.all([client.listTags(), client.listCocoonTags(actualCocoonId)]);

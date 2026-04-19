@@ -17,6 +17,12 @@ class FilesystemArtifactStore(ArtifactStore):
         path.write_text(content, encoding="utf-8")
         return str(path)
 
+    def read_text(self, relative_path: str) -> str:
+        path = Path(relative_path)
+        if not path.is_absolute():
+            path = self.root / relative_path
+        return path.read_text(encoding="utf-8")
+
     def delete(self, relative_path: str) -> None:
         path = Path(relative_path)
         if not path.is_absolute():

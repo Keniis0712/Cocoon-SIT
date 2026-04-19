@@ -83,6 +83,13 @@ This repository already includes:
 - Durable job table/service skeleton
 - Tests for chat flow, prompt templates, provider credential encryption, and durable jobs
 
+## Invite Management
+
+- The admin invite console now uses real backend-backed actions for creating invite codes, revoking unused codes, granting quota, and reading personal or group quota summaries.
+- Invite-code creation can consume from a user bucket, a group bucket, or `ADMIN_OVERRIDE`.
+- Revoking an unused invite code refunds capacity implicitly by removing that code from summary consumption.
+- Quota grants are stored separately from invite codes and appear in the invite grant ledger shown in the frontend.
+
 ## Notes
 
 - Production should use Postgres + Redis via Docker Compose.

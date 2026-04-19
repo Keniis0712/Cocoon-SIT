@@ -41,3 +41,13 @@ def update_prompt_template(
     _=Depends(require_permission("prompt_templates:write")),
 ) -> PromptTemplateOut:
     return db.info["container"].prompt_template_admin_service.upsert_template(db, template_type, payload, user)
+
+
+@router.post("/{template_type}/reset", response_model=PromptTemplateOut)
+def reset_prompt_template(
+    template_type: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _=Depends(require_permission("prompt_templates:write")),
+) -> PromptTemplateOut:
+    return db.info["container"].prompt_template_admin_service.reset_template(db, template_type, user)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, JsonDefaultMixin, TimestampMixin
@@ -44,18 +44,29 @@ class InviteCode(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
     code: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     created_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_for_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    source_type: Mapped[str] = mapped_column(String(32), default="ADMIN_OVERRIDE")
+    source_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     quota_total: Mapped[int] = mapped_column(Integer, default=0)
     quota_used: Mapped[int] = mapped_column(Integer, default=0)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
 
 
 class InviteQuotaGrant(Base, TimestampMixin):
     __tablename__ = "invite_quota_grants"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
-    invite_code_id: Mapped[str] = mapped_column(ForeignKey("invite_codes.id"), nullable=False)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    invite_code_id: Mapped[str | None] = mapped_column(ForeignKey("invite_codes.id"), nullable=True)
+    granted_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    source_type: Mapped[str] = mapped_column(String(32), default="ADMIN_OVERRIDE")
+    source_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    target_type: Mapped[str] = mapped_column(String(32), default="USER")
+    target_id: Mapped[str] = mapped_column(String(64), nullable=False)
     quota: Mapped[int] = mapped_column(Integer, default=1)
+    is_unlimited: Mapped[bool] = mapped_column(Boolean, default=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class UserGroup(Base, TimestampMixin):

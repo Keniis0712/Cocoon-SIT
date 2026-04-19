@@ -54,7 +54,6 @@ def test_message_dispatch_service_enqueues_chat_round(client, default_cocoon_id)
             client_request_id="svc-chat-1",
             timezone="UTC",
         )
-        session.commit()
 
     with container.session_factory() as session:
         action = session.get(ActionDispatch, action.id)
@@ -65,6 +64,32 @@ def test_message_dispatch_service_enqueues_chat_round(client, default_cocoon_id)
         assert message is not None
         assert message.content == "Service-level chat dispatch"
         assert state is not None
+
+
+def test_message_dispatch_commits_before_enqueuing(client, default_cocoon_id, monkeypatch):
+    container = client.app.state.container
+    seen: dict[str, str | None] = {"action_id": None}
+    original_enqueue = container.chat_queue.enqueue
+
+    def enqueue_and_verify(action_id: str, cocoon_id: str, event_type: str, payload: dict) -> int:
+        with container.session_factory() as verification_session:
+            persisted = verification_session.get(ActionDispatch, action_id)
+            assert persisted is not None
+            seen["action_id"] = persisted.id
+        return original_enqueue(action_id, cocoon_id, event_type, payload)
+
+    monkeypatch.setattr(container.chat_queue, "enqueue", enqueue_and_verify)
+
+    with container.session_factory() as session:
+        action = container.message_dispatch_service.enqueue_chat_message(
+            session,
+            default_cocoon_id,
+            content="Race-condition check",
+            client_request_id="svc-chat-race",
+            timezone="UTC",
+        )
+
+    assert seen["action_id"] == action.id
 
 
 def test_cocoon_tag_service_updates_session_tags(client, default_cocoon_id):

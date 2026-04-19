@@ -12,63 +12,92 @@ class BootstrapAccessSeedService:
     """Seeds default roles and the bootstrap administrator."""
 
     def ensure_defaults(self, session: Session, settings: Settings) -> User:
+        admin_permissions = {
+            "users:read": True,
+            "users:write": True,
+            "roles:read": True,
+            "roles:write": True,
+            "prompt_templates:read": True,
+            "prompt_templates:write": True,
+            "providers:read": True,
+            "providers:write": True,
+            "cocoons:read": True,
+            "cocoons:write": True,
+            "characters:read": True,
+            "characters:write": True,
+            "tags:read": True,
+            "tags:write": True,
+            "settings:read": True,
+            "settings:write": True,
+            "memory:read": True,
+            "memory:write": True,
+            "wakeup:write": True,
+            "pulls:write": True,
+            "merges:write": True,
+            "checkpoints:read": True,
+            "checkpoints:write": True,
+            "audits:read": True,
+            "insights:read": True,
+            "artifacts:cleanup": True,
+        }
         admin_role = session.scalar(select(Role).where(Role.name == "admin"))
         if not admin_role:
             admin_role = Role(
                 name="admin",
-                permissions_json={
-                    "users:read": True,
-                    "users:write": True,
-                    "roles:read": True,
-                    "roles:write": True,
-                    "prompt_templates:read": True,
-                    "prompt_templates:write": True,
-                    "providers:read": True,
-                    "providers:write": True,
-                    "cocoons:read": True,
-                    "cocoons:write": True,
-                    "characters:read": True,
-                    "characters:write": True,
-                    "tags:read": True,
-                    "tags:write": True,
-                    "memory:read": True,
-                    "memory:write": True,
-                    "wakeup:write": True,
-                    "pulls:write": True,
-                    "merges:write": True,
-                    "checkpoints:read": True,
-                    "checkpoints:write": True,
-                    "audits:read": True,
-                    "insights:read": True,
-                    "artifacts:cleanup": True,
-                },
+                permissions_json=admin_permissions,
             )
             session.add(admin_role)
             session.flush()
+        else:
+            admin_role.permissions_json = {**(admin_role.permissions_json or {}), **admin_permissions}
 
+        operator_permissions = {
+            "cocoons:read": True,
+            "cocoons:write": True,
+            "characters:read": True,
+            "prompt_templates:read": True,
+            "providers:read": True,
+            "tags:read": True,
+            "memory:read": True,
+            "wakeup:write": True,
+            "pulls:write": True,
+            "merges:write": True,
+            "checkpoints:read": True,
+            "checkpoints:write": True,
+            "audits:read": True,
+            "insights:read": True,
+        }
         operator_role = session.scalar(select(Role).where(Role.name == "operator"))
         if not operator_role:
             operator_role = Role(
                 name="operator",
-                permissions_json={
-                    "cocoons:read": True,
-                    "cocoons:write": True,
-                    "characters:read": True,
-                    "prompt_templates:read": True,
-                    "providers:read": True,
-                    "tags:read": True,
-                    "memory:read": True,
-                    "wakeup:write": True,
-                    "pulls:write": True,
-                    "merges:write": True,
-                    "checkpoints:read": True,
-                    "checkpoints:write": True,
-                    "audits:read": True,
-                    "insights:read": True,
-                },
+                permissions_json=operator_permissions,
             )
             session.add(operator_role)
             session.flush()
+        else:
+            operator_role.permissions_json = {**(operator_role.permissions_json or {}), **operator_permissions}
+
+        user_permissions = {
+            "cocoons:read": True,
+            "cocoons:write": True,
+            "characters:read": True,
+            "providers:read": True,
+            "tags:read": True,
+            "memory:read": True,
+            "checkpoints:read": True,
+            "checkpoints:write": True,
+        }
+        user_role = session.scalar(select(Role).where(Role.name == "user"))
+        if not user_role:
+            user_role = Role(
+                name="user",
+                permissions_json=user_permissions,
+            )
+            session.add(user_role)
+            session.flush()
+        else:
+            user_role.permissions_json = {**(user_role.permissions_json or {}), **user_permissions}
 
         admin_user = session.scalar(select(User).where(User.username == settings.default_admin_username))
         if not admin_user:

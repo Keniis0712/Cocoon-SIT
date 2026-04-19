@@ -2,10 +2,8 @@ from sqlalchemy import func, select
 
 from app.core.container import AppContainer
 from app.models import (
-    AvailableModel,
     Character,
     Cocoon,
-    ModelProvider,
     PromptTemplate,
     Role,
     SessionState,
@@ -25,10 +23,8 @@ def test_bootstrap_service_seeds_defaults_into_empty_database(test_settings):
             session.commit()
 
         with container.session_factory() as session:
-            assert session.scalar(select(func.count()).select_from(Role)) == 2
+            assert session.scalar(select(func.count()).select_from(Role)) == 3
             assert session.scalar(select(func.count()).select_from(User)) == 1
-            assert session.scalar(select(func.count()).select_from(ModelProvider)) == 1
-            assert session.scalar(select(func.count()).select_from(AvailableModel)) == 1
             assert session.scalar(select(func.count()).select_from(Character)) == 0
             assert session.scalar(select(func.count()).select_from(Cocoon)) == 0
             assert session.scalar(select(func.count()).select_from(SessionState)) == 0
@@ -50,10 +46,8 @@ def test_bootstrap_service_is_idempotent(test_settings):
             session.commit()
 
         with container.session_factory() as session:
-            assert session.scalar(select(func.count()).select_from(Role)) == 2
+            assert session.scalar(select(func.count()).select_from(Role)) == 3
             assert session.scalar(select(func.count()).select_from(User)) == 1
-            assert session.scalar(select(func.count()).select_from(ModelProvider)) == 1
-            assert session.scalar(select(func.count()).select_from(AvailableModel)) == 1
             assert session.scalar(select(func.count()).select_from(Character)) == 0
             assert session.scalar(select(func.count()).select_from(Cocoon)) == 0
             assert session.scalar(select(func.count()).select_from(SessionState)) == 0

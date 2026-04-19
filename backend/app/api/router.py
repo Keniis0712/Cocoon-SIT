@@ -10,6 +10,7 @@ from app.api.routes.catalog import (
     prompt_templates,
     provider_credentials,
     providers,
+    settings,
     tags,
 )
 from app.api.routes.observability import admin_artifacts, audits, health, insights
@@ -40,6 +41,7 @@ api_router.include_router(provider_credentials.router, prefix="/providers", tags
 api_router.include_router(models.router, prefix="/providers", tags=["providers"])
 api_router.include_router(embedding_providers.router, prefix="/providers", tags=["providers"])
 api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
+api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
 api_router.include_router(prompt_templates.router, prefix="/prompt-templates", tags=["prompt-templates"])
 api_router.include_router(cocoons.router, prefix="/cocoons", tags=["cocoons"])
 api_router.include_router(messages.router, prefix="/cocoons", tags=["cocoons"])

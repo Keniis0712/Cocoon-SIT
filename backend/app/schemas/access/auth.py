@@ -10,6 +10,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=8)
+    email: EmailStr | None = None
+    invite_code: str = Field(min_length=4)
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
 
@@ -59,3 +66,17 @@ class UserUpdate(BaseModel):
     role_id: str | None = None
     is_active: bool | None = None
     password: str | None = Field(default=None, min_length=4)
+
+
+class AllowedModelOut(ORMModel):
+    id: str
+    provider_id: str
+    model_name: str
+
+
+class PublicFeaturesOut(BaseModel):
+    allow_registration: bool
+    max_chat_turns: int
+    allowed_models: list[AllowedModelOut]
+    rollback_retention_days: int
+    rollback_cleanup_interval_hours: int

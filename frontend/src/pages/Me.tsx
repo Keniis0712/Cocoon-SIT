@@ -43,6 +43,7 @@ export default function MePage() {
           can_manage_users: profile.can_manage_users,
           can_manage_prompts: profile.can_manage_prompts,
           can_manage_providers: profile.can_manage_providers,
+          permissions: profile.permissions,
           invite_quota_remaining: profile.invite_quota_remaining,
           invite_quota_unlimited: profile.invite_quota_unlimited,
         });
@@ -89,6 +90,7 @@ export default function MePage() {
           can_manage_users: profile.can_manage_users,
           can_manage_prompts: profile.can_manage_prompts,
           can_manage_providers: profile.can_manage_providers,
+          permissions: profile.permissions,
           invite_quota_remaining: profile.invite_quota_remaining,
           invite_quota_unlimited: profile.invite_quota_unlimited,
         });
@@ -148,20 +150,6 @@ export default function MePage() {
             <div>
               <div className="text-muted-foreground">{t("me.userUid")}</div>
               <div className="mt-1 font-medium break-all">{userInfo?.uid || "-"}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">{t("me.parentUid")}</div>
-              <div className="mt-1 font-medium break-all">{userInfo?.parent_uid || "-"}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">{t("me.userPath")}</div>
-              <div className="mt-1 font-medium break-all">{userInfo?.user_path || "-"}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">{t("me.inviteQuota")}</div>
-              <div className="mt-1 font-medium">
-                {userInfo?.invite_quota_unlimited ? t("me.unlimitedQuota") : userInfo?.invite_quota_remaining ?? 0}
-              </div>
             </div>
             <div>
               <div className="mb-2 text-muted-foreground">{t("me.capabilities")}</div>

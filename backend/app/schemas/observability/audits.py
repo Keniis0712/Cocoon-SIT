@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from app.schemas.common import ORMModel
 
@@ -10,6 +11,7 @@ class AuditArtifactOut(ORMModel):
     storage_path: str | None
     summary: str | None
     metadata_json: dict
+    payload_json: Any = None
     expires_at: datetime | None
     deleted_at: datetime | None
     created_at: datetime

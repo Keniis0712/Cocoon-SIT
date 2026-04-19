@@ -6,12 +6,13 @@ import { toast } from "sonner";
 
 import { listAdminUsers } from "@/api/admin-users";
 import {
-  createCharacter,
+  appendCharacterAclEntries,
   deleteCharacter,
+  deleteCharacterAclEntry,
   getCharacterAcl,
   getCharacterEffectiveAcl,
   getCharacters,
-  replaceCharacterAcl,
+  createCharacter,
   updateCharacter,
 } from "@/api/characters";
 import { listGroups } from "@/api/groups";
@@ -26,7 +27,6 @@ import type {
 } from "@/api/types";
 import AccessCard from "@/components/AccessCard";
 import PageFrame from "@/components/PageFrame";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,20 +53,23 @@ type AclDraftEntry = CharacterAclEntryWrite & { localId: string };
 
 function permissionLabel(level: string | number, t: (key: string) => string) {
   if (typeof level === "number") {
-    return level === 3 ? t("characters.permissionManage") : level === 2 ? t("characters.permissionUse") : t("characters.permissionRead");
+    return level >= 3
+      ? t("characters.permissionManage")
+      : level >= 2
+        ? t("characters.permissionUse")
+        : t("characters.permissionRead");
   }
   if (level === "MANAGE") return t("characters.permissionManage");
   if (level === "USE") return t("characters.permissionUse");
   return t("characters.permissionRead");
 }
 
-function toDraftEntry(entry: CharacterAclEntryRead): AclDraftEntry {
-  return {
-    localId: String(entry.id),
-    grantee_type: entry.grantee_type as AclDraftEntry["grantee_type"],
-    grantee_id: entry.grantee_id,
-    perm_level: entry.perm_level >= 3 ? "MANAGE" : entry.perm_level >= 2 ? "USE" : "READ",
-  };
+function subjectTypeLabel(type: string) {
+  if (type === "USER") return "User";
+  if (type === "GROUP") return "Group";
+  if (type === "SUBTREE") return "Subtree";
+  if (type === "AUTHENTICATED_ALL") return "Authenticated";
+  return type;
 }
 
 export default function CharactersPage() {
@@ -82,12 +85,12 @@ export default function CharactersPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CharacterRead | null>(null);
-  const [deleting, setDeleting] = useState<CharacterRead | null>(null);
   const [form, setForm] = useState<CharacterPayload>(EMPTY_FORM);
 
   const [aclOpen, setAclOpen] = useState(false);
   const [aclCharacter, setAclCharacter] = useState<CharacterRead | null>(null);
-  const [aclEntries, setAclEntries] = useState<AclDraftEntry[]>([]);
+  const [existingAclEntries, setExistingAclEntries] = useState<CharacterAclEntryRead[]>([]);
+  const [aclDrafts, setAclDrafts] = useState<AclDraftEntry[]>([]);
   const [aclUsers, setAclUsers] = useState<AdminUserRead[]>([]);
   const [aclGroups, setAclGroups] = useState<GroupRead[]>([]);
   const [effectiveMode, setEffectiveMode] = useState<EffectiveQueryMode>("user");
@@ -122,6 +125,29 @@ export default function CharactersPage() {
     }
     return t("characters.pageStats", { page, totalPages, count: items.length });
   }, [items.length, page, t, totalPages]);
+
+  const userLabels = useMemo(
+    () => new Map(aclUsers.map((item) => [item.uid, `${item.username} / ${item.uid}`])),
+    [aclUsers],
+  );
+  const groupLabels = useMemo(
+    () => new Map(aclGroups.map((item) => [item.gid, `${item.name} / ${item.gid}`])),
+    [aclGroups],
+  );
+
+  function formatAclTarget(entry: { grantee_id: string | null; grantee_type?: string; source?: string }) {
+    const subjectType = entry.grantee_type ?? entry.source ?? "";
+    if (!entry.grantee_id || subjectType === "AUTHENTICATED_ALL") {
+      return t("characters.authenticatedAll");
+    }
+    if (subjectType === "USER" || subjectType === "SUBTREE") {
+      return userLabels.get(entry.grantee_id) || entry.grantee_id;
+    }
+    if (subjectType === "GROUP") {
+      return groupLabels.get(entry.grantee_id) || entry.grantee_id;
+    }
+    return entry.grantee_id;
+  }
 
   function openCreateDialog() {
     setEditing(null);
@@ -173,29 +199,11 @@ export default function CharactersPage() {
     }
   }
 
-  async function confirmDelete() {
-    if (!deleting) {
-      return;
-    }
-
-    try {
-      await deleteCharacter(deleting.id);
-      toast.success(t("characters.deleted"));
-      setDeleting(null);
-      await fetchData();
-    } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(t("characters.deleteFailed"));
-      }
-    }
-  }
-
   async function openAclDialog(item: CharacterRead) {
     setAclOpen(true);
     setAclCharacter(item);
-    setAclEntries([]);
+    setExistingAclEntries([]);
+    setAclDrafts([]);
     setEffectiveItems([]);
     setEffectiveTarget(userInfo?.uid || "");
     setEffectiveMode("user");
@@ -205,7 +213,7 @@ export default function CharactersPage() {
         listAdminUsers(1, 100),
         listGroups(1, 100),
       ]);
-      setAclEntries(aclResponse.map(toDraftEntry));
+      setExistingAclEntries(aclResponse);
       setAclUsers(usersResponse.items);
       setAclGroups(groupsResponse.items.filter((group) => canManageSystem || group.owner_uid === userInfo?.uid));
     } catch (error) {
@@ -218,8 +226,8 @@ export default function CharactersPage() {
     }
   }
 
-  function addAclEntry() {
-    setAclEntries((prev) => [
+  function addAclDraft() {
+    setAclDrafts((prev) => [
       ...prev,
       {
         localId: `${Date.now()}-${prev.length}`,
@@ -230,8 +238,8 @@ export default function CharactersPage() {
     ]);
   }
 
-  function updateAclEntry(localId: string, patch: Partial<AclDraftEntry>) {
-    setAclEntries((prev) =>
+  function updateAclDraft(localId: string, patch: Partial<AclDraftEntry>) {
+    setAclDrafts((prev) =>
       prev.map((item) => {
         if (item.localId !== localId) {
           return item;
@@ -246,18 +254,19 @@ export default function CharactersPage() {
   }
 
   async function saveAcl() {
-    if (!aclCharacter) {
+    if (!aclCharacter || aclDrafts.length === 0) {
       return;
     }
     try {
-      const payload = aclEntries.map((entry) => ({
+      const payload = aclDrafts.map((entry) => ({
         grantee_type: entry.grantee_type,
         grantee_id: entry.grantee_type === "AUTHENTICATED_ALL" ? AUTHENTICATED_KEY : entry.grantee_id,
         perm_level: entry.perm_level,
       }));
-      await replaceCharacterAcl(aclCharacter.id, payload);
-      toast.success(t("characters.aclSaved"));
-      setAclOpen(false);
+      const nextEntries = await appendCharacterAclEntries(aclCharacter.id, payload);
+      setExistingAclEntries(nextEntries);
+      setAclDrafts([]);
+      toast.success("ACL entries appended");
       await fetchData();
     } catch (error) {
       if (isAxiosError(error)) {
@@ -274,7 +283,10 @@ export default function CharactersPage() {
     }
     setEffectiveLoading(true);
     try {
-      const response = await getCharacterEffectiveAcl(aclCharacter.id, effectiveMode === "user" ? { user_uid: effectiveTarget } : { group_id: effectiveTarget });
+      const response = await getCharacterEffectiveAcl(
+        aclCharacter.id,
+        effectiveMode === "user" ? { user_uid: effectiveTarget } : { group_id: effectiveTarget },
+      );
       setEffectiveItems(response);
     } catch (error) {
       if (isAxiosError(error)) {
@@ -284,6 +296,40 @@ export default function CharactersPage() {
       }
     } finally {
       setEffectiveLoading(false);
+    }
+  }
+
+  async function handleDeleteCharacter(item: CharacterRead) {
+    if (!window.confirm(`Delete character "${item.name}"?`)) {
+      return;
+    }
+    try {
+      await deleteCharacter(item.id);
+      toast.success("Character deleted");
+      await fetchData();
+    } catch (error) {
+      if (isAxiosError(error)) {
+        toast.error(String(error.response?.data?.detail || error.message));
+      } else {
+        toast.error(error instanceof Error ? error.message : "Failed to delete character");
+      }
+    }
+  }
+
+  async function handleDeleteAclEntry(entry: CharacterAclEntryRead) {
+    if (!aclCharacter) {
+      return;
+    }
+    try {
+      await deleteCharacterAclEntry(aclCharacter.id, entry.grantee_type, entry.grantee_id);
+      setExistingAclEntries((prev) => prev.filter((item) => item.id !== entry.id));
+      toast.success("ACL entry deleted");
+    } catch (error) {
+      if (isAxiosError(error)) {
+        toast.error(String(error.response?.data?.detail || error.message));
+      } else {
+        toast.error(error instanceof Error ? error.message : "Failed to delete ACL entry");
+      }
     }
   }
 
@@ -299,7 +345,13 @@ export default function CharactersPage() {
       description={t("characters.description")}
       actions={
         <div className="flex flex-wrap gap-2">
-          <Select value={scope} onValueChange={(value) => { setScope(value as ScopeMode); setPage(1); }}>
+          <Select
+            value={scope}
+            onValueChange={(value) => {
+              setScope(value as ScopeMode);
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="w-44">
               <SelectValue />
             </SelectTrigger>
@@ -321,7 +373,12 @@ export default function CharactersPage() {
           <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
             {t("common.previousPage")}
           </Button>
-          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage((value) => value + 1)}
+          >
             {t("common.nextPage")}
           </Button>
         </div>
@@ -364,13 +421,17 @@ export default function CharactersPage() {
                   <Badge variant="secondary">
                     {t("characters.ownerUid")}: {item.owner_uid || "-"}
                   </Badge>
-                  {canOperate(item) ? <Badge>{t("characters.manageable")}</Badge> : <Badge variant="outline">{t("characters.readOnly")}</Badge>}
+                  {canOperate(item) ? (
+                    <Badge>{t("characters.manageable")}</Badge>
+                  ) : (
+                    <Badge variant="outline">{t("characters.readOnly")}</Badge>
+                  )}
                 </div>
               </CardContent>
               <CardFooter className="justify-end gap-2">
                 {canOperate(item) ? (
                   <>
-                    <Button variant="outline" size="sm" onClick={() => openAclDialog(item)}>
+                    <Button variant="outline" size="sm" onClick={() => void openAclDialog(item)}>
                       <ShieldCheck className="mr-2 size-4" />
                       {t("characters.accessControl")}
                     </Button>
@@ -378,7 +439,7 @@ export default function CharactersPage() {
                       <Pencil className="mr-2 size-4" />
                       {t("common.edit")}
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => setDeleting(item)}>
+                    <Button variant="destructive" size="sm" onClick={() => void handleDeleteCharacter(item)}>
                       <Trash2 className="mr-2 size-4" />
                       {t("common.delete")}
                     </Button>
@@ -399,25 +460,48 @@ export default function CharactersPage() {
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
               <Label htmlFor="character-name">{t("common.name")}</Label>
-              <Input id="character-name" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+              <Input
+                id="character-name"
+                value={form.name}
+                onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="character-description">{t("common.description")}</Label>
-              <Textarea id="character-description" rows={4} className="max-h-40" value={form.description || ""} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} />
+              <Textarea
+                id="character-description"
+                rows={4}
+                className="max-h-40"
+                value={form.description || ""}
+                onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="character-prompt">{t("characters.personalityPrompt")}</Label>
-              <Textarea id="character-prompt" rows={8} className="max-h-72" value={form.personality_prompt} onChange={(event) => setForm((prev) => ({ ...prev, personality_prompt: event.target.value }))} />
+              <Textarea
+                id="character-prompt"
+                rows={8}
+                className="max-h-72"
+                value={form.personality_prompt}
+                onChange={(event) => setForm((prev) => ({ ...prev, personality_prompt: event.target.value }))}
+              />
             </div>
             {canManageSystem ? (
               <label className="flex items-center gap-3 rounded-lg border border-border/70 px-3 py-3 text-sm">
-                <Checkbox checked={form.visibility === "public"} onCheckedChange={(checked) => setForm((prev) => ({ ...prev, visibility: checked ? "public" : "private" }))} />
+                <Checkbox
+                  checked={form.visibility === "public"}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({ ...prev, visibility: checked ? "public" : "private" }))
+                  }
+                />
                 <span>{t("characters.makePublic")}</span>
               </label>
             ) : null}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              {t("common.cancel")}
+            </Button>
             <Button disabled={isSaving || !form.name.trim() || !form.personality_prompt.trim()} onClick={saveCharacter}>
               {isSaving ? t("common.saving") : editing ? t("common.saveChanges") : t("characters.newCharacter")}
             </Button>
@@ -426,89 +510,155 @@ export default function CharactersPage() {
       </Dialog>
 
       <Dialog open={aclOpen} onOpenChange={setAclOpen}>
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>{t("characters.aclDialogTitle", { name: aclCharacter?.name || "-" })}</DialogTitle>
-            <DialogDescription>{t("characters.aclDialogDescription")}</DialogDescription>
+            <DialogDescription>
+              Existing ACL entries can be reviewed, removed, and extended from here.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-2 xl:grid-cols-[1.15fr_0.85fr]">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium">{t("characters.aclEntries")}</div>
-                <Button variant="outline" size="sm" onClick={addAclEntry}>
-                  <Plus className="mr-2 size-4" />
-                  {t("characters.addAclEntry")}
-                </Button>
-              </div>
-              <div className="space-y-3">
-                {aclEntries.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">{t("characters.aclEmpty")}</div>
-                ) : (
-                  aclEntries.map((entry) => (
-                    <div key={entry.localId} className="rounded-2xl border border-border/70 p-4">
-                      <div className="grid gap-3 md:grid-cols-3">
-                        <div className="grid gap-2">
-                          <Label>{t("characters.granteeType")}</Label>
-                          <Select value={entry.grantee_type} onValueChange={(value) => updateAclEntry(entry.localId, { grantee_type: value as AclDraftEntry["grantee_type"], grantee_id: value === "AUTHENTICATED_ALL" ? AUTHENTICATED_KEY : "" })}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="USER">{t("characters.granteeUser")}</SelectItem>
-                              <SelectItem value="GROUP">{t("characters.granteeGroup")}</SelectItem>
-                              <SelectItem value="SUBTREE">{t("characters.granteeSubtree")}</SelectItem>
-                              <SelectItem value="AUTHENTICATED_ALL">{t("characters.granteeAll")}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>{t("characters.granteeTarget")}</Label>
-                          {entry.grantee_type === "USER" || entry.grantee_type === "SUBTREE" ? (
-                            <Select value={entry.grantee_id} onValueChange={(value) => updateAclEntry(entry.localId, { grantee_id: value })}>
-                              <SelectTrigger><SelectValue placeholder={t("characters.selectUser")} /></SelectTrigger>
-                              <SelectContent>
-                                {aclUsers.map((item) => (
-                                  <SelectItem key={item.uid} value={item.uid}>
-                                    {item.username} · {item.uid}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : entry.grantee_type === "GROUP" ? (
-                            <Select value={entry.grantee_id} onValueChange={(value) => updateAclEntry(entry.localId, { grantee_id: value })}>
-                              <SelectTrigger><SelectValue placeholder={t("characters.selectGroup")} /></SelectTrigger>
-                              <SelectContent>
-                                {aclGroups.map((group) => (
-                                  <SelectItem key={group.gid} value={group.gid}>
-                                    {group.name} · {group.gid}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input disabled value={t("characters.authenticatedAll")} />
-                          )}
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>{t("characters.permissionLevel")}</Label>
-                          <Select value={entry.perm_level} onValueChange={(value) => updateAclEntry(entry.localId, { perm_level: value as AclDraftEntry["perm_level"] })}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="READ">{t("characters.permissionRead")}</SelectItem>
-                              <SelectItem value="USE">{t("characters.permissionUse")}</SelectItem>
-                              <SelectItem value="MANAGE">{t("characters.permissionManage")}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex justify-end">
-                        <Button variant="ghost" size="sm" onClick={() => setAclEntries((prev) => prev.filter((item) => item.localId !== entry.localId))}>
-                          <Trash2 className="mr-2 size-4" />
-                          {t("common.delete")}
-                        </Button>
-                      </div>
+              <Card className="border-border/70 bg-background/30">
+                <CardHeader>
+                  <CardTitle className="text-base">Existing ACL</CardTitle>
+                  <CardDescription>These entries come directly from the backend and can be removed one by one.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {existingAclEntries.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      {t("characters.aclEmpty")}
                     </div>
-                  ))
-                )}
-              </div>
+                  ) : (
+                    existingAclEntries.map((entry) => (
+                      <div key={entry.id} className="rounded-2xl border border-border/70 p-4 text-sm">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline">{subjectTypeLabel(entry.grantee_type)}</Badge>
+                          <Badge>{permissionLabel(entry.perm_level, t)}</Badge>
+                        </div>
+                        <div className="mt-2 break-all text-muted-foreground">{formatAclTarget(entry)}</div>
+                        <div className="mt-3 flex justify-end">
+                          <Button variant="ghost" size="sm" onClick={() => void handleDeleteAclEntry(entry)}>
+                            <Trash2 className="mr-2 size-4" />
+                            {t("common.delete")}
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/70 bg-background/30">
+                <CardHeader>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-base">Append ACL Entries</CardTitle>
+                      <CardDescription>Add new grants without implying full replace or delete support.</CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={addAclDraft}>
+                      <Plus className="mr-2 size-4" />
+                      {t("characters.addAclEntry")}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {aclDrafts.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      No pending ACL additions.
+                    </div>
+                  ) : (
+                    aclDrafts.map((entry) => (
+                      <div key={entry.localId} className="rounded-2xl border border-border/70 p-4">
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div className="grid gap-2">
+                            <Label>{t("characters.granteeType")}</Label>
+                            <Select
+                              value={entry.grantee_type}
+                              onValueChange={(value) =>
+                                updateAclDraft(entry.localId, {
+                                  grantee_type: value as AclDraftEntry["grantee_type"],
+                                  grantee_id: value === "AUTHENTICATED_ALL" ? AUTHENTICATED_KEY : "",
+                                })
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="USER">{t("characters.granteeUser")}</SelectItem>
+                                <SelectItem value="GROUP">{t("characters.granteeGroup")}</SelectItem>
+                                <SelectItem value="SUBTREE">{t("characters.granteeSubtree")}</SelectItem>
+                                <SelectItem value="AUTHENTICATED_ALL">{t("characters.granteeAll")}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>{t("characters.granteeTarget")}</Label>
+                            {entry.grantee_type === "USER" || entry.grantee_type === "SUBTREE" ? (
+                              <Select value={entry.grantee_id} onValueChange={(value) => updateAclDraft(entry.localId, { grantee_id: value })}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={t("characters.selectUser")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {aclUsers.map((item) => (
+                                    <SelectItem key={item.uid} value={item.uid}>
+                                      {item.username} / {item.uid}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : entry.grantee_type === "GROUP" ? (
+                              <Select value={entry.grantee_id} onValueChange={(value) => updateAclDraft(entry.localId, { grantee_id: value })}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={t("characters.selectGroup")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {aclGroups.map((group) => (
+                                    <SelectItem key={group.gid} value={group.gid}>
+                                      {group.name} / {group.gid}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input disabled value={t("characters.authenticatedAll")} />
+                            )}
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>{t("characters.permissionLevel")}</Label>
+                            <Select
+                              value={entry.perm_level}
+                              onValueChange={(value) =>
+                                updateAclDraft(entry.localId, { perm_level: value as AclDraftEntry["perm_level"] })
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="READ">{t("characters.permissionRead")}</SelectItem>
+                                <SelectItem value="USE">{t("characters.permissionUse")}</SelectItem>
+                                <SelectItem value="MANAGE">{t("characters.permissionManage")}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setAclDrafts((prev) => prev.filter((item) => item.localId !== entry.localId))}
+                          >
+                            <Trash2 className="mr-2 size-4" />
+                            Remove draft
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
             </div>
 
             <div className="space-y-4">
@@ -520,8 +670,17 @@ export default function CharactersPage() {
                 <CardContent className="space-y-3">
                   <div className="grid gap-2">
                     <Label>{t("characters.inspectMode")}</Label>
-                    <Select value={effectiveMode} onValueChange={(value) => { setEffectiveMode(value as EffectiveQueryMode); setEffectiveTarget(""); setEffectiveItems([]); }}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={effectiveMode}
+                      onValueChange={(value) => {
+                        setEffectiveMode(value as EffectiveQueryMode);
+                        setEffectiveTarget("");
+                        setEffectiveItems([]);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="user">{t("characters.inspectUser")}</SelectItem>
                         <SelectItem value="group">{t("characters.inspectGroup")}</SelectItem>
@@ -532,22 +691,26 @@ export default function CharactersPage() {
                     <Label>{t("characters.inspectTarget")}</Label>
                     {effectiveMode === "user" ? (
                       <Select value={effectiveTarget} onValueChange={setEffectiveTarget}>
-                        <SelectTrigger><SelectValue placeholder={t("characters.selectUser")} /></SelectTrigger>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("characters.selectUser")} />
+                        </SelectTrigger>
                         <SelectContent>
                           {aclUsers.map((item) => (
                             <SelectItem key={item.uid} value={item.uid}>
-                              {item.username} · {item.uid}
+                              {item.username} / {item.uid}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     ) : (
                       <Select value={effectiveTarget} onValueChange={setEffectiveTarget}>
-                        <SelectTrigger><SelectValue placeholder={t("characters.selectGroup")} /></SelectTrigger>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("characters.selectGroup")} />
+                        </SelectTrigger>
                         <SelectContent>
                           {aclGroups.map((group) => (
                             <SelectItem key={group.gid} value={group.gid}>
-                              {group.name} · {group.gid}
+                              {group.name} / {group.gid}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -569,7 +732,7 @@ export default function CharactersPage() {
                             <Badge variant="outline">{item.source}</Badge>
                             <Badge>{permissionLabel(item.perm_level, t)}</Badge>
                           </div>
-                          <div className="mt-2 break-all text-muted-foreground">{item.grantee_id || t("characters.authenticatedAll")}</div>
+                          <div className="mt-2 break-all text-muted-foreground">{formatAclTarget(item)}</div>
                         </div>
                       ))}
                     </div>
@@ -583,15 +746,24 @@ export default function CharactersPage() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm text-muted-foreground">
                   <div className="rounded-xl border border-dashed border-border p-3">
-                    <div className="mb-2 flex items-center gap-2"><LockKeyhole className="size-4 text-primary" />{t("characters.permissionRead")}</div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <LockKeyhole className="size-4 text-primary" />
+                      {t("characters.permissionRead")}
+                    </div>
                     <div>{t("characters.permissionReadDesc")}</div>
                   </div>
                   <div className="rounded-xl border border-dashed border-border p-3">
-                    <div className="mb-2 flex items-center gap-2"><UserRound className="size-4 text-primary" />{t("characters.permissionUse")}</div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <UserRound className="size-4 text-primary" />
+                      {t("characters.permissionUse")}
+                    </div>
                     <div>{t("characters.permissionUseDesc")}</div>
                   </div>
                   <div className="rounded-xl border border-dashed border-border p-3">
-                    <div className="mb-2 flex items-center gap-2"><Globe2 className="size-4 text-primary" />{t("characters.permissionManage")}</div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <Globe2 className="size-4 text-primary" />
+                      {t("characters.permissionManage")}
+                    </div>
                     <div>{t("characters.permissionManageDesc")}</div>
                   </div>
                 </CardContent>
@@ -599,24 +771,15 @@ export default function CharactersPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAclOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={() => void saveAcl()}>{t("characters.saveAcl")}</Button>
+            <Button variant="outline" onClick={() => setAclOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={() => void saveAcl()} disabled={aclDrafts.length === 0}>
+              Append ACL Entries
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("characters.confirmDeleteTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("characters.confirmDeleteDescription")}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>{t("characters.continueDelete")}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </PageFrame>
   );
 }

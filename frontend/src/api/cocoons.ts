@@ -1,4 +1,4 @@
-import { apiCall, makeCocoonWsUrl, unsupportedFeature } from "./client";
+import { apiCall, makeCocoonWsUrl } from "./client";
 import {
   rememberLegacyId,
   rememberLegacyStringId,
@@ -12,14 +12,15 @@ import type {
   ChatRequest,
   ChatStreamEvent,
   CocoonCompactionPayload,
-  CocoonCompactionResult,
   CocoonPayload,
   CocoonRead,
   CocoonTreeNode,
   CocoonTreeResponse,
+  DurableJobRead,
   MemoryChunkRead,
   PageResp,
   RuntimeWsEvent,
+  StatePatchEvent,
   TagRead,
 } from "./types";
 
@@ -34,6 +35,13 @@ function makePage<T>(items: T[], page: number, pageSize: number): PageResp<T> {
     page_size: pageSize,
     total_pages,
   };
+}
+
+function epochSecondsToIso(value: number | null | undefined) {
+  if (typeof value !== "number") {
+    return null;
+  }
+  return new Date(value * 1000).toISOString();
 }
 
 function mapCharacter(item: {
@@ -128,9 +136,11 @@ async function mapCocoon(item: {
   owner_user_id: string;
   character_id: string;
   selected_model_id: string;
+  default_temperature?: number;
+  max_context_messages?: number;
+  auto_compaction_enabled?: boolean;
   parent_id: string | null;
   created_at: string;
-  max_context_messages?: number;
 }, boundTagIds: string[] = []): Promise<CocoonRead> {
   const refs = await loadReferences();
   const selectedModel = refs.mappedModels.get(item.selected_model_id) || null;
@@ -141,6 +151,9 @@ async function mapCocoon(item: {
     id: rememberLegacyId("cocoon", item.id),
     name: item.name,
     owner_uid: rememberLegacyStringId("user", item.owner_user_id),
+    default_temperature: item.default_temperature ?? null,
+    max_context_messages: item.max_context_messages ?? null,
+    auto_compaction_enabled: item.auto_compaction_enabled ?? null,
     kind: "private",
     chat_group_id: null,
     parent_id: item.parent_id ? rememberLegacyId("cocoon", item.parent_id) : null,
@@ -154,7 +167,7 @@ async function mapCocoon(item: {
     active_checkpoint_id: null,
     rollback_activated_at: null,
     context_prompt: null,
-    max_context_tokens: item.max_context_messages ?? 12,
+    max_context_tokens: item.max_context_messages ?? null,
     max_rounds: null,
     compact_memory_max_items: 0,
     auto_compaction_trigger_rounds: 0,
@@ -272,25 +285,37 @@ function mapMemory(item: {
 
 function mapRuntimeEvent(event: any): RuntimeWsEvent {
   if (event.type === "reply_started") {
-    return { ...event, user_message: mapMessage(event.user_message) };
+    if (event.user_message) {
+      return { ...event, user_message: mapMessage(event.user_message) };
+    }
+    return event as RuntimeWsEvent;
+  }
+  if (event.type === "reply_chunk") {
+    return {
+      ...event,
+      delta: typeof event.delta === "string" ? event.delta : typeof event.text === "string" ? event.text : "",
+      flush: Boolean(event.flush),
+    } as RuntimeWsEvent;
   }
   if (event.type === "reply_done") {
-    return { ...event, assistant_message: mapMessage(event.assistant_message) };
+    if (event.assistant_message) {
+      return { ...event, assistant_message: mapMessage(event.assistant_message) };
+    }
+    return event as RuntimeWsEvent;
   }
   if (event.type === "state_patch") {
     return {
       ...event,
+      current_wakeup_task_id: event.current_wakeup_task_id ?? null,
       current_model_id: event.current_model_id ? rememberLegacyId("model", event.current_model_id) : null,
-    };
+    } satisfies StatePatchEvent;
   }
   return event as RuntimeWsEvent;
 }
 
 export function getCocoons(page: number, page_size: number, _scope: "mine" | "all" = "mine"): Promise<PageResp<CocoonRead>> {
   return apiCall(async (client) => {
-    const items = await Promise.all(
-      (await client.listCocoons()).map((item) => mapCocoon({ ...item, max_context_messages: 12 })),
-    );
+    const items = await Promise.all((await client.listCocoons()).map((item) => mapCocoon(item)));
     return makePage(items, page, page_size);
   });
 }
@@ -322,7 +347,22 @@ export function getCocoon(id: number): Promise<CocoonRead> {
       client.getCocoon(actualId),
       client.listCocoonTags(actualId),
     ]);
-    return mapCocoon({ ...cocoon, max_context_messages: 12 }, tags.map((item) => item.tag_id));
+    return mapCocoon(cocoon, tags.map((item) => item.tag_id));
+  });
+}
+
+export function getCocoonSessionState(cocoonId: number) {
+  return apiCall(async (client) => {
+    const state = await client.getSessionState(resolveActualId("cocoon", cocoonId));
+    return {
+      relation_score: state.relation_score,
+      persona_json: state.persona_json || {},
+      active_tags: state.active_tags_json || [],
+      current_model_id: null,
+      current_wakeup_task_id: state.current_wakeup_task_id ?? null,
+      dispatch_status: null as string | null,
+      debounce_until: null as string | null,
+    };
   });
 }
 
@@ -333,8 +373,8 @@ export function createCocoon(data: CocoonPayload): Promise<CocoonRead> {
       character_id: resolveActualId("character", data.character_id || 0),
       selected_model_id: resolveActualId("model", data.selected_model_id || 0),
       parent_id: data.parent_id ? resolveActualId("cocoon", data.parent_id) : null,
-      default_temperature: 0.7,
-      max_context_messages: data.max_context_tokens || 12,
+      default_temperature: data.default_temperature ?? 0.7,
+      max_context_messages: data.max_context_messages ?? data.max_context_tokens ?? 12,
     });
     return getCocoon(rememberLegacyId("cocoon", created.id));
   });
@@ -346,16 +386,18 @@ export function updateCocoon(id: number, data: Partial<CocoonPayload>): Promise<
       name: data.name?.trim(),
       character_id: data.character_id ? resolveActualId("character", data.character_id) : undefined,
       selected_model_id: data.selected_model_id ? resolveActualId("model", data.selected_model_id) : undefined,
-      max_context_messages: data.max_context_tokens ?? undefined,
-      auto_compaction_enabled: undefined,
-      default_temperature: undefined,
+      max_context_messages: data.max_context_messages ?? data.max_context_tokens ?? undefined,
+      auto_compaction_enabled: data.auto_compaction_enabled ?? undefined,
+      default_temperature: data.default_temperature ?? undefined,
     });
     return getCocoon(rememberLegacyId("cocoon", updated.id));
   });
 }
 
 export function deleteCocoon(_id: number) {
-  return unsupportedFeature("Deleting cocoons is not supported by the current backend");
+  return apiCall(async (client) => {
+    return mapCocoon(await client.deleteCocoon(resolveActualId("cocoon", _id)));
+  });
 }
 
 export function getCocoonMessages(
@@ -391,29 +433,23 @@ export function getCocoonMemories(cocoon_id: number, page: number, page_size: nu
 }
 
 export function deleteCocoonMemory(_cocoon_id: number, _memory_id: number) {
-  return unsupportedFeature("Deleting memories is not supported by the current backend");
+  return apiCall(async (client) => {
+    return mapMemory(
+      await client.deleteMemory(resolveActualId("cocoon", _cocoon_id), resolveActualId("memory", _memory_id)),
+    );
+  });
 }
 
-export function compactCocoonContext(cocoon_id: number, data: CocoonCompactionPayload) {
+export function compactCocoonContext(cocoon_id: number, _data: CocoonCompactionPayload): Promise<DurableJobRead> {
   return apiCall(async (client) => {
-    const job = await client.compactMemory(resolveActualId("cocoon", cocoon_id), {
+    return client.compactMemory(resolveActualId("cocoon", cocoon_id), {
       before_message_id: null,
     });
-    return {
-      triggered: true,
-      mode: data.mode || "manual",
-      selected_message_count: 0,
-      persisted_count: 0,
-      compacted_until_message_id: null,
-      summary: "",
-      reason: job.status,
-      items: [],
-    } satisfies CocoonCompactionResult;
   });
 }
 
 export function deleteCocoonReply(_cocoon_id: number) {
-  return unsupportedFeature("Deleting replies is not supported by the current backend");
+  throw new Error("Deleting replies is not supported by the current backend");
 }
 
 export function sendCocoonMessage(cocoon_id: number, data: ChatRequest) {
@@ -426,7 +462,7 @@ export function sendCocoonMessage(cocoon_id: number, data: ChatRequest) {
     return {
       accepted: accepted.accepted,
       dispatch_status: accepted.status,
-      debounce_until: null,
+      debounce_until: epochSecondsToIso(accepted.debounce_until),
       user_message: {
         id: rememberLegacyId("message", `pending:${accepted.action_id}`),
         message_uid: `pending:${accepted.action_id}`,
@@ -451,16 +487,15 @@ export function sendCocoonMessage(cocoon_id: number, data: ChatRequest) {
 export function connectCocoonWorkspaceSocket(
   cocoonId: number,
   handlers: {
-    onMessage: (event: RuntimeWsEvent) => void;
-    onOpen?: () => void;
-    onClose?: (event: CloseEvent) => void;
-    onError?: (event: Event) => void;
+      onMessage: (event: RuntimeWsEvent) => void;
+      onOpen?: () => void;
+      onClose?: (event: CloseEvent) => void;
+      onError?: (event: Event) => void;
   },
 ) {
   const socket = new WebSocket(makeCocoonWsUrl(resolveActualId("cocoon", cocoonId)));
   socket.onopen = () => {
     handlers.onOpen?.();
-    socket.send(JSON.stringify({ type: "ping" }));
   };
   socket.onmessage = (event) => {
     handlers.onMessage(mapRuntimeEvent(JSON.parse(String(event.data))));
@@ -472,10 +507,16 @@ export function connectCocoonWorkspaceSocket(
 
 export function updateCocoonUserMessage(
   _cocoon_id: number,
-  _data: { content: string },
+  _data: { message_id: number; content: string },
   _onEvent: (event: ChatStreamEvent) => void,
 ) {
-  return unsupportedFeature("Editing user messages is not supported by the current backend");
+  return apiCall(async (client) => {
+    const accepted = await client.editUserMessage(resolveActualId("cocoon", _cocoon_id), {
+      message_id: resolveActualId("message", _data.message_id),
+      content: _data.content,
+    });
+    return accepted;
+  });
 }
 
 export function retryCocoonReply(

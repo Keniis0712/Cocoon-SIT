@@ -9,8 +9,10 @@ type SessionState = {
   personaJson: Record<string, unknown>;
   activeTags: string[];
   currentModelId: number | null;
+  currentWakeupTaskId: string | null;
   dispatchState: string;
   dispatchReason: string | null;
+  debounceUntil: string | null;
   isUserTyping: boolean;
   lastError: string | null;
 };
@@ -31,8 +33,10 @@ type ChatSessionStore = {
       personaJson?: Record<string, unknown>;
       activeTags?: string[];
       currentModelId?: number | null;
+      currentWakeupTaskId?: string | null;
       dispatchState?: string;
       dispatchReason?: string | null;
+      debounceUntil?: string | null;
     },
   ) => void;
   setTyping: (cocoonId: number, isTyping: boolean) => void;
@@ -46,8 +50,10 @@ const EMPTY_SESSION: SessionState = {
   personaJson: {},
   activeTags: [],
   currentModelId: null,
+  currentWakeupTaskId: null,
   dispatchState: "idle",
   dispatchReason: null,
+  debounceUntil: null,
   isUserTyping: false,
   lastError: null,
 };
@@ -127,7 +133,7 @@ export const useChatSessionStore = create<ChatSessionStore>((set, get) => ({
         ...state.sessions,
         [cocoonId]: {
           ...(state.sessions[cocoonId] || EMPTY_SESSION),
-          streamingAssistant: `${state.sessions[cocoonId]?.streamingAssistant || ""}${value}`,
+          streamingAssistant: `${state.sessions[cocoonId]?.streamingAssistant || ""}${value || ""}`,
         },
       },
     })),
@@ -141,8 +147,11 @@ export const useChatSessionStore = create<ChatSessionStore>((set, get) => ({
           personaJson: patch.personaJson ?? state.sessions[cocoonId]?.personaJson ?? {},
           activeTags: patch.activeTags ?? state.sessions[cocoonId]?.activeTags ?? [],
           currentModelId: patch.currentModelId ?? state.sessions[cocoonId]?.currentModelId ?? null,
+          currentWakeupTaskId:
+            patch.currentWakeupTaskId ?? state.sessions[cocoonId]?.currentWakeupTaskId ?? null,
           dispatchState: patch.dispatchState ?? state.sessions[cocoonId]?.dispatchState ?? "idle",
           dispatchReason: patch.dispatchReason ?? state.sessions[cocoonId]?.dispatchReason ?? null,
+          debounceUntil: patch.debounceUntil ?? state.sessions[cocoonId]?.debounceUntil ?? null,
         },
       },
     })),

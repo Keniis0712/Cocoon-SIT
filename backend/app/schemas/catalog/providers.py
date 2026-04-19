@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.schemas.common import ORMModel
+from app.services.providers.base import ProviderUsage
 
 
 class ModelProviderCreate(BaseModel):
@@ -25,6 +26,26 @@ class ModelProviderOut(ORMModel):
     is_enabled: bool
     capabilities_json: dict
     created_at: datetime
+
+
+class ProviderTestRequest(BaseModel):
+    selected_model_id: str
+    prompt: str = Field(min_length=1)
+
+
+class ProviderUsageOut(ORMModel):
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+
+
+class ProviderTestOut(ORMModel):
+    provider_id: str
+    selected_model_id: str
+    model_name: str
+    reply: str
+    usage: ProviderUsageOut
+    raw_response: dict
 
 
 class ProviderCredentialOut(ORMModel):

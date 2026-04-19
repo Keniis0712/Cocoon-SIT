@@ -26,8 +26,14 @@ class ProviderFactory:
 
     def resolve_chat_provider(self, provider_kind: str) -> ChatProvider:
         """Return the provider implementation for the given kind."""
-        return self._chat_providers.get(provider_kind, self._chat_providers["mock"])
+        provider = self._chat_providers.get(provider_kind)
+        if provider is None:
+            raise ValueError(f"Unsupported chat provider kind: {provider_kind}")
+        return provider
 
     def resolve_embedding_provider(self, provider_kind: str) -> EmbeddingProvider:
         """Return the embedding-provider implementation for the given kind."""
-        return self._embedding_providers.get(provider_kind, self._embedding_providers["local_cpu"])
+        provider = self._embedding_providers.get(provider_kind)
+        if provider is None:
+            raise ValueError(f"Unsupported embedding provider kind: {provider_kind}")
+        return provider

@@ -34,3 +34,12 @@ def update_tag(
     _=Depends(require_permission("tags:write")),
 ) -> TagRegistry:
     return db.info["container"].tag_service.update_tag(db, tag_id, payload)
+
+
+@router.delete("/{tag_id}", response_model=TagOut)
+def delete_tag(
+    tag_id: str,
+    db: Session = Depends(get_db),
+    _=Depends(require_permission("tags:write")),
+) -> TagRegistry:
+    return db.info["container"].tag_service.delete_tag(db, tag_id)

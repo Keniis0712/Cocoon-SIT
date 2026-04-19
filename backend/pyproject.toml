@@ -19,7 +19,7 @@ dependencies = [
   "python-multipart>=0.0.20",
   "redis>=5.2.0",
   "sqlalchemy>=2.0.39",
-  "uvicorn>=0.34.0"
+  "uvicorn[standard]>=0.34.0"
 ]
 
 [dependency-groups]

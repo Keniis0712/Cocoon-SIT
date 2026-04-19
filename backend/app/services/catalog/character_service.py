@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Character, CharacterAcl, User
+from app.models import Character, CharacterAcl, Cocoon, User
 from app.schemas.catalog.characters import CharacterAclCreate, CharacterCreate, CharacterUpdate
 
 
@@ -66,5 +66,30 @@ class CharacterService:
             can_use=payload.can_use,
         )
         session.add(acl)
+        session.flush()
+        return acl
+
+    def delete_character(self, session: Session, character_id: str) -> Character:
+        """Delete a character when no cocoon still depends on it."""
+        character = session.get(Character, character_id)
+        if not character:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Character not found")
+        linked_cocoon = session.scalar(select(Cocoon.id).where(Cocoon.character_id == character_id).limit(1))
+        if linked_cocoon:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Character is still used by an existing cocoon",
+            )
+        session.query(CharacterAcl).filter(CharacterAcl.character_id == character_id).delete()
+        session.delete(character)
+        session.flush()
+        return character
+
+    def delete_acl(self, session: Session, character_id: str, acl_id: str) -> CharacterAcl:
+        """Delete a single ACL row for a character."""
+        acl = session.get(CharacterAcl, acl_id)
+        if not acl or acl.character_id != character_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Character ACL not found")
+        session.delete(acl)
         session.flush()
         return acl

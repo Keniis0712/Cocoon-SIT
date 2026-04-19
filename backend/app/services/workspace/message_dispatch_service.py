@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.models import ActionDispatch, Cocoon, Message, MessageTag, SessionState
 from app.models.entities import ActionStatus
+from app.services.catalog.system_settings_service import SystemSettingsService
 from app.services.jobs.chat_dispatch import ChatDispatchQueue
 from app.services.realtime.hub import RealtimeHub
 
@@ -23,11 +24,19 @@ class MessageDispatchService:
         self,
         chat_queue: ChatDispatchQueue,
         realtime_hub: RealtimeHub,
+        system_settings_service: SystemSettingsService | None = None,
         debounce_seconds: int | None = None,
     ) -> None:
         self.chat_queue = chat_queue
         self.realtime_hub = realtime_hub
+        self.system_settings_service = system_settings_service
         self.debounce_seconds = debounce_seconds or self.DEFAULT_DEBOUNCE_SECONDS
+
+    def _current_debounce_seconds(self, session: Session) -> int:
+        if not self.system_settings_service:
+            return self.debounce_seconds
+        current = self.system_settings_service.get_settings(session)
+        return max(int(current.private_chat_debounce_seconds), 0)
 
     def _build_debounce_key(self, event_type: str, *parts: str | None) -> str:
         payload = "|".join((part or "").strip() for part in parts)
@@ -64,6 +73,24 @@ class MessageDispatchService:
             None,
         )
 
+    def _commit_then_enqueue(
+        self,
+        session: Session,
+        *,
+        action: ActionDispatch,
+        cocoon_id: str,
+        event_type: str,
+        payload: dict,
+    ) -> None:
+        # Commit first so worker processes in other containers never see a queue
+        # message before the corresponding ActionDispatch row exists.
+        session.commit()
+        queue_length = self.chat_queue.enqueue(action.id, cocoon_id, event_type, payload)
+        self.realtime_hub.publish(
+            cocoon_id,
+            {"type": "dispatch_queued", "action_id": action.id, "queue_length": queue_length},
+        )
+
     def enqueue_chat_message(
         self,
         session: Session,
@@ -91,13 +118,14 @@ class MessageDispatchService:
             state = SessionState(cocoon_id=cocoon_id, persona_json={}, active_tags_json=[])
             session.add(state)
             session.flush()
+        debounce_seconds = self._current_debounce_seconds(session)
 
         action = ActionDispatch(
             cocoon_id=cocoon_id,
             event_type="chat",
             status=ActionStatus.queued,
             client_request_id=client_request_id,
-            debounce_until=datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=self.debounce_seconds),
+            debounce_until=datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=debounce_seconds),
             payload_json={"timezone": timezone, "debounce_key": debounce_key},
         )
         session.add(action)
@@ -122,10 +150,12 @@ class MessageDispatchService:
         for tag in state.active_tags_json:
             session.add(MessageTag(message_id=message.id, tag_id=tag))
         session.flush()
-        queue_length = self.chat_queue.enqueue(action.id, cocoon_id, "chat", action.payload_json)
-        self.realtime_hub.publish(
-            cocoon_id,
-            {"type": "dispatch_queued", "action_id": action.id, "queue_length": queue_length},
+        self._commit_then_enqueue(
+            session,
+            action=action,
+            cocoon_id=cocoon_id,
+            event_type="chat",
+            payload=dict(action.payload_json),
         )
         return action
 
@@ -142,19 +172,22 @@ class MessageDispatchService:
         if existing_debounced := self._find_debounced_action(session, cocoon_id, "edit", debounce_key):
             return existing_debounced
         message.content = content
+        debounce_seconds = self._current_debounce_seconds(session)
         action = ActionDispatch(
             cocoon_id=cocoon_id,
             event_type="edit",
             status=ActionStatus.queued,
-            debounce_until=datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=self.debounce_seconds),
+            debounce_until=datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=debounce_seconds),
             payload_json={"message_id": message.id, "debounce_key": debounce_key},
         )
         session.add(action)
         session.flush()
-        queue_length = self.chat_queue.enqueue(action.id, cocoon_id, "edit", action.payload_json)
-        self.realtime_hub.publish(
-            cocoon_id,
-            {"type": "dispatch_queued", "action_id": action.id, "queue_length": queue_length},
+        self._commit_then_enqueue(
+            session,
+            action=action,
+            cocoon_id=cocoon_id,
+            event_type="edit",
+            payload=dict(action.payload_json),
         )
         return action
 
@@ -169,18 +202,21 @@ class MessageDispatchService:
         debounce_key = self._build_debounce_key("retry", message_id)
         if existing_debounced := self._find_debounced_action(session, cocoon_id, "retry", debounce_key):
             return existing_debounced
+        debounce_seconds = self._current_debounce_seconds(session)
         action = ActionDispatch(
             cocoon_id=cocoon_id,
             event_type="retry",
             status=ActionStatus.queued,
-            debounce_until=datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=self.debounce_seconds),
+            debounce_until=datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=debounce_seconds),
             payload_json={"message_id": message_id, "debounce_key": debounce_key},
         )
         session.add(action)
         session.flush()
-        queue_length = self.chat_queue.enqueue(action.id, cocoon_id, "retry", action.payload_json)
-        self.realtime_hub.publish(
-            cocoon_id,
-            {"type": "dispatch_queued", "action_id": action.id, "queue_length": queue_length},
+        self._commit_then_enqueue(
+            session,
+            action=action,
+            cocoon_id=cocoon_id,
+            event_type="retry",
+            payload=dict(action.payload_json),
         )
         return action

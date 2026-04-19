@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register */
+        post: operations["register_api_v1_auth_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/refresh": {
         parameters: {
             query?: never;
@@ -81,6 +98,23 @@ export interface paths {
         };
         /** Me */
         get: operations["me_api_v1_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public Features */
+        get: operations["public_features_api_v1_auth_features_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -177,6 +211,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/invites/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Invite */
+        delete: operations["revoke_invite_api_v1_invites__code__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invites/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Invite Grants */
+        get: operations["list_invite_grants_api_v1_invites_grants_get"];
+        put?: never;
+        /** Create Invite Grant */
+        post: operations["create_invite_grant_api_v1_invites_grants_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invites/summary/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Invite Summary */
+        get: operations["get_my_invite_summary_api_v1_invites_summary_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invites/summary/groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Group Invite Summary */
+        get: operations["get_group_invite_summary_api_v1_invites_summary_groups__group_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/invites/{code}/redeem": {
         parameters: {
             query?: never;
@@ -212,6 +315,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Group */
+        delete: operations["delete_group_api_v1_groups__group_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Group */
+        patch: operations["update_group_api_v1_groups__group_id__patch"];
+        trace?: never;
+    };
     "/api/v1/groups/{group_id}/members": {
         parameters: {
             query?: never;
@@ -225,6 +346,23 @@ export interface paths {
         /** Add Group Member */
         post: operations["add_group_member_api_v1_groups__group_id__members_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/groups/{group_id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Group Member */
+        delete: operations["remove_group_member_api_v1_groups__group_id__members__user_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -258,7 +396,8 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Character */
+        delete: operations["delete_character_api_v1_characters__character_id__delete"];
         options?: never;
         head?: never;
         /** Update Character */
@@ -278,6 +417,23 @@ export interface paths {
         /** Create Character Acl */
         post: operations["create_character_acl_api_v1_characters__character_id__acl_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/characters/{character_id}/acl/{acl_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Character Acl */
+        delete: operations["delete_character_acl_api_v1_characters__character_id__acl__acl_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -311,11 +467,46 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Provider */
+        delete: operations["delete_provider_api_v1_providers__provider_id__delete"];
         options?: never;
         head?: never;
         /** Update Provider */
         patch: operations["update_provider_api_v1_providers__provider_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/providers/{provider_id}/sync-models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync Provider Models */
+        post: operations["sync_provider_models_api_v1_providers__provider_id__sync_models_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/{provider_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Provider */
+        post: operations["test_provider_api_v1_providers__provider_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/providers/{provider_id}/credentials": {
@@ -434,11 +625,30 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Tag */
+        delete: operations["delete_tag_api_v1_tags__tag_id__delete"];
         options?: never;
         head?: never;
         /** Update Tag */
         patch: operations["update_tag_api_v1_tags__tag_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get System Settings */
+        get: operations["get_system_settings_api_v1_settings_get"];
+        /** Update System Settings */
+        put: operations["update_system_settings_api_v1_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/prompt-templates": {
@@ -476,6 +686,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/prompt-templates/{template_type}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset Prompt Template */
+        post: operations["reset_prompt_template_api_v1_prompt_templates__template_type__reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cocoons": {
         parameters: {
             query?: never;
@@ -505,7 +732,8 @@ export interface paths {
         get: operations["get_cocoon_api_v1_cocoons__cocoon_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Cocoon */
+        delete: operations["delete_cocoon_api_v1_cocoons__cocoon_id__delete"];
         options?: never;
         head?: never;
         /** Update Cocoon */
@@ -616,6 +844,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cocoons/{cocoon_id}/tags/{tag_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unbind Cocoon Tag */
+        delete: operations["unbind_cocoon_tag_api_v1_cocoons__cocoon_id__tags__tag_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cocoons/{cocoon_id}/rollback": {
         parameters: {
             query?: never;
@@ -662,6 +907,23 @@ export interface paths {
         /** Compact Memory */
         post: operations["compact_memory_api_v1_memory__cocoon_id__compact_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/memory/{cocoon_id}/{memory_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Memory */
+        delete: operations["delete_memory_api_v1_memory__cocoon_id___memory_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -875,6 +1137,15 @@ export interface components {
             /** Debounce Until */
             debounce_until?: number | null;
         };
+        /** AllowedModelOut */
+        AllowedModelOut: {
+            /** Id */
+            id: string;
+            /** Provider Id */
+            provider_id: string;
+            /** Model Name */
+            model_name: string;
+        };
         /** ArtifactCleanupRequest */
         ArtifactCleanupRequest: {
             /** Artifact Ids */
@@ -896,6 +1167,8 @@ export interface components {
             metadata_json: {
                 [key: string]: unknown;
             };
+            /** Payload Json */
+            payload_json?: unknown;
             /** Expires At */
             expires_at: string | null;
             /** Deleted At */
@@ -1184,16 +1457,12 @@ export interface components {
             selected_model_id: string;
             /** Parent Id */
             parent_id?: string | null;
-            /**
-             * Default Temperature
-             * @default 0.7
-             */
-            default_temperature: number;
-            /**
-             * Max Context Messages
-             * @default 12
-             */
-            max_context_messages: number;
+            /** Default Temperature */
+            default_temperature?: number | null;
+            /** Max Context Messages */
+            max_context_messages?: number | null;
+            /** Auto Compaction Enabled */
+            auto_compaction_enabled?: boolean | null;
         };
         /** CocoonOut */
         CocoonOut: {
@@ -1207,6 +1476,12 @@ export interface components {
             character_id: string;
             /** Selected Model Id */
             selected_model_id: string;
+            /** Default Temperature */
+            default_temperature: number;
+            /** Max Context Messages */
+            max_context_messages: number;
+            /** Auto Compaction Enabled */
+            auto_compaction_enabled: boolean;
             /** Parent Id */
             parent_id: string | null;
             /**
@@ -1419,6 +1694,11 @@ export interface components {
              */
             created_at: string;
         };
+        /** GroupUpdate */
+        GroupUpdate: {
+            /** Name */
+            name?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1478,6 +1758,62 @@ export interface components {
             quota_total: number;
             /** Expires At */
             expires_at?: string | null;
+            /** Created For User Id */
+            created_for_user_id?: string | null;
+            /**
+             * Source Type
+             * @default ADMIN_OVERRIDE
+             */
+            source_type: string;
+            /** Source Id */
+            source_id?: string | null;
+        };
+        /** InviteGrantCreate */
+        InviteGrantCreate: {
+            /** Target Type */
+            target_type: string;
+            /** Target Id */
+            target_id: string;
+            /**
+             * Amount
+             * @default 1
+             */
+            amount: number;
+            /**
+             * Is Unlimited
+             * @default false
+             */
+            is_unlimited: boolean;
+            /** Note */
+            note?: string | null;
+        };
+        /** InviteGrantOut */
+        InviteGrantOut: {
+            /** Id */
+            id: string;
+            /** Invite Code Id */
+            invite_code_id: string | null;
+            /** Granted By User Id */
+            granted_by_user_id: string | null;
+            /** Source Type */
+            source_type: string;
+            /** Source Id */
+            source_id: string | null;
+            /** Target Type */
+            target_type: string;
+            /** Target Id */
+            target_id: string;
+            /** Quota */
+            quota: number;
+            /** Is Unlimited */
+            is_unlimited: boolean;
+            /** Note */
+            note: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** InviteOut */
         InviteOut: {
@@ -1487,17 +1823,30 @@ export interface components {
             code: string;
             /** Created By User Id */
             created_by_user_id: string | null;
+            /** Created For User Id */
+            created_for_user_id: string | null;
+            /** Source Type */
+            source_type: string;
+            /** Source Id */
+            source_id: string | null;
             /** Quota Total */
             quota_total: number;
             /** Quota Used */
             quota_used: number;
             /** Expires At */
             expires_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** InviteRedeemRequest */
         InviteRedeemRequest: {
@@ -1517,6 +1866,27 @@ export interface components {
             grant_id: string;
             /** Quota Used */
             quota_used: number;
+        };
+        /** InviteRevokeResult */
+        InviteRevokeResult: {
+            /** Code */
+            code: string;
+            /**
+             * Revoked At
+             * Format: date-time
+             */
+            revoked_at: string;
+        };
+        /** InviteSummaryOut */
+        InviteSummaryOut: {
+            /** Target Type */
+            target_type: string;
+            /** Target Id */
+            target_id: string;
+            /** Invite Quota Remaining */
+            invite_quota_remaining: number;
+            /** Invite Quota Unlimited */
+            invite_quota_unlimited: boolean;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -1756,6 +2126,60 @@ export interface components {
              */
             masked_secret: string;
         };
+        /** ProviderTestOut */
+        ProviderTestOut: {
+            /** Provider Id */
+            provider_id: string;
+            /** Selected Model Id */
+            selected_model_id: string;
+            /** Model Name */
+            model_name: string;
+            /** Reply */
+            reply: string;
+            usage: components["schemas"]["ProviderUsageOut"];
+            /** Raw Response */
+            raw_response: {
+                [key: string]: unknown;
+            };
+        };
+        /** ProviderTestRequest */
+        ProviderTestRequest: {
+            /** Selected Model Id */
+            selected_model_id: string;
+            /** Prompt */
+            prompt: string;
+        };
+        /** ProviderUsageOut */
+        ProviderUsageOut: {
+            /**
+             * Prompt Tokens
+             * @default 0
+             */
+            prompt_tokens: number;
+            /**
+             * Completion Tokens
+             * @default 0
+             */
+            completion_tokens: number;
+            /**
+             * Total Tokens
+             * @default 0
+             */
+            total_tokens: number;
+        };
+        /** PublicFeaturesOut */
+        PublicFeaturesOut: {
+            /** Allow Registration */
+            allow_registration: boolean;
+            /** Max Chat Turns */
+            max_chat_turns: number;
+            /** Allowed Models */
+            allowed_models: components["schemas"]["AllowedModelOut"][];
+            /** Rollback Retention Days */
+            rollback_retention_days: number;
+            /** Rollback Cleanup Interval Hours */
+            rollback_cleanup_interval_hours: number;
+        };
         /** PullEnqueueResult */
         PullEnqueueResult: {
             /** Job Id */
@@ -1798,6 +2222,17 @@ export interface components {
         RefreshRequest: {
             /** Refresh Token */
             refresh_token: string;
+        };
+        /** RegisterRequest */
+        RegisterRequest: {
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+            /** Email */
+            email?: string | null;
+            /** Invite Code */
+            invite_code: string;
         };
         /** RelationScorePoint */
         RelationScorePoint: {
@@ -1866,6 +2301,60 @@ export interface components {
             active_tags_json: string[];
             /** Current Wakeup Task Id */
             current_wakeup_task_id: string | null;
+        };
+        /** SystemSettingsOut */
+        SystemSettingsOut: {
+            /** Id */
+            id: string;
+            /** Allow Registration */
+            allow_registration: boolean;
+            /** Max Chat Turns */
+            max_chat_turns: number;
+            /** Allowed Model Ids */
+            allowed_model_ids: string[];
+            /** Default Cocoon Temperature */
+            default_cocoon_temperature: number;
+            /** Default Max Context Messages */
+            default_max_context_messages: number;
+            /** Default Auto Compaction Enabled */
+            default_auto_compaction_enabled: boolean;
+            /** Private Chat Debounce Seconds */
+            private_chat_debounce_seconds: number;
+            /** Rollback Retention Days */
+            rollback_retention_days: number;
+            /** Rollback Cleanup Interval Hours */
+            rollback_cleanup_interval_hours: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** SystemSettingsUpdate */
+        SystemSettingsUpdate: {
+            /** Allow Registration */
+            allow_registration?: boolean | null;
+            /** Max Chat Turns */
+            max_chat_turns?: number | null;
+            /** Allowed Model Ids */
+            allowed_model_ids?: string[] | null;
+            /** Default Cocoon Temperature */
+            default_cocoon_temperature?: number | null;
+            /** Default Max Context Messages */
+            default_max_context_messages?: number | null;
+            /** Default Auto Compaction Enabled */
+            default_auto_compaction_enabled?: boolean | null;
+            /** Private Chat Debounce Seconds */
+            private_chat_debounce_seconds?: number | null;
+            /** Rollback Retention Days */
+            rollback_retention_days?: number | null;
+            /** Rollback Cleanup Interval Hours */
+            rollback_cleanup_interval_hours?: number | null;
         };
         /** TagCreate */
         TagCreate: {
@@ -2136,6 +2625,39 @@ export interface operations {
             };
         };
     };
+    register_api_v1_auth_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPair"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     refresh_api_v1_auth_refresh_post: {
         parameters: {
             query?: never;
@@ -2218,6 +2740,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserOut"];
+                };
+            };
+        };
+    };
+    public_features_api_v1_auth_features_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicFeaturesOut"];
                 };
             };
         };
@@ -2451,6 +2993,141 @@ export interface operations {
             };
         };
     };
+    revoke_invite_api_v1_invites__code__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteRevokeResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_invite_grants_api_v1_invites_grants_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteGrantOut"][];
+                };
+            };
+        };
+    };
+    create_invite_grant_api_v1_invites_grants_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteGrantCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteGrantOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_invite_summary_api_v1_invites_summary_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteSummaryOut"];
+                };
+            };
+        };
+    };
+    get_group_invite_summary_api_v1_invites_summary_groups__group_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     redeem_invite_api_v1_invites__code__redeem_post: {
         parameters: {
             query?: never;
@@ -2516,6 +3193,72 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["GroupCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_group_api_v1_groups__group_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_group_api_v1_groups__group_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupUpdate"];
             };
         };
         responses: {
@@ -2605,6 +3348,38 @@ export interface operations {
             };
         };
     };
+    remove_group_member_api_v1_groups__group_id__members__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupMemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_characters_api_v1_characters_get: {
         parameters: {
             query?: never;
@@ -2637,6 +3412,37 @@ export interface operations {
                 "application/json": components["schemas"]["CharacterCreate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CharacterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_character_api_v1_characters__character_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -2759,6 +3565,38 @@ export interface operations {
             };
         };
     };
+    delete_character_acl_api_v1_characters__character_id__acl__acl_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_id: string;
+                acl_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CharacterAclOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_providers_api_v1_providers_get: {
         parameters: {
             query?: never;
@@ -2812,6 +3650,37 @@ export interface operations {
             };
         };
     };
+    delete_provider_api_v1_providers__provider_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelProviderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_provider_api_v1_providers__provider_id__patch: {
         parameters: {
             query?: never;
@@ -2834,6 +3703,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelProviderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_provider_models_api_v1_providers__provider_id__sync_models_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailableModelOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_provider_api_v1_providers__provider_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderTestOut"];
                 };
             };
             /** @description Validation Error */
@@ -3142,6 +4077,37 @@ export interface operations {
             };
         };
     };
+    delete_tag_api_v1_tags__tag_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tag_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_tag_api_v1_tags__tag_id__patch: {
         parameters: {
             query?: never;
@@ -3164,6 +4130,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TagOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_system_settings_api_v1_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemSettingsOut"];
+                };
+            };
+        };
+    };
+    update_system_settings_api_v1_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SystemSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemSettingsOut"];
                 };
             };
             /** @description Validation Error */
@@ -3267,6 +4286,37 @@ export interface operations {
             };
         };
     };
+    reset_prompt_template_api_v1_prompt_templates__template_type__reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_type: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_cocoons_api_v1_cocoons_get: {
         parameters: {
             query?: never;
@@ -3321,6 +4371,37 @@ export interface operations {
         };
     };
     get_cocoon_api_v1_cocoons__cocoon_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cocoon_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CocoonOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_cocoon_api_v1_cocoons__cocoon_id__delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -3639,6 +4720,38 @@ export interface operations {
             };
         };
     };
+    unbind_cocoon_tag_api_v1_cocoons__cocoon_id__tags__tag_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cocoon_id: string;
+                tag_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CocoonTagBindResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     request_rollback_api_v1_cocoons__cocoon_id__rollback_post: {
         parameters: {
             query?: never;
@@ -3727,6 +4840,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DurableJobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_memory_api_v1_memory__cocoon_id___memory_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cocoon_id: string;
+                memory_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryChunkOut"];
                 };
             };
             /** @description Validation Error */

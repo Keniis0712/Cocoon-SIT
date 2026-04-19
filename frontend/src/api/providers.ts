@@ -1,4 +1,4 @@
-import { apiCall, unsupportedFeature } from "./client";
+import { apiCall } from "./client";
 import { rememberLegacyId, resolveActualId } from "./id-map";
 import type {
   AvailableModelRead,
@@ -99,16 +99,38 @@ export function updateModelProvider(id: number, data: Partial<ModelProviderPaylo
 }
 
 export function syncModelProvider(_id: number): Promise<ModelProviderRead> {
-  return unsupportedFeature("Manual model sync is not supported by the current backend");
+  return apiCall(async (client) => {
+    await client.syncProviderModels(resolveActualId("provider", _id));
+    const items = await loadProviderGraph();
+    const matched = items.find((item) => item.id === _id);
+    if (!matched) {
+      throw new Error("Provider not found after sync");
+    }
+    return matched;
+  });
 }
 
 export function testModelProvider(
   _id: number,
   _payload: { selected_model_id: number; prompt: string },
 ): Promise<ModelProviderTestResponse> {
-  return unsupportedFeature("Provider test requests are not supported by the current backend");
+  return apiCall(async (client) => {
+    const result = await client.testProvider(resolveActualId("provider", _id), {
+      selected_model_id: resolveActualId("model", _payload.selected_model_id),
+      prompt: _payload.prompt,
+    });
+    return {
+      provider_id: rememberLegacyId("provider", result.provider_id),
+      selected_model_id: rememberLegacyId("model", result.selected_model_id),
+      model_name: result.model_name,
+      reply: result.reply,
+      structured_tests: [],
+    };
+  });
 }
 
 export function deleteModelProvider(_id: number) {
-  return unsupportedFeature("Deleting providers is not supported by the current backend");
+  return apiCall(async (client) => {
+    await client.deleteProvider(resolveActualId("provider", _id));
+  });
 }

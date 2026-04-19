@@ -1,7 +1,7 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { isAxiosError } from "axios";
-import { BrainCircuit, ChevronRight, Edit3, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
+import { BrainCircuit, ChevronRight, Edit3, Loader2, Plus, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -11,15 +11,14 @@ import { createCocoon, deleteCocoon, getCocoon, getCocoonTree, updateCocoon } fr
 import { listModelProviders } from "@/api/providers";
 import type { CharacterRead, CocoonPayload, CocoonRead, CocoonTreeNode, ModelProviderRead } from "@/api/types";
 import PageFrame from "@/components/PageFrame";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 
 type TreeNodeState = CocoonTreeNode & {
   childIds: number[];
@@ -32,18 +31,10 @@ type CocoonDialogMode = "create-root" | "create-child" | "edit";
 
 type CocoonFormState = {
   name: string;
-  context_prompt: string;
   character_id: string;
   selected_model_id: string;
-  max_context_tokens: string;
-  max_rounds: string;
-  compact_memory_max_items: string;
-  auto_compaction_trigger_rounds: string;
-  auto_compaction_message_count: string;
-  auto_compaction_memory_max_items: string;
-  manual_compaction_message_count: string;
-  manual_compaction_memory_max_items: string;
-  manual_compaction_mode: string;
+  max_context_messages: string;
+  auto_compaction_enabled: boolean;
 };
 
 const ROOT_PAGE_SIZE = 20;
@@ -52,18 +43,10 @@ const UNSET = "__unset";
 const INHERIT = "__inherit";
 const EMPTY_ROOT_FORM: CocoonFormState = {
   name: "",
-  context_prompt: "",
   character_id: UNSET,
   selected_model_id: UNSET,
-  max_context_tokens: "",
-  max_rounds: "",
-  compact_memory_max_items: "",
-  auto_compaction_trigger_rounds: "",
-  auto_compaction_message_count: "",
-  auto_compaction_memory_max_items: "",
-  manual_compaction_message_count: "",
-  manual_compaction_memory_max_items: "",
-  manual_compaction_mode: "all",
+  max_context_messages: "",
+  auto_compaction_enabled: true,
 };
 
 function mergeIds(existing: number[], incoming: number[]) {
@@ -102,6 +85,21 @@ function buildModelOptions(providers: ModelProviderRead[]) {
   );
 }
 
+function TruthBadge({
+  enabled,
+  onText,
+  offText,
+}: {
+  enabled: boolean | null | undefined;
+  onText: string;
+  offText: string;
+}) {
+  if (enabled == null) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+  return <Badge variant={enabled ? "default" : "secondary"}>{enabled ? onText : offText}</Badge>;
+}
+
 export default function CocoonsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -118,7 +116,6 @@ export default function CocoonsPage() {
   const [dialogMode, setDialogMode] = useState<CocoonDialogMode>("create-root");
   const [form, setForm] = useState<CocoonFormState>(EMPTY_ROOT_FORM);
   const [isSaving, setIsSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<CocoonRead | null>(null);
 
   const modelOptions = useMemo(() => buildModelOptions(providers), [providers]);
 
@@ -238,18 +235,10 @@ export default function CocoonsPage() {
     setDialogMode("create-child");
     setForm({
       name: `${selectedCocoon.name} / child`,
-      context_prompt: "",
       character_id: INHERIT,
       selected_model_id: INHERIT,
-      max_context_tokens: "",
-      max_rounds: "",
-      compact_memory_max_items: "",
-      auto_compaction_trigger_rounds: "",
-      auto_compaction_message_count: "",
-      auto_compaction_memory_max_items: "",
-      manual_compaction_message_count: "",
-      manual_compaction_memory_max_items: "",
-      manual_compaction_mode: "all",
+      max_context_messages: "",
+      auto_compaction_enabled: selectedCocoon.auto_compaction_enabled ?? true,
     });
     setDialogOpen(true);
   }
@@ -259,18 +248,11 @@ export default function CocoonsPage() {
     setDialogMode("edit");
     setForm({
       name: selectedCocoon.name,
-      context_prompt: selectedCocoon.context_prompt || "",
       character_id: String(selectedCocoon.character_id),
       selected_model_id: String(selectedCocoon.selected_model_id),
-      max_context_tokens: selectedCocoon.max_context_tokens ? String(selectedCocoon.max_context_tokens) : "",
-      max_rounds: selectedCocoon.max_rounds ? String(selectedCocoon.max_rounds) : "",
-      compact_memory_max_items: String(selectedCocoon.compact_memory_max_items ?? 0),
-      auto_compaction_trigger_rounds: String(selectedCocoon.auto_compaction_trigger_rounds ?? 24),
-      auto_compaction_message_count: String(selectedCocoon.auto_compaction_message_count ?? 12),
-      auto_compaction_memory_max_items: String(selectedCocoon.auto_compaction_memory_max_items ?? 3),
-      manual_compaction_message_count: String(selectedCocoon.manual_compaction_message_count ?? 0),
-      manual_compaction_memory_max_items: String(selectedCocoon.manual_compaction_memory_max_items ?? 6),
-      manual_compaction_mode: selectedCocoon.manual_compaction_mode || "all",
+      max_context_messages:
+        selectedCocoon.max_context_messages != null ? String(selectedCocoon.max_context_messages) : "",
+      auto_compaction_enabled: selectedCocoon.auto_compaction_enabled ?? true,
     });
     setDialogOpen(true);
   }
@@ -283,16 +265,8 @@ export default function CocoonsPage() {
     try {
       const payload: Partial<CocoonPayload> = {
         name,
-        context_prompt: form.context_prompt.trim() || null,
-        max_context_tokens: parseNumber(form.max_context_tokens),
-        max_rounds: parseNumber(form.max_rounds),
-        compact_memory_max_items: parseNumber(form.compact_memory_max_items),
-        auto_compaction_trigger_rounds: parseNumber(form.auto_compaction_trigger_rounds),
-        auto_compaction_message_count: parseNumber(form.auto_compaction_message_count),
-        auto_compaction_memory_max_items: parseNumber(form.auto_compaction_memory_max_items),
-        manual_compaction_message_count: parseNumber(form.manual_compaction_message_count),
-        manual_compaction_memory_max_items: parseNumber(form.manual_compaction_memory_max_items),
-        manual_compaction_mode: form.manual_compaction_mode || "all",
+        max_context_messages: parseNumber(form.max_context_messages),
+        auto_compaction_enabled: form.auto_compaction_enabled,
       };
 
       if (dialogMode === "create-root") {
@@ -335,12 +309,14 @@ export default function CocoonsPage() {
     }
   }
 
-  async function confirmDeleteCocoon() {
-    if (!deleteTarget) return;
+  async function handleDeleteSelectedCocoon() {
+    if (!selectedCocoon) return;
+    if (!window.confirm(t("cocoons.confirmDeletePrompt", { name: selectedCocoon.name }))) {
+      return;
+    }
     try {
-      await deleteCocoon(deleteTarget.id);
+      await deleteCocoon(selectedCocoon.id);
       toast.success(t("cocoons.deleted"));
-      setDeleteTarget(null);
       setSelectedCocoon(null);
       setSelectedCocoonId(null);
       await loadTree(null, 1, true);
@@ -359,8 +335,20 @@ export default function CocoonsPage() {
 
     return (
       <div key={nodeId} className="space-y-2">
-        <div className={`group flex items-center gap-2 rounded-2xl border px-3 py-3 text-sm transition ${isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-border/70 bg-background/70 hover:border-primary/40 hover:bg-accent/30"}`} style={{ marginLeft: `${level * 16}px` }}>
-          <button type="button" className="flex size-8 items-center justify-center rounded-lg hover:bg-accent disabled:opacity-40" disabled={!node.has_children} onClick={() => toggleNode(nodeId)}>
+        <div
+          className={`group flex items-center gap-2 rounded-2xl border px-3 py-3 text-sm transition ${
+            isSelected
+              ? "border-primary bg-primary/5 shadow-sm"
+              : "border-border/70 bg-background/70 hover:border-primary/40 hover:bg-accent/30"
+          }`}
+          style={{ marginLeft: `${level * 16}px` }}
+        >
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-lg hover:bg-accent disabled:opacity-40"
+            disabled={!node.has_children}
+            onClick={() => toggleNode(nodeId)}
+          >
             <ChevronRight className={`size-4 transition ${isExpanded ? "rotate-90" : ""}`} />
           </button>
           <button type="button" className="min-w-0 flex-1 text-left" onClick={() => loadSelectedCocoon(nodeId)}>
@@ -371,13 +359,24 @@ export default function CocoonsPage() {
               {node.parent_id ? <span>{t("cocoons.parent", { id: node.parent_id })}</span> : <span>{t("cocoons.root")}</span>}
             </div>
           </button>
-          <Button variant="ghost" size="sm" onClick={() => navigate(`/cocoons/${nodeId}`)}>{t("cocoons.enter")}</Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/cocoons/${nodeId}`)}>
+            {t("cocoons.enter")}
+          </Button>
           {node.isLoading ? <Loader2 className="size-4 animate-spin text-muted-foreground" /> : null}
         </div>
         {isExpanded ? (
           <div className="space-y-2">
             {node.childIds.map((childId) => renderTreeNode(childId, level + 1))}
-            {node.hasMore ? <Button variant="ghost" size="sm" className="ml-8" onClick={() => loadTree(nodeId, (treeNodes[nodeId]?.page || 1) + 1)}>{t("cocoons.loadMoreChildren")}</Button> : null}
+            {node.hasMore ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-8"
+                onClick={() => loadTree(nodeId, (treeNodes[nodeId]?.page || 1) + 1)}
+              >
+                {t("cocoons.loadMoreChildren")}
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -388,7 +387,20 @@ export default function CocoonsPage() {
     <PageFrame
       title={t("cocoons.title")}
       description={t("cocoons.description")}
-      actions={<><Button variant="outline" onClick={openCreateRoot}><Plus className="mr-2 size-4" />{t("cocoons.newRoot")}</Button>{selectedCocoon ? <Button onClick={openCreateChild}><Plus className="mr-2 size-4" />{t("cocoons.newChild")}</Button> : null}</>}
+      actions={
+        <>
+          <Button variant="outline" onClick={openCreateRoot}>
+            <Plus className="mr-2 size-4" />
+            {t("cocoons.newRoot")}
+          </Button>
+          {selectedCocoon ? (
+            <Button onClick={openCreateChild}>
+              <Plus className="mr-2 size-4" />
+              {t("cocoons.newChild")}
+            </Button>
+          ) : null}
+        </>
+      }
     >
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Card className="min-h-[72vh] border-border/70 bg-card/90">
@@ -397,69 +409,133 @@ export default function CocoonsPage() {
             <CardDescription>{t("cocoons.treeDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {rootMeta.isLoading && rootIds.length === 0 ? <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">{t("cocoons.treeLoading")}</div> : rootIds.length === 0 ? <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">{t("cocoons.treeEmpty")}</div> : rootIds.map((nodeId) => renderTreeNode(nodeId, 0))}
-            {rootMeta.hasMore ? <Button variant="ghost" size="sm" onClick={() => loadTree(null, rootMeta.page + 1)}>{t("cocoons.loadMoreRoots")}</Button> : null}
+            {rootMeta.isLoading && rootIds.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+                {t("cocoons.treeLoading")}
+              </div>
+            ) : rootIds.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+                {t("cocoons.treeEmpty")}
+              </div>
+            ) : (
+              rootIds.map((nodeId) => renderTreeNode(nodeId, 0))
+            )}
+            {rootMeta.hasMore ? (
+              <Button variant="ghost" size="sm" onClick={() => loadTree(null, rootMeta.page + 1)}>
+                {t("cocoons.loadMoreRoots")}
+              </Button>
+            ) : null}
           </CardContent>
         </Card>
 
         <div className="space-y-4">
           <Card className="border-border/70 bg-card/90">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><BrainCircuit className="size-4 text-primary" />{t("cocoons.selectedTitle")}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <BrainCircuit className="size-4 text-primary" />
+                {t("cocoons.selectedTitle")}
+              </CardTitle>
               <CardDescription>{t("cocoons.selectedDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
-              {isDetailLoading ? <div className="rounded-lg border border-dashed border-border p-6 text-muted-foreground">{t("cocoons.detailLoading")}</div> : selectedCocoon ? <>
-                <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="text-lg font-semibold">{selectedCocoon.name}</div>
-                      <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        <span>#{selectedCocoon.id}</span>
-                        <span>{selectedCocoon.parent_id ? t("cocoons.parent", { id: selectedCocoon.parent_id }) : t("cocoons.root")}</span>
-                        <span>{t("common.createdAt")}: {formatTime(selectedCocoon.created_at)}</span>
+              {isDetailLoading ? (
+                <div className="rounded-lg border border-dashed border-border p-6 text-muted-foreground">
+                  {t("cocoons.detailLoading")}
+                </div>
+              ) : selectedCocoon ? (
+                <>
+                  <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="text-lg font-semibold">{selectedCocoon.name}</div>
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          <span>#{selectedCocoon.id}</span>
+                          <span>
+                            {selectedCocoon.parent_id
+                              ? t("cocoons.parent", { id: selectedCocoon.parent_id })
+                              : t("cocoons.root")}
+                          </span>
+                          <span>
+                            {t("common.createdAt")}: {formatTime(selectedCocoon.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                      <Badge variant="outline">{t("cocoons.structureNode")}</Badge>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button onClick={() => navigate(`/cocoons/${selectedCocoon.id}`)}>
+                        <Sparkles className="mr-2 size-4" />
+                        {t("cocoons.enterWorkspace")}
+                      </Button>
+                      <Button variant="outline" onClick={() => navigate(`/merges?sourceCocoonId=${selectedCocoon.id}`)}>
+                        {t("cocoons.startMerge")}
+                      </Button>
+                      <Button variant="outline" onClick={openEditCocoon}>
+                        <Edit3 className="mr-2 size-4" />
+                        {t("common.edit")}
+                      </Button>
+                      <Button variant="outline" onClick={() => navigate(`/audits?cocoonId=${selectedCocoon.id}`)}>
+                        {t("common.viewAudits")}
+                      </Button>
+                      <Button variant="destructive" onClick={() => void handleDeleteSelectedCocoon()}>
+                        {t("common.delete")}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-border/70 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("common.role")}</div>
+                      <div className="mt-2 font-medium">{selectedCocoon.character?.name || "-"}</div>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("common.model")}</div>
+                      <div className="mt-2 font-medium">{selectedCocoon.selected_model?.model_name || "-"}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl border border-border/70 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {t("cocoons.maxContextMessages")}
+                      </div>
+                      <div className="mt-2 font-medium">
+                        {selectedCocoon.max_context_messages ?? t("common.default")}
                       </div>
                     </div>
-                    <Badge variant="outline">{t("cocoons.structureNode")}</Badge>
+                    <div className="rounded-2xl border border-border/70 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {t("cocoons.autoCompaction")}
+                      </div>
+                      <div className="mt-2 font-medium">
+                        <TruthBadge
+                          enabled={selectedCocoon.auto_compaction_enabled}
+                          onText={t("cocoons.enabled")}
+                          offText={t("cocoons.disabled")}
+                        />
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {t("cocoons.defaultTemperature")}
+                      </div>
+                      <div className="mt-2 font-medium">
+                        {selectedCocoon.default_temperature != null
+                          ? selectedCocoon.default_temperature.toFixed(1)
+                          : t("common.default")}
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Button onClick={() => navigate(`/cocoons/${selectedCocoon.id}`)}><Sparkles className="mr-2 size-4" />{t("cocoons.enterWorkspace")}</Button>
-                    <Button variant="outline" onClick={() => navigate(`/merges?sourceCocoonId=${selectedCocoon.id}`)}>{t("cocoons.startMerge")}</Button>
-                    <Button variant="outline" onClick={openEditCocoon}><Edit3 className="mr-2 size-4" />{t("common.edit")}</Button>
-                    <Button variant="outline" onClick={() => navigate(`/audits?cocoonId=${selectedCocoon.id}`)}>{t("common.viewAudits")}</Button>
-                    <Button variant="destructive" onClick={() => setDeleteTarget(selectedCocoon)}><Trash2 className="mr-2 size-4" />{t("common.delete")}</Button>
+
+                  <div className="rounded-2xl border border-border/70 p-4 text-sm text-muted-foreground">
+                    {t("cocoons.actualConfigHint")}
                   </div>
+                </>
+              ) : (
+                <div className="rounded-lg border border-dashed border-border p-6 text-muted-foreground">
+                  {t("cocoons.emptySelection")}
                 </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-2xl border border-border/70 p-4">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("common.role")}</div>
-                    <div className="mt-2 font-medium">{selectedCocoon.character?.name || "-"}</div>
-                  </div>
-                  <div className="rounded-2xl border border-border/70 p-4">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("common.model")}</div>
-                    <div className="mt-2 font-medium">{selectedCocoon.selected_model?.model_name || "-"}</div>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-border/70 p-4">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("cocoons.contextPrompt")}</div>
-                  <div className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap pr-2 leading-6 text-foreground/90 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border/80">{selectedCocoon.context_prompt || t("cocoons.noContext")}</div>
-                </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-2xl border border-border/70 p-4"><div className="text-xs uppercase tracking-wide text-muted-foreground">{t("cocoons.maxContext")}</div><div className="mt-2 font-medium">{selectedCocoon.max_context_tokens ?? t("common.default")}</div></div>
-                  <div className="rounded-2xl border border-border/70 p-4"><div className="text-xs uppercase tracking-wide text-muted-foreground">{t("cocoons.maxRounds")}</div><div className="mt-2 font-medium">{selectedCocoon.max_rounds ?? t("common.default")}</div></div>
-                  <div className="rounded-2xl border border-border/70 p-4"><div className="text-xs uppercase tracking-wide text-muted-foreground">{t("cocoons.compactMemory")}</div><div className="mt-2 font-medium">{selectedCocoon.compact_memory_max_items}</div><div className="mt-1 text-xs text-muted-foreground">{t("cocoons.compactMemoryHelp")}</div></div>
-                </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-2xl border border-border/70 p-4"><div className="text-xs uppercase tracking-wide text-muted-foreground">Auto Trigger Rounds</div><div className="mt-2 font-medium">{selectedCocoon.auto_compaction_trigger_rounds}</div></div>
-                  <div className="rounded-2xl border border-border/70 p-4"><div className="text-xs uppercase tracking-wide text-muted-foreground">Auto Message Count</div><div className="mt-2 font-medium">{selectedCocoon.auto_compaction_message_count}</div></div>
-                  <div className="rounded-2xl border border-border/70 p-4"><div className="text-xs uppercase tracking-wide text-muted-foreground">Auto Max Memories</div><div className="mt-2 font-medium">{selectedCocoon.auto_compaction_memory_max_items}</div></div>
-                </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-2xl border border-border/70 p-4"><div className="text-xs uppercase tracking-wide text-muted-foreground">Manual Mode</div><div className="mt-2 font-medium">{selectedCocoon.manual_compaction_mode}</div></div>
-                  <div className="rounded-2xl border border-border/70 p-4"><div className="text-xs uppercase tracking-wide text-muted-foreground">Manual Message Count</div><div className="mt-2 font-medium">{selectedCocoon.manual_compaction_message_count}</div></div>
-                  <div className="rounded-2xl border border-border/70 p-4"><div className="text-xs uppercase tracking-wide text-muted-foreground">Manual Max Memories</div><div className="mt-2 font-medium">{selectedCocoon.manual_compaction_memory_max_items}</div></div>
-                </div>
-              </> : <div className="rounded-lg border border-dashed border-border p-6 text-muted-foreground">{t("cocoons.emptySelection")}</div>}
+              )}
             </CardContent>
           </Card>
         </div>
@@ -468,51 +544,116 @@ export default function CocoonsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{dialogMode === "edit" ? t("cocoons.dialogEdit") : dialogMode === "create-child" ? t("cocoons.dialogCreateChild") : t("cocoons.dialogCreateRoot")}</DialogTitle>
-            <DialogDescription>{dialogMode === "create-child" ? t("cocoons.dialogCreateChildDescription") : t("cocoons.dialogDefaultDescription")}</DialogDescription>
+            <DialogTitle>
+              {dialogMode === "edit"
+                ? t("cocoons.dialogEdit")
+                : dialogMode === "create-child"
+                  ? t("cocoons.dialogCreateChild")
+                  : t("cocoons.dialogCreateRoot")}
+            </DialogTitle>
+            <DialogDescription>
+              {dialogMode === "create-child"
+                ? t("cocoons.dialogCreateChildDescription")
+                : t("cocoons.dialogDefaultDescription")}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
-            <div className="grid gap-2"><Label>{t("common.name")}</Label><Input value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} /></div>
-            <div className="grid gap-2"><Label>{t("cocoons.contextPrompt")}</Label><Textarea rows={5} className="max-h-52" value={form.context_prompt} onChange={(event) => setForm((prev) => ({ ...prev, context_prompt: event.target.value }))} /></div>
+            <div className="grid gap-2">
+              <Label>{t("common.name")}</Label>
+              <Input value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2"><Label>{t("common.role")}</Label><Select value={form.character_id} onValueChange={(value) => setForm((prev) => ({ ...prev, character_id: value }))}><SelectTrigger><SelectValue placeholder={t("cocoons.selectRole")} /></SelectTrigger><SelectContent>{dialogMode === "create-child" ? <SelectItem value={INHERIT}>{t("cocoons.inheritParent")}</SelectItem> : null}{dialogMode !== "create-child" ? <SelectItem value={UNSET}>{t("cocoons.selectRole")}</SelectItem> : null}{characters.map((character) => <SelectItem key={character.id} value={String(character.id)}>{character.name}</SelectItem>)}</SelectContent></Select></div>
-              <div className="grid gap-2"><Label>{t("common.model")}</Label><Select value={form.selected_model_id} onValueChange={(value) => setForm((prev) => ({ ...prev, selected_model_id: value }))}><SelectTrigger><SelectValue placeholder={t("cocoons.selectModel")} /></SelectTrigger><SelectContent>{dialogMode === "create-child" ? <SelectItem value={INHERIT}>{t("cocoons.inheritParent")}</SelectItem> : null}{dialogMode !== "create-child" ? <SelectItem value={UNSET}>{t("cocoons.selectModel")}</SelectItem> : null}{modelOptions.map((model) => <SelectItem key={model.id} value={String(model.id)}>{model.label}</SelectItem>)}</SelectContent></Select></div>
+              <div className="grid gap-2">
+                <Label>{t("common.role")}</Label>
+                <Select value={form.character_id} onValueChange={(value) => setForm((prev) => ({ ...prev, character_id: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("cocoons.selectRole")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dialogMode === "create-child" ? (
+                      <SelectItem value={INHERIT}>{t("cocoons.inheritParent")}</SelectItem>
+                    ) : null}
+                    {dialogMode !== "create-child" ? (
+                      <SelectItem value={UNSET}>{t("cocoons.selectRole")}</SelectItem>
+                    ) : null}
+                    {characters.map((character) => (
+                      <SelectItem key={character.id} value={String(character.id)}>
+                        {character.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("common.model")}</Label>
+                <Select
+                  value={form.selected_model_id}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, selected_model_id: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("cocoons.selectModel")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dialogMode === "create-child" ? (
+                      <SelectItem value={INHERIT}>{t("cocoons.inheritParent")}</SelectItem>
+                    ) : null}
+                    {dialogMode !== "create-child" ? (
+                      <SelectItem value={UNSET}>{t("cocoons.selectModel")}</SelectItem>
+                    ) : null}
+                    {modelOptions.map((model) => (
+                      <SelectItem key={model.id} value={String(model.id)}>
+                        {model.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="grid gap-2"><Label>{t("cocoons.maxContext")}</Label><Input value={form.max_context_tokens} onChange={(event) => setForm((prev) => ({ ...prev, max_context_tokens: event.target.value }))} placeholder={t("cocoons.emptyUseDefault")} /></div>
-              <div className="grid gap-2"><Label>{t("cocoons.maxRounds")}</Label><Input value={form.max_rounds} onChange={(event) => setForm((prev) => ({ ...prev, max_rounds: event.target.value }))} placeholder={t("cocoons.emptyUseDefault")} /></div>
-              <div className="grid gap-2"><Label>{t("cocoons.compactMemoryCount")}</Label><Input value={form.compact_memory_max_items} onChange={(event) => setForm((prev) => ({ ...prev, compact_memory_max_items: event.target.value }))} placeholder={t("cocoons.emptyUseDefault")} /><div className="text-xs text-muted-foreground">{t("cocoons.compactMemoryHelp")}</div></div>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="grid gap-2"><Label>Auto trigger rounds</Label><Input value={form.auto_compaction_trigger_rounds} onChange={(event) => setForm((prev) => ({ ...prev, auto_compaction_trigger_rounds: event.target.value }))} placeholder={t("cocoons.emptyUseDefault")} /></div>
-              <div className="grid gap-2"><Label>Auto message count</Label><Input value={form.auto_compaction_message_count} onChange={(event) => setForm((prev) => ({ ...prev, auto_compaction_message_count: event.target.value }))} placeholder={t("cocoons.emptyUseDefault")} /></div>
-              <div className="grid gap-2"><Label>Auto max memories</Label><Input value={form.auto_compaction_memory_max_items} onChange={(event) => setForm((prev) => ({ ...prev, auto_compaction_memory_max_items: event.target.value }))} placeholder={t("cocoons.emptyUseDefault")} /></div>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="grid gap-2"><Label>Manual mode</Label><Select value={form.manual_compaction_mode} onValueChange={(value) => setForm((prev) => ({ ...prev, manual_compaction_mode: value }))}><SelectTrigger><SelectValue placeholder="Select mode" /></SelectTrigger><SelectContent><SelectItem value="all">Compress all remaining context</SelectItem><SelectItem value="earliest">Compress only earliest messages</SelectItem></SelectContent></Select></div>
-              <div className="grid gap-2"><Label>Manual message count</Label><Input value={form.manual_compaction_message_count} onChange={(event) => setForm((prev) => ({ ...prev, manual_compaction_message_count: event.target.value }))} placeholder={t("cocoons.emptyUseDefault")} /></div>
-              <div className="grid gap-2"><Label>Manual max memories</Label><Input value={form.manual_compaction_memory_max_items} onChange={(event) => setForm((prev) => ({ ...prev, manual_compaction_memory_max_items: event.target.value }))} placeholder={t("cocoons.emptyUseDefault")} /></div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>{t("cocoons.maxContextMessages")}</Label>
+                <Input
+                  value={form.max_context_messages}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, max_context_messages: event.target.value }))
+                  }
+                  placeholder={t("cocoons.emptyUseDefault")}
+                />
+              </div>
+              <label className="mt-8 flex items-center gap-3 rounded-lg border border-border/70 px-3 py-3 text-sm">
+                <Checkbox
+                  checked={form.auto_compaction_enabled}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({ ...prev, auto_compaction_enabled: Boolean(checked) }))
+                  }
+                />
+                <span>{t("cocoons.autoCompaction")}</span>
+              </label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
-            <Button disabled={isSaving || !form.name.trim() || (dialogMode === "create-root" && (form.character_id === UNSET || form.selected_model_id === UNSET))} onClick={saveCocoon}>{isSaving ? t("common.saving") : dialogMode === "edit" ? t("common.saveChanges") : dialogMode === "create-child" ? t("cocoons.dialogCreateChild") : t("cocoons.dialogCreateRoot")}</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              disabled={
+                isSaving ||
+                !form.name.trim() ||
+                (dialogMode === "create-root" && (form.character_id === UNSET || form.selected_model_id === UNSET))
+              }
+              onClick={saveCocoon}
+            >
+              {isSaving
+                ? t("common.saving")
+                : dialogMode === "edit"
+                  ? t("common.saveChanges")
+                  : dialogMode === "create-child"
+                    ? t("cocoons.dialogCreateChild")
+                    : t("cocoons.dialogCreateRoot")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("cocoons.confirmDeleteTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("cocoons.confirmDeleteDescription")}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteCocoon}>{t("cocoons.continueDelete")}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </PageFrame>
   );
 }

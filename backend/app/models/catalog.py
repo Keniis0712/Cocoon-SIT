@@ -33,7 +33,7 @@ class ModelProvider(Base, TimestampMixin, JsonDefaultMixin):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
-    kind: Mapped[str] = mapped_column(String(64), default="mock")
+    kind: Mapped[str] = mapped_column(String(64), default="openai_compatible")
     base_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     capabilities_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)

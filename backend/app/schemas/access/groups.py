@@ -9,6 +9,10 @@ class GroupCreate(BaseModel):
     name: str = Field(min_length=1)
 
 
+class GroupUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+
+
 class GroupMemberCreate(BaseModel):
     user_id: str
     member_role: str = "member"

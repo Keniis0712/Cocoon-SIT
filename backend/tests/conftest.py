@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.core.config import Settings
 from app.main import create_app
-from app.models import AvailableModel, Character, Cocoon, SessionState, User
+from app.models import AvailableModel, Character, Cocoon, ModelProvider, SessionState, User
 from app.worker.durable_executor import DurableJobExecutor
 from app.worker.runtime import WorkerRuntime
 
@@ -50,6 +50,25 @@ def client(test_settings: Settings) -> TestClient:
             admin = session.scalar(select(User).where(User.username == test_settings.default_admin_username))
             model = session.scalar(select(AvailableModel).order_by(AvailableModel.created_at.asc()))
             assert admin is not None
+            if not model:
+                provider = session.scalar(select(ModelProvider).where(ModelProvider.name == "test-mock"))
+                if not provider:
+                    provider = ModelProvider(
+                        name="test-mock",
+                        kind="mock",
+                        capabilities_json={"streaming": True, "provider": "test-mock"},
+                    )
+                    session.add(provider)
+                    session.flush()
+                model = AvailableModel(
+                    provider_id=provider.id,
+                    model_name="test-mock-model",
+                    model_kind="chat",
+                    is_default=True,
+                    config_json={"reply_prefix": "Echo"},
+                )
+                session.add(model)
+                session.flush()
             assert model is not None
 
             character = session.scalar(select(Character).where(Character.name == "Test Character"))

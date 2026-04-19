@@ -14,6 +14,7 @@ from app.services.catalog.prompt_template_admin_service import PromptTemplateAdm
 from app.services.catalog.provider_credential_service import ProviderCredentialService
 from app.services.catalog.provider_service import ProviderService
 from app.services.catalog.tag_service import TagService
+from app.services.catalog.system_settings_service import SystemSettingsService
 from app.services.memory.service import MemoryService
 from app.services.observability.artifact_admin_service import ArtifactAdminService
 from app.services.observability.audit_query_service import AuditQueryService
@@ -72,7 +73,12 @@ def wire_security_services(container) -> None:
 
 
 def wire_access_services(container) -> None:
-    container.auth_session_service = AuthSessionService(container.token_service, container.settings)
+    container.system_settings_service = SystemSettingsService(container.settings)
+    container.auth_session_service = AuthSessionService(
+        container.token_service,
+        container.settings,
+        system_settings_service=container.system_settings_service,
+    )
     container.user_service = UserService()
     container.role_service = RoleService()
     container.group_service = GroupService()
@@ -96,7 +102,10 @@ def wire_provider_and_catalog_services(container) -> None:
         container.provider_factory,
     )
     container.memory_service = MemoryService(container.provider_registry)
-    container.provider_service = ProviderService()
+    container.provider_service = ProviderService(
+        container.provider_runtime_config_service,
+        container.provider_factory,
+    )
     container.provider_credential_service = ProviderCredentialService(container.secret_cipher)
     container.model_catalog_service = ModelCatalogService()
     container.embedding_provider_service = EmbeddingProviderService(container.secret_cipher)
@@ -110,6 +119,7 @@ def wire_workspace_services(container) -> None:
     container.message_dispatch_service = MessageDispatchService(
         container.chat_queue,
         container.realtime_hub,
+        system_settings_service=container.system_settings_service,
     )
     container.cocoon_tag_service = CocoonTagService()
     container.workspace_realtime_service = WorkspaceRealtimeService(
@@ -122,7 +132,10 @@ def wire_workspace_services(container) -> None:
 
 
 def wire_observability_services(container) -> None:
-    container.audit_query_service = AuditQueryService(container.authorization_service)
+    container.audit_query_service = AuditQueryService(
+        container.authorization_service,
+        container.artifact_store,
+    )
     container.artifact_admin_service = ArtifactAdminService(container.artifact_store)
     container.insight_query_service = InsightQueryService(container.authorization_service)
 

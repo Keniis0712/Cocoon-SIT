@@ -41,4 +41,9 @@ def test_provider_factory_resolves_known_and_unknown_kinds(client):
 
     assert isinstance(container.provider_factory.resolve_chat_provider("openai_compatible"), OpenAICompatibleProvider)
     assert isinstance(container.provider_factory.resolve_chat_provider("mock"), MockChatProvider)
-    assert isinstance(container.provider_factory.resolve_chat_provider("unknown-kind"), MockChatProvider)
+    try:
+        container.provider_factory.resolve_chat_provider("unknown-kind")
+    except ValueError as exc:
+        assert "Unsupported chat provider kind" in str(exc)
+    else:
+        raise AssertionError("Expected resolve_chat_provider to reject unknown provider kinds")

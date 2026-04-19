@@ -1,7 +1,7 @@
 import type { Schemas } from "@cocoon-sit/ts-sdk";
 
 import { apiCall, createAnonymousClient, createTokenClient } from "./client";
-import { rememberLegacyStringId } from "./id-map";
+import { rememberLegacyId, rememberLegacyStringId } from "./id-map";
 import type { PublicFeaturesRead } from "./types";
 
 type PermissionMap = Record<string, boolean>;
@@ -14,7 +14,7 @@ export interface SessionUser {
   uid: string;
   username: string;
   parent_uid: string | null;
-  user_path: string;
+  user_path: string | null;
   role: string;
   role_level: number;
   can_audit: boolean;
@@ -22,8 +22,9 @@ export interface SessionUser {
   can_manage_users: boolean;
   can_manage_prompts: boolean;
   can_manage_providers: boolean;
-  invite_quota_remaining: number;
-  invite_quota_unlimited: boolean;
+  permissions: PermissionMap;
+  invite_quota_remaining: number | null;
+  invite_quota_unlimited: boolean | null;
 }
 
 export interface MeResponse {
@@ -31,7 +32,7 @@ export interface MeResponse {
   username: string;
   email: string | null;
   parent_uid: string | null;
-  user_path: string;
+  user_path: string | null;
   role: string;
   role_level: number;
   can_audit: boolean;
@@ -39,8 +40,9 @@ export interface MeResponse {
   can_manage_users: boolean;
   can_manage_prompts: boolean;
   can_manage_providers: boolean;
-  invite_quota_remaining: number;
-  invite_quota_unlimited: boolean;
+  permissions: PermissionMap;
+  invite_quota_remaining: number | null;
+  invite_quota_unlimited: boolean | null;
   created_at: string;
 }
 
@@ -71,12 +73,14 @@ function buildMeResponse(
     username: user.username,
     email: user.email ?? null,
     parent_uid: null,
-    user_path: user.username,
+    user_path: null,
     role: role?.name || "user",
     role_level: roleLevel(role?.name || "user"),
     can_audit: Boolean(permissions["audits:read"]),
     can_manage_system: Boolean(
-      permissions["roles:write"] ||
+      permissions["settings:read"] ||
+        permissions["settings:write"] ||
+        permissions["roles:write"] ||
         permissions["prompt_templates:write"] ||
         permissions["artifacts:cleanup"],
     ),
@@ -85,8 +89,9 @@ function buildMeResponse(
       permissions["prompt_templates:read"] || permissions["prompt_templates:write"],
     ),
     can_manage_providers: Boolean(permissions["providers:read"] || permissions["providers:write"]),
-    invite_quota_remaining: 0,
-    invite_quota_unlimited: false,
+    permissions,
+    invite_quota_remaining: null,
+    invite_quota_unlimited: null,
     created_at: user.created_at,
   };
 }
@@ -121,8 +126,17 @@ export async function login(username: string, password: string): Promise<Session
   };
 }
 
-export async function register(_data: RegisterPayload): Promise<SessionUser> {
-  throw new Error("当前版本未开放注册");
+export async function register(data: RegisterPayload): Promise<SessionUser> {
+  const tokenPair = await createAnonymousClient().register(data);
+  const profile = await fetchProfile(tokenPair.access_token);
+
+  return {
+    access_token: tokenPair.access_token,
+    refresh_token: tokenPair.refresh_token,
+    token_type: "bearer",
+    expires_in_seconds: 0,
+    ...profile,
+  };
 }
 
 export async function me(): Promise<MeResponse> {
@@ -150,19 +164,25 @@ export async function changePassword(
   _old_password: string,
   _new_password: string,
 ): Promise<undefined> {
-  throw new Error("当前版本未提供密码修改接口");
+  throw new Error("Password change is not exposed by the current backend");
 }
 
 export async function changeUsername(_username: string): Promise<MeResponse> {
-  throw new Error("当前版本未提供用户名修改接口");
+  throw new Error("Username change is not exposed by the current backend");
 }
 
 export async function getPublicFeatures(): Promise<PublicFeaturesRead> {
+  const features = await createAnonymousClient().getPublicFeatures();
   return {
-    allow_registration: false,
-    max_chat_turns: 0,
-    allowed_models: [],
-    rollback_retention_days: 0,
-    rollback_cleanup_interval_hours: 0,
+    allow_registration: features.allow_registration,
+    max_chat_turns: features.max_chat_turns,
+    allowed_models: features.allowed_models.map((item) => ({
+      id: rememberLegacyId("model", item.id),
+      provider_id: rememberLegacyId("provider", item.provider_id),
+      provider_name: "",
+      model_name: item.model_name,
+    })),
+    rollback_retention_days: features.rollback_retention_days,
+    rollback_cleanup_interval_hours: features.rollback_cleanup_interval_hours,
   };
 }

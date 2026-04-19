@@ -10,8 +10,9 @@ class CocoonCreate(BaseModel):
     character_id: str
     selected_model_id: str
     parent_id: str | None = None
-    default_temperature: float = 0.7
-    max_context_messages: int = 12
+    default_temperature: float | None = None
+    max_context_messages: int | None = Field(default=None, ge=1)
+    auto_compaction_enabled: bool | None = None
 
 
 class CocoonUpdate(BaseModel):
@@ -29,6 +30,9 @@ class CocoonOut(ORMModel):
     owner_user_id: str
     character_id: str
     selected_model_id: str
+    default_temperature: float
+    max_context_messages: int
+    auto_compaction_enabled: bool
     parent_id: str | None
     created_at: datetime
 

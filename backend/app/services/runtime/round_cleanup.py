@@ -3,7 +3,17 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AuditArtifact, AuditRun, FailedRound, MemoryChunk, MemoryTag, Message, MessageTag
+from app.models import (
+    AuditArtifact,
+    AuditLink,
+    AuditRun,
+    AuditStep,
+    FailedRound,
+    MemoryChunk,
+    MemoryTag,
+    Message,
+    MessageTag,
+)
 
 
 class RoundCleanupService:
@@ -12,6 +22,8 @@ class RoundCleanupService:
     def _delete_message_related_rows(self, session: Session, message_ids: list[str]) -> None:
         if not message_ids:
             return
+        action_ids = select(Message.action_id).where(Message.id.in_(message_ids))
+        run_ids = select(AuditRun.id).where(AuditRun.action_id.in_(action_ids))
         memories = list(
             session.scalars(select(MemoryChunk).where(MemoryChunk.source_message_id.in_(message_ids))).all()
         )
@@ -19,20 +31,19 @@ class RoundCleanupService:
             session.query(MemoryTag).filter(MemoryTag.memory_chunk_id == memory.id).delete()
             session.delete(memory)
         session.query(MessageTag).filter(MessageTag.message_id.in_(message_ids)).delete()
-        session.query(FailedRound).filter(FailedRound.action_id.in_(
-            select(Message.action_id).where(Message.id.in_(message_ids))
-        )).delete(synchronize_session=False)
-        for artifact in session.scalars(
-            select(AuditArtifact).where(AuditArtifact.run_id.in_(
-                select(AuditRun.id).where(AuditRun.action_id.in_(
-                    select(Message.action_id).where(Message.id.in_(message_ids))
-                ))
-            ))
-        ).all():
-            session.delete(artifact)
-        session.query(AuditRun).filter(AuditRun.action_id.in_(
-            select(Message.action_id).where(Message.id.in_(message_ids))
-        )).delete(synchronize_session=False)
+        session.query(FailedRound).filter(FailedRound.action_id.in_(action_ids)).delete(
+            synchronize_session=False
+        )
+        session.query(AuditLink).filter(AuditLink.run_id.in_(run_ids)).delete(
+            synchronize_session=False
+        )
+        session.query(AuditArtifact).filter(AuditArtifact.run_id.in_(run_ids)).delete(
+            synchronize_session=False
+        )
+        session.query(AuditStep).filter(AuditStep.run_id.in_(run_ids)).delete(
+            synchronize_session=False
+        )
+        session.query(AuditRun).filter(AuditRun.id.in_(run_ids)).delete(synchronize_session=False)
         session.query(Message).filter(Message.id.in_(message_ids)).delete(synchronize_session=False)
         session.flush()
 

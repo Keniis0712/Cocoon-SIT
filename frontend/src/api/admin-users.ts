@@ -41,16 +41,16 @@ function mapUser(user: Schemas["UserOut"], role: Schemas["RoleOut"] | null): Adm
     username: user.username,
     email: user.email ?? null,
     parent_uid: null,
-    user_path: user.username,
+    user_path: null,
     invite_code: null,
     role: roleName,
     role_level: roleLevel(roleName),
     can_audit: Boolean(permissions["audits:read"]),
     is_active: user.is_active,
-    token_version: 0,
-    quota_tokens: 0,
-    invite_quota_remaining: 0,
-    invite_quota_unlimited: false,
+    token_version: null,
+    quota_tokens: null,
+    invite_quota_remaining: null,
+    invite_quota_unlimited: null,
     last_login_at: null,
     created_at: user.created_at,
     updated_at: user.created_at,
@@ -115,10 +115,21 @@ export function updateAdminUser(userUid: string, data: AdminUserUpdatePayload): 
 }
 
 export function getUserInviteSummary(userUid: string): Promise<InviteSummary> {
-  return Promise.resolve({
-    target_type: "USER",
-    target_id: userUid,
-    invite_quota_remaining: 0,
-    invite_quota_unlimited: false,
+  return apiCall(async (client) => {
+    const summary = await client.getMyInviteSummary();
+    if (summary.target_id === resolveActualId("user", userUid)) {
+      return {
+        target_type: summary.target_type,
+        target_id: userUid,
+        invite_quota_remaining: summary.invite_quota_remaining,
+        invite_quota_unlimited: summary.invite_quota_unlimited,
+      };
+    }
+    return {
+      target_type: "USER",
+      target_id: userUid,
+      invite_quota_remaining: 0,
+      invite_quota_unlimited: false,
+    };
   });
 }

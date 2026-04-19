@@ -86,6 +86,32 @@ def test_resource_crud_and_tag_binding_flow(client, auth_headers):
         json={"user_id": user.json()["id"], "member_role": "member"},
     )
     assert member.status_code == 200, member.text
+    grant = client.post(
+        "/api/v1/invites/grants",
+        headers=auth_headers,
+        json={"target_type": "GROUP", "target_id": group.json()["id"], "amount": 2, "is_unlimited": False},
+    )
+    assert grant.status_code == 200, grant.text
+    group_summary = client.get(f"/api/v1/invites/summary/groups/{group.json()['id']}", headers=auth_headers)
+    assert group_summary.status_code == 200, group_summary.text
+    assert group_summary.json()["invite_quota_remaining"] == 2
+    scoped_invite = client.post(
+        "/api/v1/invites",
+        headers=auth_headers,
+        json={
+            "code": "GROUP-001",
+            "quota_total": 1,
+            "source_type": "GROUP",
+            "source_id": group.json()["id"],
+            "created_for_user_id": user.json()["id"],
+        },
+    )
+    assert scoped_invite.status_code == 200, scoped_invite.text
+    revoked = client.delete("/api/v1/invites/GROUP-001", headers=auth_headers)
+    assert revoked.status_code == 200, revoked.text
+    grants = client.get("/api/v1/invites/grants", headers=auth_headers)
+    assert grants.status_code == 200, grants.text
+    assert grants.json()
 
     character = client.post(
         "/api/v1/characters",

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -22,7 +22,6 @@ export default function CocoonMemoryPage() {
   const [cocoon, setCocoon] = useState<CocoonRead | null>(null);
   const [items, setItems] = useState<MemoryChunkRead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDeletingId, setIsDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!Number.isFinite(cocoonId) || cocoonId <= 0) {
@@ -43,50 +42,50 @@ export default function CocoonMemoryPage() {
       setItems(memoryResp.items);
     } catch (error) {
       console.error(error);
-      toast.error("加载长期记忆失败");
+      toast.error("Failed to load cocoon memories");
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function handleDelete(memoryId: number) {
-    setIsDeletingId(memoryId);
+  async function handleDeleteMemory(memory: MemoryChunkRead) {
+    if (!window.confirm(`Delete memory #${memory.id}?`)) {
+      return;
+    }
     try {
-      await deleteCocoonMemory(cocoonId, memoryId);
-      setItems((prev) => prev.filter((item) => item.id !== memoryId));
-      toast.success("长期记忆已删除");
+      await deleteCocoonMemory(cocoonId, memory.id);
+      setItems((prev) => prev.filter((item) => item.id !== memory.id));
+      toast.success("Memory deleted");
     } catch (error) {
       console.error(error);
-      toast.error("删除长期记忆失败");
-    } finally {
-      setIsDeletingId(null);
+      toast.error(error instanceof Error ? error.message : "Failed to delete memory");
     }
   }
 
   return (
     <PageFrame
-      title={`${cocoon?.name || "Cocoon"} · 长期记忆`}
-      description="这里单独查看当前 Cocoon 可见的长期记忆，不需要审计权限。"
+      title={`${cocoon?.name || "Cocoon"} / Memories`}
+      description="Newest memories first. Individual memory deletion is now available."
       actions={
         <Button variant="outline" onClick={() => navigate(`/cocoons/${cocoonId}`)}>
           <ArrowLeft className="mr-2 size-4" />
-          返回聊天
+          Back to chat
         </Button>
       }
     >
       <Card className="border-border/70 bg-card/90">
         <CardHeader>
-          <CardTitle>长期记忆列表</CardTitle>
-          <CardDescription>按写入时间倒序展示。删除后会同步清理对应向量条目。</CardDescription>
+          <CardTitle>Memory Chunks</CardTitle>
+          <CardDescription>Review long-term memory for this cocoon and remove stale entries when needed.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {isLoading ? (
             <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              加载长期记忆中...
+              Loading memories...
             </div>
           ) : items.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              当前没有可见的长期记忆。
+              No visible memories for this cocoon.
             </div>
           ) : (
             items.map((memory) => (
@@ -102,18 +101,14 @@ export default function CocoonMemoryPage() {
                       </Badge>
                     ))}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={isDeletingId === memory.id}
-                    onClick={() => handleDelete(memory.id)}
-                  >
-                    {isDeletingId === memory.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                  <Button variant="ghost" size="sm" onClick={() => void handleDeleteMemory(memory)}>
+                    <Trash2 className="mr-2 size-4" />
+                    Delete
                   </Button>
                 </div>
                 <div className="whitespace-pre-wrap text-sm leading-6">{memory.content}</div>
                 <div className="mt-3 text-xs text-muted-foreground">
-                  重要度 {memory.importance} · {formatTime(memory.created_at)}
+                  Importance {memory.importance} / {formatTime(memory.created_at)}
                 </div>
               </div>
             ))

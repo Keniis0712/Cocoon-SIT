@@ -4,18 +4,18 @@ Source: `backend/app/services/bootstrap_workspace_seed_service.py`
 
 ## Purpose
 
-- Seeds the initial workspace used for first-run demos and smoke tests.
-- Ensures both the default cocoon and its `SessionState` exist.
+- Reserved hook for future workspace seeding.
+- The current product no longer creates a default cocoon or `SessionState` during startup.
 
 ## Public Interface
 
-- `ensure_defaults(session, owner_user_id, character_id, model_id) -> Cocoon`
+- `ensure_defaults(session, owner_user_id, character_id, model_id) -> None`
 
 ## Interactions
 
 - Called by `BootstrapService`.
-- Depends on prior access/catalog seeding to provide owner, character, and model identifiers.
+- Currently acts as a no-op compatibility seam.
 
 ## Notes
 
-- This service only creates the workspace shell; it does not enqueue runtime actions.
+- Test fixtures may still create explicit cocoon data, but startup bootstrap does not.

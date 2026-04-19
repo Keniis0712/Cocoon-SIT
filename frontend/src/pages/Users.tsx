@@ -24,28 +24,17 @@ type UserFormState = {
   email: string;
   password: string;
   role: string;
-  role_level: string;
-  can_audit: boolean;
-  parent_uid: string;
   is_active: boolean;
-  invite_quota_remaining: string;
-  invite_quota_unlimited: boolean;
 };
 
 const ALL_ROLES = "__all";
-const NONE_PARENT = "__none";
 
 const EMPTY_FORM: UserFormState = {
   username: "",
   email: "",
   password: "",
   role: "",
-  role_level: "2",
-  can_audit: false,
-  parent_uid: NONE_PARENT,
   is_active: true,
-  invite_quota_remaining: "0",
-  invite_quota_unlimited: false,
 };
 
 function formatTime(value: string | null | undefined) {
@@ -83,14 +72,6 @@ export default function UsersPage() {
   const { t } = useTranslation();
   const userInfo = useUserStore((state) => state.userInfo);
   const canManageUsers = Boolean(userInfo?.can_manage_users);
-  const roleLevels = useMemo(
-    () => [
-      { value: "0", label: t("users.roleLevelValues.0") },
-      { value: "1", label: t("users.roleLevelValues.1") },
-      { value: "2", label: t("users.roleLevelValues.2") },
-    ],
-    [t],
-  );
 
   const [users, setUsers] = useState<AdminUserRead[]>([]);
   const [roles, setRoles] = useState<RoleRead[]>([]);
@@ -106,26 +87,19 @@ export default function UsersPage() {
   const [form, setForm] = useState<UserFormState>(EMPTY_FORM);
 
   useEffect(() => {
-    if (!canManageUsers) {
-      return;
-    }
-
-    async function bootstrap() {
+    if (!canManageUsers) return;
+    void (async () => {
       try {
         const roleResponse = await listRoles(1, 100);
         setRoles(roleResponse.items);
       } catch {
         toast.error(t("users.loadRolesFailed"));
       }
-    }
-
-    void bootstrap();
+    })();
   }, [canManageUsers, t]);
 
   useEffect(() => {
-    if (!canManageUsers) {
-      return;
-    }
+    if (!canManageUsers) return;
     void fetchUsers();
   }, [canManageUsers, page, query, roleFilter]);
 
@@ -148,8 +122,7 @@ export default function UsersPage() {
     setForm({
       ...EMPTY_FORM,
       role: roles[0]?.code || "user",
-      role_level: "2",
-      parent_uid: userInfo?.uid || NONE_PARENT,
+      is_active: true,
     });
     setDialogOpen(true);
   }
@@ -161,12 +134,7 @@ export default function UsersPage() {
       email: item.email || "",
       password: "",
       role: item.role,
-      role_level: String(item.role_level),
-      can_audit: item.can_audit,
-      parent_uid: item.parent_uid || NONE_PARENT,
       is_active: item.is_active,
-      invite_quota_remaining: String(item.invite_quota_remaining),
-      invite_quota_unlimited: item.invite_quota_unlimited,
     });
     setDialogOpen(true);
   }
@@ -178,12 +146,8 @@ export default function UsersPage() {
         const payload: AdminUserUpdatePayload = {
           email: form.email.trim() || null,
           role: form.role,
-          role_level: Number(form.role_level),
-          can_audit: form.can_audit,
           is_active: form.is_active,
           password: form.password.trim() || undefined,
-          invite_quota_remaining: Number(form.invite_quota_remaining || "0"),
-          invite_quota_unlimited: form.invite_quota_unlimited,
         };
         await updateAdminUser(editing.uid, payload);
         toast.success(t("users.userUpdated"));
@@ -193,11 +157,8 @@ export default function UsersPage() {
           email: form.email.trim() || null,
           password: form.password,
           role: form.role,
-          role_level: Number(form.role_level),
-          can_audit: form.can_audit,
-          parent_uid: form.parent_uid === NONE_PARENT ? null : form.parent_uid,
-          invite_quota_remaining: Number(form.invite_quota_remaining || "0"),
-          invite_quota_unlimited: form.invite_quota_unlimited,
+          role_level: 2,
+          can_audit: false,
         };
         await createAdminUser(payload);
         toast.success(t("users.userCreated"));
@@ -224,35 +185,6 @@ export default function UsersPage() {
     }
     return t("users.pageStats", { page, totalPages, count: users.length });
   }, [page, t, totalPages, users.length]);
-
-  const parentOptions = useMemo(() => {
-    const map = new Map<string, AdminUserRead>();
-    for (const item of users) {
-      map.set(item.uid, item);
-    }
-    if (userInfo?.uid && !map.has(userInfo.uid)) {
-      map.set(userInfo.uid, {
-        uid: userInfo.uid,
-        username: userInfo.username,
-        email: null,
-        parent_uid: userInfo.parent_uid,
-        user_path: userInfo.user_path,
-        invite_code: null,
-        role: userInfo.role,
-        role_level: userInfo.role_level,
-        can_audit: userInfo.can_audit,
-        is_active: true,
-        token_version: 0,
-        quota_tokens: 0,
-        invite_quota_remaining: userInfo.invite_quota_remaining,
-        invite_quota_unlimited: userInfo.invite_quota_unlimited,
-        last_login_at: null,
-        created_at: "",
-        updated_at: "",
-      });
-    }
-    return Array.from(map.values());
-  }, [userInfo, users]);
 
   if (!canManageUsers) {
     return <AccessCard description={t("users.noPermission")} />;
@@ -356,33 +288,32 @@ export default function UsersPage() {
                         <div className="mt-2 flex flex-wrap gap-2">
                           <Badge variant="outline">{item.uid}</Badge>
                           <Badge>{item.role}</Badge>
-                          <Badge variant="secondary">L{item.role_level}</Badge>
                           {item.can_audit ? <Badge variant="secondary">{t("users.canAudit")}</Badge> : null}
-                          {item.is_active ? <Badge variant="secondary">{t("users.active")}</Badge> : <Badge variant="destructive">{t("users.inactive")}</Badge>}
+                          {item.is_active ? (
+                            <Badge variant="secondary">{t("users.active")}</Badge>
+                          ) : (
+                            <Badge variant="destructive">{t("users.inactive")}</Badge>
+                          )}
                         </div>
                       </div>
                       <Button variant="outline" size="sm" onClick={() => openEditDialog(item)}>
                         {t("users.editUser")}
                       </Button>
                     </div>
-                    <div className="mt-4 grid gap-3 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+                    <div className="mt-4 grid gap-3 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-3">
                       <div>
-                        <div className="text-xs uppercase tracking-wide">{t("users.parentUid")}</div>
-                        <div className="mt-1 break-all text-foreground/90">{item.parent_uid || "-"}</div>
+                        <div className="text-xs uppercase tracking-wide">{t("common.createdAt")}</div>
+                        <div className="mt-1 text-foreground/90">{formatTime(item.created_at)}</div>
                       </div>
                       <div>
-                        <div className="text-xs uppercase tracking-wide">{t("users.userPath")}</div>
-                        <div className="mt-1 break-all text-foreground/90">{item.user_path}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-wide">{t("users.inviteQuota")}</div>
+                        <div className="text-xs uppercase tracking-wide">{t("common.status")}</div>
                         <div className="mt-1 text-foreground/90">
-                          {item.invite_quota_unlimited ? t("users.unlimited") : item.invite_quota_remaining}
+                          {item.is_active ? t("users.active") : t("users.inactive")}
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs uppercase tracking-wide">{t("users.lastLogin")}</div>
-                        <div className="mt-1 text-foreground/90">{formatTime(item.last_login_at)}</div>
+                        <div className="text-xs uppercase tracking-wide">{t("common.role")}</div>
+                        <div className="mt-1 text-foreground/90">{item.role}</div>
                       </div>
                     </div>
                   </div>
@@ -412,9 +343,15 @@ export default function UsersPage() {
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <div className="font-medium">{role.name}</div>
-                          <div className="mt-1 text-xs text-muted-foreground">{t("users.roleCode")}: {role.code}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {t("users.roleCode")}: {role.code}
+                          </div>
                         </div>
-                        {role.is_system ? <Badge variant="outline">{t("users.systemRole")}</Badge> : <Badge variant="secondary">{t("users.customRole")}</Badge>}
+                        {role.is_system ? (
+                          <Badge variant="outline">{t("users.systemRole")}</Badge>
+                        ) : (
+                          <Badge variant="secondary">{t("users.customRole")}</Badge>
+                        )}
                       </div>
                       <div className="mt-3 text-muted-foreground">{humanizeRoleDescription(role, t)}</div>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -480,7 +417,7 @@ export default function UsersPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label>{t("common.role")}</Label>
                 <Select value={form.role} onValueChange={(value) => setForm((prev) => ({ ...prev, role: value }))}>
@@ -491,21 +428,6 @@ export default function UsersPage() {
                     {roles.map((role) => (
                       <SelectItem key={role.code} value={role.code}>
                         {role.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label>{t("users.roleLevel")}</Label>
-                <Select value={form.role_level} onValueChange={(value) => setForm((prev) => ({ ...prev, role_level: value }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roleLevels.map((level) => (
-                      <SelectItem key={level.value} value={level.value}>
-                        {level.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -523,58 +445,12 @@ export default function UsersPage() {
               </div>
             </div>
 
-            {!editing ? (
-              <div className="grid gap-2">
-                <Label>{t("users.parentUser")}</Label>
-                <Select value={form.parent_uid} onValueChange={(value) => setForm((prev) => ({ ...prev, parent_uid: value }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {userInfo?.can_manage_system ? <SelectItem value={NONE_PARENT}>{t("users.noParent")}</SelectItem> : null}
-                    {parentOptions.map((item) => (
-                      <SelectItem key={item.uid} value={item.uid}>
-                        {item.username} · {item.uid}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div className="grid gap-2">
-                <Label>{t("users.parentUser")}</Label>
-                <Input disabled value={editing.parent_uid || t("users.noParent")} />
-              </div>
-            )}
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label>{t("users.inviteQuota")}</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={form.invite_quota_remaining}
-                  disabled={form.invite_quota_unlimited}
-                  onChange={(event) => setForm((prev) => ({ ...prev, invite_quota_remaining: event.target.value }))}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>{t("users.userPath")}</Label>
-                <Input disabled value={editing?.user_path || ""} placeholder={t("users.userPathPlaceholder")} />
-              </div>
-            </div>
-
-            <label className="flex items-center gap-3 rounded-lg border border-border/70 px-3 py-3 text-sm">
-              <Checkbox checked={form.can_audit} onCheckedChange={(checked) => setForm((prev) => ({ ...prev, can_audit: Boolean(checked) }))} />
-              <span>{t("users.allowAudit")}</span>
-            </label>
-            <label className="flex items-center gap-3 rounded-lg border border-border/70 px-3 py-3 text-sm">
-              <Checkbox checked={form.invite_quota_unlimited} onCheckedChange={(checked) => setForm((prev) => ({ ...prev, invite_quota_unlimited: Boolean(checked) }))} />
-              <span>{t("users.unlimitedInviteQuota")}</span>
-            </label>
             {editing ? (
               <label className="flex items-center gap-3 rounded-lg border border-border/70 px-3 py-3 text-sm">
-                <Checkbox checked={form.is_active} onCheckedChange={(checked) => setForm((prev) => ({ ...prev, is_active: Boolean(checked) }))} />
+                <Checkbox
+                  checked={form.is_active}
+                  onCheckedChange={(checked) => setForm((prev) => ({ ...prev, is_active: Boolean(checked) }))}
+                />
                 <span>{t("users.keepUserActive")}</span>
               </label>
             ) : null}

@@ -11,3 +11,4 @@
 - `list_tags(session)`
 - `create_tag(session, payload)`
 - `update_tag(session, tag_id, payload)`
+- `delete_tag(session, tag_id)`

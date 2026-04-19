@@ -104,26 +104,10 @@ export interface SystemSettingsRead {
   allow_registration: boolean;
   max_chat_turns: number;
   allowed_model_ids: number[];
-  default_max_context_tokens: number;
-  default_max_rounds: number;
-  default_compact_memory_max_items: number;
-  default_auto_compaction_trigger_rounds: number;
-  default_auto_compaction_message_count: number;
-  default_auto_compaction_memory_max_items: number;
-  default_manual_compaction_message_count: number;
-  default_manual_compaction_memory_max_items: number;
-  default_manual_compaction_mode: string;
-  dispatch_thread_pool_max_workers: number;
-  llm_max_concurrency: number;
-  embedding_max_concurrency: number;
-  private_chat_debounce_ms: number;
-  group_chat_debounce_ms: number;
-  typing_debounce_max_extra_ms: number;
-  idle_followup_medium_turn_threshold: number;
-  idle_followup_high_turn_threshold: number;
-  idle_followup_low_activity_seconds: number;
-  idle_followup_medium_activity_seconds: number;
-  idle_followup_high_activity_seconds: number;
+  default_cocoon_temperature: number;
+  default_max_context_messages: number;
+  default_auto_compaction_enabled: boolean;
+  private_chat_debounce_seconds: number;
   rollback_retention_days: number;
   rollback_cleanup_interval_hours: number;
   created_at: string;
@@ -134,26 +118,10 @@ export interface SystemSettingsUpdate {
   allow_registration?: boolean;
   max_chat_turns?: number;
   allowed_model_ids?: number[];
-  default_max_context_tokens?: number;
-  default_max_rounds?: number;
-  default_compact_memory_max_items?: number;
-  default_auto_compaction_trigger_rounds?: number;
-  default_auto_compaction_message_count?: number;
-  default_auto_compaction_memory_max_items?: number;
-  default_manual_compaction_message_count?: number;
-  default_manual_compaction_memory_max_items?: number;
-  default_manual_compaction_mode?: string;
-  dispatch_thread_pool_max_workers?: number;
-  llm_max_concurrency?: number;
-  embedding_max_concurrency?: number;
-  private_chat_debounce_ms?: number;
-  group_chat_debounce_ms?: number;
-  typing_debounce_max_extra_ms?: number;
-  idle_followup_medium_turn_threshold?: number;
-  idle_followup_high_turn_threshold?: number;
-  idle_followup_low_activity_seconds?: number;
-  idle_followup_medium_activity_seconds?: number;
-  idle_followup_high_activity_seconds?: number;
+  default_cocoon_temperature?: number;
+  default_max_context_messages?: number;
+  default_auto_compaction_enabled?: boolean;
+  private_chat_debounce_seconds?: number;
   rollback_retention_days?: number;
   rollback_cleanup_interval_hours?: number;
 }
@@ -162,6 +130,9 @@ export interface CocoonRead {
   id: number;
   name: string;
   owner_uid: string | null;
+  default_temperature?: number | null;
+  max_context_messages?: number | null;
+  auto_compaction_enabled?: boolean | null;
   kind: "private" | "group" | string;
   chat_group_id: number | null;
   parent_id: number | null;
@@ -198,6 +169,9 @@ export interface CocoonRead {
 
 export interface CocoonPayload {
   name: string;
+  default_temperature?: number | null;
+  max_context_messages?: number | null;
+  auto_compaction_enabled?: boolean | null;
   kind?: "private" | "group" | string;
   chat_group_id?: number | null;
   parent_id?: number | null;
@@ -335,6 +309,20 @@ export interface CocoonCompactionResult {
   items: Record<string, unknown>[];
 }
 
+export interface DurableJobRead {
+  id: string;
+  cocoon_id: string | null;
+  job_type: string;
+  status: string;
+  lock_key: string;
+  payload_json: Record<string, unknown>;
+  available_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  worker_name: string | null;
+  error_text: string | null;
+}
+
 export interface DispatchJobRead {
   id: number;
   cocoon_id: number;
@@ -409,6 +397,32 @@ export interface EmbeddingProviderPayload {
   device?: string;
   is_enabled?: boolean;
   is_default?: boolean;
+}
+
+export interface PromptTemplateRevisionRead {
+  id: string;
+  version: number;
+  content: string;
+  variables_json: string[];
+  checksum: string;
+  created_at: string;
+}
+
+export interface PromptTemplateRead {
+  id: string;
+  template_type: string;
+  name: string;
+  description: string;
+  active_revision_id: string | null;
+  created_at: string;
+  updated_at: string;
+  active_revision: PromptTemplateRevisionRead | null;
+}
+
+export interface PromptTemplatePayload {
+  name: string;
+  description: string;
+  content: string;
 }
 
 export interface StatePatchEvent {
@@ -505,6 +519,7 @@ export type ChatStreamEvent =
 
 export interface AuditStepRead {
   id: number;
+  raw_uid?: string | null;
   step_name: string;
   status: string;
   latency_ms: number | null;
@@ -519,6 +534,7 @@ export interface AuditStepRead {
 
 export interface AuditArtifactRead {
   id: number;
+  raw_uid?: string | null;
   artifact_type: string;
   title: string | null;
   payload: unknown;
@@ -528,9 +544,11 @@ export interface AuditArtifactRead {
 
 export interface AuditLinkRead {
   id: number;
-  link_type: string;
-  target_id: number | null;
-  target_uid: string | null;
+  relation: string;
+  source_artifact_id: string | null;
+  source_step_id: string | null;
+  target_artifact_id: string | null;
+  target_step_id: string | null;
   label: string | null;
   created_at: string;
 }
@@ -653,16 +671,16 @@ export interface AdminUserRead {
   username: string;
   email: string | null;
   parent_uid: string | null;
-  user_path: string;
+  user_path: string | null;
   invite_code: string | null;
   role: string;
   role_level: number;
   can_audit: boolean;
   is_active: boolean;
-  token_version: number;
-  quota_tokens: number;
-  invite_quota_remaining: number;
-  invite_quota_unlimited: boolean;
+  token_version: number | null;
+  quota_tokens: number | null;
+  invite_quota_remaining: number | null;
+  invite_quota_unlimited: boolean | null;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
@@ -706,9 +724,9 @@ export interface GroupRead {
   name: string;
   owner_uid: string;
   parent_group_id: string | null;
-  group_path: string;
-  invite_quota_remaining: number;
-  invite_quota_unlimited: boolean;
+  group_path: string | null;
+  invite_quota_remaining: number | null;
+  invite_quota_unlimited: boolean | null;
   description: string | null;
   created_at: string;
   updated_at: string;

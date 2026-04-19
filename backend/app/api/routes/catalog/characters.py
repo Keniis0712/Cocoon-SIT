@@ -47,6 +47,17 @@ def update_character(
     return db.info["container"].character_service.update_character(db, character_id, payload)
 
 
+@router.delete("/{character_id}", response_model=CharacterOut)
+def delete_character(
+    character_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _=Depends(require_permission("characters:write")),
+) -> Character:
+    db.info["container"].authorization_service.require_character_use(db, user, character_id)
+    return db.info["container"].character_service.delete_character(db, character_id)
+
+
 @router.get("/{character_id}/acl", response_model=list[CharacterAclOut])
 def list_character_acl(
     character_id: str,
@@ -68,3 +79,15 @@ def create_character_acl(
 ) -> CharacterAcl:
     db.info["container"].authorization_service.require_character_use(db, user, character_id)
     return db.info["container"].character_service.create_acl(db, character_id, payload)
+
+
+@router.delete("/{character_id}/acl/{acl_id}", response_model=CharacterAclOut)
+def delete_character_acl(
+    character_id: str,
+    acl_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _=Depends(require_permission("characters:write")),
+) -> CharacterAcl:
+    db.info["container"].authorization_service.require_character_use(db, user, character_id)
+    return db.info["container"].character_service.delete_acl(db, character_id, acl_id)

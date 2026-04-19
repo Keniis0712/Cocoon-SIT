@@ -7,7 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import PromptTemplate, PromptTemplateRevision
-from app.services.prompts.registry import DEFAULT_TEMPLATES, PROMPT_VARIABLES_BY_TYPE
+from app.services.prompts.registry import (
+    DEFAULT_TEMPLATES,
+    PROMPT_VARIABLES_BY_TYPE,
+    get_default_template_payload,
+)
 from app.services.prompts.renderer import find_placeholders
 
 
@@ -15,17 +19,18 @@ class PromptRevisionService:
     """Handles template lookup and revisioned persistence."""
 
     def ensure_default_templates(self, session: Session) -> None:
-        for template_type, (name, content) in DEFAULT_TEMPLATES.items():
+        for template_type in DEFAULT_TEMPLATES:
             existing = session.scalar(
                 select(PromptTemplate).where(PromptTemplate.template_type == str(template_type))
             )
             if existing:
                 continue
+            name, description, content = get_default_template_payload(str(template_type))
             self.upsert_template(
                 session=session,
                 template_type=str(template_type),
                 name=name,
-                description=f"Default template for {template_type}",
+                description=description,
                 content=content,
                 actor_user_id=None,
             )
@@ -45,6 +50,26 @@ class PromptRevisionService:
         if not template.active_revision_id:
             return None
         return session.get(PromptTemplateRevision, template.active_revision_id)
+
+    def reset_template(
+        self,
+        session: Session,
+        template_type: str,
+        actor_user_id: str | None,
+    ) -> PromptTemplate:
+        try:
+            name, description, content = get_default_template_payload(template_type)
+        except KeyError as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found") from exc
+
+        return self.upsert_template(
+            session=session,
+            template_type=template_type,
+            name=name,
+            description=description,
+            content=content,
+            actor_user_id=actor_user_id,
+        )
 
     def upsert_template(
         self,

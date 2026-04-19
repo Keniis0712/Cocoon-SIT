@@ -1,5 +1,5 @@
 import { apiCall } from "./client";
-import { rememberLegacyId, rememberLegacyStringId, resolveActualId } from "./id-map";
+import { rememberLegacyId, resolveActualId } from "./id-map";
 import type {
   CocoonMergeCreatePayload,
   CocoonMergeJobDetail,
@@ -30,7 +30,7 @@ function mapMergeJob(item: {
 }): CocoonMergeJobRead {
   return {
     id: rememberLegacyId("merge", item.id),
-    merge_uid: rememberLegacyStringId("merge", item.id),
+    merge_uid: item.id,
     source_cocoon_id: rememberLegacyId("cocoon", item.source_cocoon_id),
     target_cocoon_id: rememberLegacyId("cocoon", item.target_cocoon_id),
     source_checkpoint_id: null,
@@ -44,7 +44,7 @@ function mapMergeJob(item: {
     applied_state_delta_json: JSON.stringify(item.summary_json),
     merge_summary_message_id: null,
     error_detail: null,
-    started_at: item.created_at,
+    started_at: null,
     finished_at: null,
     created_at: item.created_at,
   };

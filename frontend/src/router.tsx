@@ -18,6 +18,7 @@ const LoginPage = lazy(() => import("@/pages/Login"));
 const MePage = lazy(() => import("@/pages/Me"));
 const MergesPage = lazy(() => import("@/pages/Merges"));
 const ProvidersPage = lazy(() => import("@/pages/Providers"));
+const PromptTemplatesPage = lazy(() => import("@/pages/PromptTemplates"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
 const TagsPage = lazy(() => import("@/pages/TagsPage"));
 const UsersPage = lazy(() => import("@/pages/Users"));
@@ -59,6 +60,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/cocoons", element: renderLazyPage(CocoonsPage) },
       { path: "/cocoons/:cocoonId", element: renderLazyPage(CocoonWorkspacePage) },
+      { path: "/cocoons/:cocoonId/memory", element: renderLazyPage(CocoonMemoryPage) },
       { path: "/cocoons/:cocoonId/memories", element: renderLazyPage(CocoonMemoryPage) },
       { path: "/chat-groups", element: renderLazyPage(ChatGroupsPage) },
       { path: "/tags", element: renderLazyPage(TagsPage) },
@@ -67,6 +69,7 @@ export const router = createBrowserRouter([
       { path: "/invites", element: renderLazyPage(InvitesPage) },
       { path: "/merges", element: renderLazyPage(MergesPage) },
       { path: "/providers", element: renderLazyPage(ProvidersPage) },
+      { path: "/prompt-templates", element: renderLazyPage(PromptTemplatesPage) },
       { path: "/embedding-providers", element: renderLazyPage(EmbeddingProvidersPage) },
       { path: "/users", element: renderLazyPage(UsersPage) },
       { path: "/audits", element: renderLazyPage(AuditsWorkbenchPage) },

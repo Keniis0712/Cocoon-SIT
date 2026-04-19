@@ -28,7 +28,7 @@ services:
       [
         "sh",
         "-lc",
-        "until uv run alembic upgrade head; do echo 'Waiting for database migrations...'; sleep 2; done; exec uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
+        "uv sync --frozen || uv sync; until uv run alembic upgrade head; do echo 'Waiting for database migrations...'; sleep 2; done; exec uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
       ]
     volumes:
       - ../backend:/app
@@ -47,7 +47,7 @@ services:
     env_file:
       - .env.example
     working_dir: /app
-    command: ["uv", "run", "python", "-m", "app.worker.main"]
+    command: ["sh", "-lc", "uv sync --frozen || uv sync; exec uv run python -m app.worker.main"]
     volumes:
       - ../backend:/app
       - worker_dev_venv:/app/.venv

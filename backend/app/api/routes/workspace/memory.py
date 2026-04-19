@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_container, get_current_user, get_db, require_permission
 from app.core.container import AppContainer
-from app.models import MemoryChunk
+from app.models import MemoryChunk, MemoryEmbedding, MemoryTag
 from app.models.entities import DurableJobType
 from app.schemas.workspace.memory import MemoryChunkOut, MemoryCompactionRequest
 from app.schemas.workspace.jobs import DurableJobOut
@@ -48,3 +48,24 @@ def compact_memory(
         cocoon_id=cocoon_id,
     )
     return job
+
+
+@router.delete("/{cocoon_id}/{memory_id}", response_model=MemoryChunkOut)
+def delete_memory(
+    cocoon_id: str,
+    memory_id: str,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+    _=Depends(require_permission("memory:write")),
+) -> MemoryChunk:
+    db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=True)
+    memory = db.get(MemoryChunk, memory_id)
+    if not memory or memory.cocoon_id != cocoon_id:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found")
+    db.query(MemoryTag).filter(MemoryTag.memory_chunk_id == memory_id).delete()
+    db.query(MemoryEmbedding).filter(MemoryEmbedding.memory_chunk_id == memory_id).delete()
+    db.delete(memory)
+    db.flush()
+    return memory

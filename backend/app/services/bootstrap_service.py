@@ -27,9 +27,5 @@ class BootstrapService:
         self.workspace_seed_service = workspace_seed_service or BootstrapWorkspaceSeedService()
 
     def seed_default_data(self, session: Session) -> None:
-        admin_user = self.access_seed_service.ensure_defaults(session, self.settings)
-        self.catalog_seed_service.ensure_defaults(
-            session,
-            self.prompt_service,
-            admin_user_id=admin_user.id,
-        )
+        self.access_seed_service.ensure_defaults(session, self.settings)
+        self.catalog_seed_service.ensure_defaults(session, self.prompt_service)
