@@ -62,7 +62,7 @@ class MetaDecision:
     decision: str
     relation_delta: int
     persona_patch: dict[str, Any]
-    tag_ops: list[str]
+    tag_ops: list["TagOperation"]
     internal_thought: str
     next_wakeup_hints: list[dict[str, Any]] = field(default_factory=list)
     cancel_wakeup_task_ids: list[str] = field(default_factory=list)
@@ -75,9 +75,20 @@ class MemoryCandidate:
     scope: str
     summary: str
     content: str
-    tags: list[str] = field(default_factory=list)
+    tags: list["TagReference"] = field(default_factory=list)
     owner_user_id: str | None = None
     importance: int = 5
+
+
+@dataclass
+class TagOperation:
+    action: str
+    tag: str
+
+
+@dataclass
+class TagReference:
+    tag: str
 
 
 @dataclass

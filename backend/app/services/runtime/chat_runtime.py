@@ -137,7 +137,7 @@ class ChatRuntime:
                 "decision": meta.decision,
                 "relation_delta": meta.relation_delta,
                 "persona_patch": meta.persona_patch,
-                "tag_ops": meta.tag_ops,
+                "tag_ops": [{"action": op.action, "tag": op.tag} for op in meta.tag_ops],
                 "internal_thought": meta.internal_thought,
                 "next_wakeup_hints": meta.next_wakeup_hints,
                 "cancel_wakeup_task_ids": meta.cancel_wakeup_task_ids,
@@ -147,7 +147,7 @@ class ChatRuntime:
                         "scope": candidate.scope,
                         "summary": candidate.summary,
                         "content": candidate.content,
-                        "tags": candidate.tags,
+                        "tags": [{"tag": tag.tag} for tag in candidate.tags],
                         "owner_user_id": candidate.owner_user_id,
                         "importance": candidate.importance,
                     }

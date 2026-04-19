@@ -1,9 +1,17 @@
 from sqlalchemy import select
 
-from app.models import ActionDispatch, AuditArtifact, AuditRun, Character, Cocoon, MemoryChunk, SessionState
+from app.models import ActionDispatch, AuditArtifact, AuditRun, Character, Cocoon, MemoryChunk, SessionState, TagRegistry
 from app.services.runtime.reply_delivery_service import ReplyDeliveryService
 from app.services.runtime.state_patch_service import StatePatchService
-from app.services.runtime.types import ContextPackage, GenerationOutput, MemoryCandidate, MetaDecision, RuntimeEvent
+from app.services.runtime.types import (
+    ContextPackage,
+    GenerationOutput,
+    MemoryCandidate,
+    MetaDecision,
+    RuntimeEvent,
+    TagOperation,
+    TagReference,
+)
 
 
 class RecordingHub:
@@ -81,7 +89,7 @@ def test_state_patch_service_updates_session_state_and_broadcasts(client, defaul
             decision="reply",
             relation_delta=3,
             persona_patch={"tone": "warm"},
-            tag_ops=["+focus"],
+            tag_ops=[TagOperation(action="add", tag="focus")],
             internal_thought="",
             next_wakeup_hints=[],
             cancel_wakeup_task_ids=[],
@@ -212,7 +220,7 @@ def test_side_effects_persist_memory_candidates_without_copying_reply_text(clien
                     scope="dialogue",
                     summary="User prefers jasmine tea",
                     content="The user said they prefer jasmine tea.",
-                    tags=["focus"],
+                    tags=[TagReference(tag="focus")],
                     importance=7,
                 )
             ],
@@ -224,3 +232,77 @@ def test_side_effects_persist_memory_candidates_without_copying_reply_text(clien
         assert memories[0].summary == "User prefers jasmine tea"
         assert memories[0].content == "The user said they prefer jasmine tea."
         assert memories[0].content != message.content
+
+
+def test_side_effects_resolve_readable_tag_references_to_canonical_ids(client, default_cocoon_id):
+    container = client.app.state.container
+
+    with container.session_factory() as session:
+        tag = TagRegistry(
+            tag_id="focus",
+            brief="Focus topic",
+            visibility="public",
+            meta_json={"name": "Focus Topic"},
+        )
+        session.add(tag)
+        session.flush()
+        state = session.get(SessionState, default_cocoon_id)
+        assert state is not None
+        context = _build_context(session, default_cocoon_id)
+        context.external_context["tag_catalog_by_ref"] = {
+            tag.id: {
+                "id": tag.id,
+                "tag_id": tag.tag_id,
+                "brief": tag.brief,
+                "visibility": tag.visibility,
+                "is_isolated": tag.is_isolated,
+                "meta_json": tag.meta_json,
+            },
+            tag.tag_id: {
+                "id": tag.id,
+                "tag_id": tag.tag_id,
+                "brief": tag.brief,
+                "visibility": tag.visibility,
+                "is_isolated": tag.is_isolated,
+                "meta_json": tag.meta_json,
+            },
+        }
+
+        action = ActionDispatch(
+            cocoon_id=default_cocoon_id,
+            event_type="message",
+            payload_json={"content": "remember focus topic"},
+        )
+        session.add(action)
+        session.flush()
+
+        meta = MetaDecision(
+            decision="reply",
+            relation_delta=0,
+            persona_patch={},
+            tag_ops=[TagOperation(action="add", tag="Focus Topic")],
+            internal_thought="",
+            next_wakeup_hints=[],
+            cancel_wakeup_task_ids=[],
+        )
+        container.side_effects.apply_state_patch(session, context, meta)
+
+        memories = container.side_effects.persist_memory_candidates(
+            session,
+            context,
+            action,
+            [
+                MemoryCandidate(
+                    scope="dialogue",
+                    summary="Focus preference",
+                    content="The user asked to remember the focus topic.",
+                    tags=[TagReference(tag="Focus Topic")],
+                    importance=6,
+                )
+            ],
+        )
+        session.commit()
+
+        assert state.active_tags_json == [tag.id]
+        assert len(memories) == 1
+        assert memories[0].tags_json == [tag.id]

@@ -79,9 +79,29 @@ class ContextBuilder:
         ]
         external_context["now_utc"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
         tags = list(session.scalars(select(TagRegistry)).all())
-        external_context["tag_visibility_by_ref"] = {
-            **{tag.id: tag.visibility for tag in tags},
-            **{tag.tag_id: tag.visibility for tag in tags},
+        external_context["tag_catalog_by_ref"] = {
+            **{
+                tag.id: {
+                    "id": tag.id,
+                    "tag_id": tag.tag_id,
+                    "brief": tag.brief,
+                    "visibility": tag.visibility,
+                    "is_isolated": tag.is_isolated,
+                    "meta_json": tag.meta_json,
+                }
+                for tag in tags
+            },
+            **{
+                tag.tag_id: {
+                    "id": tag.id,
+                    "tag_id": tag.tag_id,
+                    "brief": tag.brief,
+                    "visibility": tag.visibility,
+                    "is_isolated": tag.is_isolated,
+                    "meta_json": tag.meta_json,
+                }
+                for tag in tags
+            },
         }
         return ContextPackage(
             runtime_event=event,

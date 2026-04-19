@@ -74,9 +74,6 @@ class EmbeddingProvider(ABC):
 
 
 class MockChatProvider(ChatProvider):
-    META_MARKER = "COCOON_META_OUTPUT_V1"
-    GENERATOR_MARKER = "COCOON_GENERATOR_OUTPUT_V1"
-
     def generate_text(
         self,
         prompt: str,
@@ -84,12 +81,6 @@ class MockChatProvider(ChatProvider):
         model_name: str,
         provider_config: dict[str, Any],
     ) -> ProviderTextResponse:
-        if self.META_MARKER in prompt:
-            reply = self._meta_reply(prompt, messages)
-            return self._build_response(reply, prompt, model_name)
-        if self.GENERATOR_MARKER in prompt:
-            reply = self._generator_reply(prompt, messages, provider_config)
-            return self._build_response(reply, prompt, model_name)
         user_message = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
         if user_message:
             reply = f"{provider_config.get('reply_prefix', 'Echo')}: {user_message}".strip()
@@ -108,12 +99,18 @@ class MockChatProvider(ChatProvider):
         schema: dict[str, Any],
         output_name: str,
     ) -> ProviderStructuredResponse:
-        response = self.generate_text(
-            prompt=prompt,
-            messages=messages,
-            model_name=model_name,
-            provider_config=provider_config,
-        )
+        if output_name == "cocoon_meta_output":
+            text = self._meta_reply(prompt, messages)
+        elif output_name == "cocoon_generation_output":
+            text = self._generator_reply(prompt, messages, provider_config)
+        else:
+            text = self.generate_text(
+                prompt=prompt,
+                messages=messages,
+                model_name=model_name,
+                provider_config=provider_config,
+            ).text
+        response = self._build_response(text, prompt, model_name)
         parsed = self._extract_json_payload(response.text)
         return ProviderStructuredResponse(
             text=response.text,
@@ -185,12 +182,17 @@ class MockChatProvider(ChatProvider):
             ]
         if runtime_event.get("event_type") == "wakeup" and str(runtime_event.get("trigger_kind")) == "idle_timeout":
             decision = "reply"
+        tag_ops: list[dict[str, Any]] = []
+        if "focus tag" in lower_user:
+            tag_ops.append({"action": "add", "tag": "focus"})
+        if "remove focus tag" in lower_user:
+            tag_ops.append({"action": "remove", "tag": "focus"})
         return json.dumps(
             {
                 "decision": decision,
                 "relation_delta": 1 if latest_user else 0,
                 "persona_patch": {"last_seen_intent": latest_user[:120]},
-                "tag_ops": [],
+                "tag_ops": tag_ops,
                 "internal_thought": "Mock structured meta output.",
                 "schedule_wakeups": wakeups,
                 "cancel_wakeup_task_ids": cancel_ids,

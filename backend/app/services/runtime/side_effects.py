@@ -23,12 +23,12 @@ class SideEffects:
         state.relation_score += meta.relation_delta
         state.persona_json = state.persona_json | meta.persona_patch
         for op in meta.tag_ops:
-            if op.startswith("+"):
-                tag = op[1:]
+            if op.action == "add":
+                tag = self._resolve_tag_reference(context, op.tag)
                 if tag and tag not in state.active_tags_json:
                     state.active_tags_json = [*state.active_tags_json, tag]
-            elif op.startswith("-"):
-                tag = op[1:]
+            elif op.action == "remove":
+                tag = self._resolve_tag_reference(context, op.tag)
                 state.active_tags_json = [item for item in state.active_tags_json if item != tag]
         if context.runtime_event.event_type == "merge" and context.external_context.get("source_state"):
             source_state = context.external_context["source_state"]
@@ -92,7 +92,7 @@ class SideEffects:
             content = candidate.content.strip()
             if not summary or not content:
                 continue
-            tag_ids = candidate.tags or list(context.session_state.active_tags_json)
+            tag_ids = self._resolve_candidate_tags(context, candidate) or list(context.session_state.active_tags_json)
             memory = MemoryChunk(
                 cocoon_id=context.runtime_event.cocoon_id,
                 chat_group_id=context.runtime_event.chat_group_id,
@@ -132,6 +132,41 @@ class SideEffects:
             memories.append(memory)
         session.flush()
         return memories
+
+    def _resolve_candidate_tags(self, context: ContextPackage, candidate: MemoryCandidate) -> list[str]:
+        resolved: list[str] = []
+        for tag_ref in candidate.tags:
+            tag = self._resolve_tag_reference(context, tag_ref.tag)
+            if tag and tag not in resolved:
+                resolved.append(tag)
+        return resolved
+
+    def _resolve_tag_reference(self, context: ContextPackage, raw_tag: str) -> str:
+        tag = raw_tag.strip()
+        if not tag:
+            return ""
+        catalog = context.external_context.get("tag_catalog_by_ref") or {}
+        if not isinstance(catalog, dict):
+            return tag
+        direct = catalog.get(tag)
+        if isinstance(direct, dict):
+            return str(direct.get("id") or direct.get("tag_id") or tag)
+        normalized = tag.casefold()
+        for payload in catalog.values():
+            if not isinstance(payload, dict):
+                continue
+            candidates = [
+                payload.get("id"),
+                payload.get("tag_id"),
+                payload.get("meta_json", {}).get("name") if isinstance(payload.get("meta_json"), dict) else None,
+                payload.get("meta_json", {}).get("title") if isinstance(payload.get("meta_json"), dict) else None,
+                payload.get("meta_json", {}).get("display_name") if isinstance(payload.get("meta_json"), dict) else None,
+                payload.get("meta_json", {}).get("label") if isinstance(payload.get("meta_json"), dict) else None,
+            ]
+            for candidate in candidates:
+                if isinstance(candidate, str) and candidate.strip().casefold() == normalized:
+                    return str(payload.get("id") or payload.get("tag_id") or tag)
+        return tag
 
     def record_side_effects_result(
         self,

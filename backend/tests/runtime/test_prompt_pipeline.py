@@ -4,7 +4,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from app.models import ActionDispatch, AuditArtifact, AuditRun, AuditStep, MemoryChunk
+from app.models import ActionDispatch, AuditArtifact, AuditRun, AuditStep, MemoryChunk, SessionState, TagRegistry
 
 
 def _read_artifact_payload(artifact: AuditArtifact) -> dict:
@@ -203,3 +203,80 @@ def test_memory_summary_template_drives_compaction(
         ).first()
         assert summary_chunk is not None
         assert "MEMORY SUMMARY CUSTOM MARKER" in summary_chunk.content
+
+
+def test_runtime_prompt_exposes_readable_tag_metadata(
+    client,
+    auth_headers,
+    worker_runtime,
+    default_cocoon_id,
+):
+    with client.app.state.container.session_factory() as session:
+        default_tag = session.scalars(select(TagRegistry).order_by(TagRegistry.created_at.asc())).first()
+        assert default_tag is not None
+        state = session.scalar(select(SessionState).where(SessionState.cocoon_id == default_cocoon_id))
+        assert state is not None
+        state.active_tags_json = [default_tag.id]
+        session.commit()
+
+    response = client.put(
+        "/api/v1/prompt-templates/meta",
+        headers=auth_headers,
+        json={
+            "name": "Meta Template",
+            "description": "Readable tag metadata",
+            "content": (
+                "Readable tags meta\n{{ session_state }}\n{{ visible_messages }}\n"
+                "{{ memory_context }}\n{{ merge_context }}"
+            ),
+        },
+    )
+    assert response.status_code == 200, response.text
+
+    send_response = client.post(
+        f"/api/v1/cocoons/{default_cocoon_id}/messages",
+        headers=auth_headers,
+        json={
+            "content": "Check readable tag metadata",
+            "client_request_id": "runtime-tags-1",
+            "timezone": "UTC",
+        },
+    )
+    assert send_response.status_code == 202, send_response.text
+    assert worker_runtime.process_next_chat_dispatch() is True
+
+    with client.app.state.container.session_factory() as session:
+        action = session.scalar(
+            select(ActionDispatch).where(ActionDispatch.client_request_id == "runtime-tags-1")
+        )
+        assert action is not None
+        run = session.scalar(select(AuditRun).where(AuditRun.action_id == action.id))
+        assert run is not None
+        meta_step = session.scalar(
+            select(AuditStep).where(AuditStep.run_id == run.id, AuditStep.step_name == "meta_node")
+        )
+        assert meta_step is not None
+        meta_variables = session.scalar(
+            select(AuditArtifact).where(
+                AuditArtifact.step_id == meta_step.id,
+                AuditArtifact.kind == "prompt_variables",
+                AuditArtifact.summary == "meta prompt variables snapshot",
+            )
+        )
+        assert meta_variables is not None
+
+        default_tag = session.scalars(select(TagRegistry).order_by(TagRegistry.created_at.asc())).first()
+        assert default_tag is not None
+
+        payload = _read_artifact_payload(meta_variables)["variables"]
+        active_tags = payload["session_state"]["active_tags"]
+        assert active_tags
+        assert active_tags[0]["name"] == default_tag.tag_id
+        assert active_tags[0]["brief"] == default_tag.brief
+        assert active_tags[0]["visibility"]["description"]
+
+        visible_message = payload["visible_messages"][0]
+        assert "tag_refs" not in visible_message
+        assert "tag_visibility" not in visible_message
+        if visible_message["tags"]:
+            assert visible_message["tags"][0]["name"] == default_tag.tag_id

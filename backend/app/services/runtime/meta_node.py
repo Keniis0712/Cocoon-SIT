@@ -8,10 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.services.audit.service import AuditService
 from app.services.prompts.service import PromptTemplateService
-from app.services.providers.base import MockChatProvider
 from app.services.runtime.prompting import build_runtime_prompt_variables, record_prompt_render_artifacts
 from app.services.runtime.structured_models import MetaStructuredOutputModel
-from app.services.runtime.types import ContextPackage, MemoryCandidate, MetaDecision
+from app.services.runtime.types import ContextPackage, MemoryCandidate, MetaDecision, TagOperation, TagReference
 from app.services.providers.registry import ProviderRegistry
 
 
@@ -107,7 +106,11 @@ class MetaNode:
             decision=parsed.decision,
             relation_delta=relation_delta_int,
             persona_patch=parsed.persona_patch or {"last_seen_intent": latest_content[:120]},
-            tag_ops=[str(item) for item in parsed.tag_ops if str(item).strip()],
+            tag_ops=[
+                TagOperation(action=item.action, tag=item.tag.strip())
+                for item in parsed.tag_ops
+                if item.tag.strip()
+            ],
             internal_thought=internal_thought,
             next_wakeup_hints=[item for item in parsed.schedule_wakeups if isinstance(item, dict)],
             cancel_wakeup_task_ids=[str(item) for item in parsed.cancel_wakeup_task_ids if str(item).strip()],
@@ -117,7 +120,7 @@ class MetaNode:
                     scope=item.scope,
                     summary=item.summary,
                     content=item.content,
-                    tags=[str(tag) for tag in item.tags if str(tag).strip()],
+                    tags=[TagReference(tag=tag.tag.strip()) for tag in item.tags if tag.tag.strip()],
                     owner_user_id=item.owner_user_id,
                     importance=item.importance,
                 )
@@ -149,15 +152,12 @@ class MetaNode:
             default=str,
         )
         return (
-            f"{MockChatProvider.META_MARKER}\n"
-            "Return a strict JSON object with keys: decision, relation_delta, persona_patch, "
-            "tag_ops, internal_thought, schedule_wakeups, cancel_wakeup_task_ids, generation_brief, memory_candidates.\n"
-            "Use decision='reply' when the assistant should actively answer now, decision='silence' when it should ignore this wakeup.\n"
-            "When the conversation stopped and the current event is an idle wakeup, you are encouraged to proactively re-engage the user at an appropriate moment.\n"
-            "schedule_wakeups must be an array. Each wakeup must include a non-empty reason and may define run_at, delay_seconds, delay_minutes, or delay_hours.\n"
-            "cancel_wakeup_task_ids must contain exact ids from pending_wakeups when you want to cancel them.\n"
-            "memory_candidates must contain only durable facts, preferences, commitments, or event conclusions worth retrieving later.\n"
-            "Do not store the assistant reply itself as memory. Omit ordinary chit-chat and low-signal small talk.\n"
+            "You are producing the runtime analysis result for the host application.\n"
+            "Decide whether the assistant should reply now or stay silent, then extract only durable memories worth retrieving later.\n"
+            "If the current event is an idle wakeup and re-engagement feels appropriate, you may choose to reply proactively.\n"
+            "Only propose wakeups that have a concrete reason.\n"
+            "Only extract memory candidates for durable facts, preferences, commitments, or event conclusions.\n"
+            "Do not turn the assistant's draft reply or ordinary chit-chat into long-term memory.\n"
             "CONTEXT_JSON_START\n"
             f"{context_json}\n"
             "CONTEXT_JSON_END\n"

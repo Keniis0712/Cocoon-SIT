@@ -7,7 +7,6 @@ import json
 from sqlalchemy.orm import Session
 
 from app.services.audit.service import AuditService
-from app.services.providers.base import MockChatProvider
 from app.services.providers.registry import ProviderRegistry
 from app.services.runtime.generation.prompt_assembly_service import PromptAssemblyService
 from app.services.runtime.prompting import record_prompt_render_artifacts
@@ -119,10 +118,9 @@ class GeneratorNode:
             default=str,
         )
         return (
-            f"{MockChatProvider.GENERATOR_MARKER}\n"
-            "Return a strict JSON object with key reply_text.\n"
-            "If this is an idle wakeup, you may proactively message the user, mention that the conversation became quiet, "
-            "and use the provided time/reason context naturally.\n"
+            "You are producing the assistant's visible reply for the host application.\n"
+            "If this is an idle wakeup, you may proactively re-engage the user and naturally weave in the time or reason context.\n"
+            "Stay in character and focus on the most relevant continuity from the current conversation.\n"
             "CONTEXT_JSON_START\n"
             f"{context_json}\n"
             "CONTEXT_JSON_END\n"
