@@ -6,6 +6,8 @@ from typing import Any
 import hashlib
 import json
 
+from pydantic import BaseModel
+
 
 @dataclass
 class ProviderUsage:
@@ -57,6 +59,7 @@ class ChatProvider(ABC):
         provider_config: dict[str, Any],
         *,
         schema: dict[str, Any],
+        schema_model: type[BaseModel] | None = None,
         output_name: str,
     ) -> ProviderStructuredResponse:
         raise NotImplementedError
@@ -97,6 +100,7 @@ class MockChatProvider(ChatProvider):
         provider_config: dict[str, Any],
         *,
         schema: dict[str, Any],
+        schema_model: type[BaseModel] | None = None,
         output_name: str,
     ) -> ProviderStructuredResponse:
         if output_name == "cocoon_meta_output":
@@ -112,6 +116,8 @@ class MockChatProvider(ChatProvider):
             ).text
         response = self._build_response(text, prompt, model_name)
         parsed = self._extract_json_payload(response.text)
+        if schema_model is not None:
+            parsed = schema_model.model_validate(parsed).model_dump(mode="json")
         return ProviderStructuredResponse(
             text=response.text,
             parsed=parsed,
