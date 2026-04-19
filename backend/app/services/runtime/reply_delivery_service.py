@@ -30,7 +30,7 @@ class ReplyDeliveryService:
         audit_run: AuditRun,
         generator_step,
         generation: GenerationOutput,
-    ) -> tuple[Message, object]:
+    ) -> Message:
         self.realtime_hub.publish(
             context.channel_key,
             {
@@ -48,10 +48,10 @@ class ReplyDeliveryService:
                     "action_id": action.id,
                     "text": chunk,
                     "cocoon_id": context.runtime_event.cocoon_id,
-                    "chat_group_id": context.runtime_event.chat_group_id,
-                },
-            )
-        message, memory = self.side_effects.persist_generated_output(session, context, action, generation)
+                "chat_group_id": context.runtime_event.chat_group_id,
+            },
+        )
+        message = self.side_effects.persist_generated_message(session, context, action, generation)
         self.realtime_hub.publish(
             context.channel_key,
             {
@@ -86,4 +86,4 @@ class ReplyDeliveryService:
             source_step_id=generator_step.id,
             target_artifact_id=output_artifact.id,
         )
-        return message, memory
+        return message

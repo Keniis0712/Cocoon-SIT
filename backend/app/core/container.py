@@ -61,6 +61,8 @@ class AppContainer:
     def initialize(self) -> None:
         self.bootstrap_schema_and_seed()
         self.realtime_hub.start()
+        if hasattr(self, "plugin_runtime_manager"):
+            self.plugin_runtime_manager.start()
 
     def bootstrap_schema_and_seed(self) -> None:
         # Keep lightweight create_all only for SQLite-style local/test databases.
@@ -73,5 +75,7 @@ class AppContainer:
             session.commit()
 
     def shutdown(self) -> None:
+        if hasattr(self, "plugin_runtime_manager"):
+            self.plugin_runtime_manager.stop()
         self.realtime_hub.stop()
         self.engine.dispose()

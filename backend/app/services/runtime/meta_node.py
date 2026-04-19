@@ -10,8 +10,8 @@ from app.services.audit.service import AuditService
 from app.services.prompts.service import PromptTemplateService
 from app.services.providers.base import MockChatProvider
 from app.services.runtime.prompting import build_runtime_prompt_variables, record_prompt_render_artifacts
-from app.services.runtime.structured_output import extract_json_object
-from app.services.runtime.types import ContextPackage, MetaDecision
+from app.services.runtime.structured_models import MetaStructuredOutputModel
+from app.services.runtime.types import ContextPackage, MemoryCandidate, MetaDecision
 from app.services.providers.registry import ProviderRegistry
 
 
@@ -72,11 +72,13 @@ class MetaNode:
         )
         latest_content = latest_user.content if latest_user else ""
         provider_prompt = self._build_structured_prompt(context, rendered_prompt, snapshot)
-        response = provider.generate_text(
+        response = provider.generate_structured(
             prompt=provider_prompt,
             messages=[self._provider_message_payload(message, context) for message in context.visible_messages],
             model_name=model.model_name,
             provider_config=runtime_provider_config,
+            schema=MetaStructuredOutputModel.model_json_schema(),
+            output_name="cocoon_meta_output",
         )
         self.audit_service.record_json_artifact(
             session,
@@ -93,38 +95,35 @@ class MetaNode:
                 "total_tokens": response.usage.total_tokens,
             },
         )
-        parsed = extract_json_object(response.text) or {}
-        if not parsed:
+        if not response.parsed:
             return self._fallback_decision(context, latest_content)
-        decision = str(parsed.get("decision") or "reply")
-        if decision not in {"reply", "silence"}:
-            decision = "reply"
-        relation_delta = parsed.get("relation_delta")
         try:
-            relation_delta_int = int(relation_delta) if relation_delta is not None else (1 if latest_content else 0)
+            parsed = MetaStructuredOutputModel.model_validate(response.parsed)
         except Exception:
-            relation_delta_int = 1 if latest_content else 0
-        persona_patch = parsed.get("persona_patch")
-        if not isinstance(persona_patch, dict):
-            persona_patch = {"last_seen_intent": latest_content[:120]}
-        tag_ops = parsed.get("tag_ops")
-        if not isinstance(tag_ops, list):
-            tag_ops = []
-        wakeups = parsed.get("schedule_wakeups")
-        if not isinstance(wakeups, list):
-            wakeups = []
-        cancel_wakeup_task_ids = parsed.get("cancel_wakeup_task_ids")
-        if not isinstance(cancel_wakeup_task_ids, list):
-            cancel_wakeup_task_ids = []
-        internal_thought = str(parsed.get("internal_thought") or "Structured meta decision completed.")
+            return self._fallback_decision(context, latest_content)
+        relation_delta_int = int(parsed.relation_delta if latest_content or parsed.relation_delta else 0)
+        internal_thought = str(parsed.internal_thought or "Structured meta decision completed.")
         return MetaDecision(
-            decision=decision,
+            decision=parsed.decision,
             relation_delta=relation_delta_int,
-            persona_patch=persona_patch,
-            tag_ops=[str(item) for item in tag_ops if str(item).strip()],
+            persona_patch=parsed.persona_patch or {"last_seen_intent": latest_content[:120]},
+            tag_ops=[str(item) for item in parsed.tag_ops if str(item).strip()],
             internal_thought=internal_thought,
-            next_wakeup_hints=[item for item in wakeups if isinstance(item, dict)],
-            cancel_wakeup_task_ids=[str(item) for item in cancel_wakeup_task_ids if str(item).strip()],
+            next_wakeup_hints=[item for item in parsed.schedule_wakeups if isinstance(item, dict)],
+            cancel_wakeup_task_ids=[str(item) for item in parsed.cancel_wakeup_task_ids if str(item).strip()],
+            generation_brief=parsed.generation_brief,
+            memory_candidates=[
+                MemoryCandidate(
+                    scope=item.scope,
+                    summary=item.summary,
+                    content=item.content,
+                    tags=[str(tag) for tag in item.tags if str(tag).strip()],
+                    owner_user_id=item.owner_user_id,
+                    importance=item.importance,
+                )
+                for item in parsed.memory_candidates
+                if item.summary.strip() and item.content.strip()
+            ],
         )
 
     def _build_structured_prompt(
@@ -152,11 +151,13 @@ class MetaNode:
         return (
             f"{MockChatProvider.META_MARKER}\n"
             "Return a strict JSON object with keys: decision, relation_delta, persona_patch, "
-            "tag_ops, internal_thought, schedule_wakeups, cancel_wakeup_task_ids.\n"
+            "tag_ops, internal_thought, schedule_wakeups, cancel_wakeup_task_ids, generation_brief, memory_candidates.\n"
             "Use decision='reply' when the assistant should actively answer now, decision='silence' when it should ignore this wakeup.\n"
             "When the conversation stopped and the current event is an idle wakeup, you are encouraged to proactively re-engage the user at an appropriate moment.\n"
             "schedule_wakeups must be an array. Each wakeup must include a non-empty reason and may define run_at, delay_seconds, delay_minutes, or delay_hours.\n"
             "cancel_wakeup_task_ids must contain exact ids from pending_wakeups when you want to cancel them.\n"
+            "memory_candidates must contain only durable facts, preferences, commitments, or event conclusions worth retrieving later.\n"
+            "Do not store the assistant reply itself as memory. Omit ordinary chit-chat and low-signal small talk.\n"
             "CONTEXT_JSON_START\n"
             f"{context_json}\n"
             "CONTEXT_JSON_END\n"
@@ -185,6 +186,8 @@ class MetaNode:
                 internal_thought="Fallback wakeup meta decision.",
                 next_wakeup_hints=[],
                 cancel_wakeup_task_ids=[],
+                generation_brief=None,
+                memory_candidates=[],
             )
         if event_type == "pull":
             return MetaDecision(
@@ -195,6 +198,8 @@ class MetaNode:
                 internal_thought="Fallback pull meta decision.",
                 next_wakeup_hints=[],
                 cancel_wakeup_task_ids=[],
+                generation_brief=None,
+                memory_candidates=[],
             )
         if event_type == "merge":
             return MetaDecision(
@@ -205,6 +210,8 @@ class MetaNode:
                 internal_thought="Fallback merge meta decision.",
                 next_wakeup_hints=[],
                 cancel_wakeup_task_ids=[],
+                generation_brief=None,
+                memory_candidates=[],
             )
         return MetaDecision(
             decision="silence" if latest_content.strip().startswith("/silent") else "reply",
@@ -214,4 +221,6 @@ class MetaNode:
             internal_thought="Fallback chat meta decision.",
             next_wakeup_hints=[],
             cancel_wakeup_task_ids=[],
+            generation_brief=None,
+            memory_candidates=[],
         )

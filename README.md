@@ -33,10 +33,20 @@ Monorepo scaffold for the Cocoon-SIT AI workspace platform.
 
 - Full stack with bundled frontend:
   - `docker compose -f deploy/docker-compose.yml up --build`
+- Production compose now reads `deploy/.env`, not `deploy/.env.example`.
 - The `api` image now builds the frontend and serves it as static files on the same origin.
 - The Docker `api` service now runs `alembic upgrade head` before startup, so schema changes are applied automatically to existing Postgres volumes.
 - The Alembic baseline has been reset to the current schema. If you still have an older local Postgres volume from before this reset, drop it once with `docker compose -f deploy/docker-compose.yml down -v` before bringing the stack back up.
-- Open the app at `http://127.0.0.1:8000`.
+- The production compose publishes the app on `http://127.0.0.1:8388`.
+- Plugin packages, plugin runtime data, and audit artifacts are persisted through named Docker volumes.
+
+## Deployment Bundle
+
+- Package the minimum Docker deployment files into a zip from the repo root:
+  - PowerShell: `.\scripts\package-deploy.ps1`
+  - Bash: `./scripts/package-deploy.sh`
+- Both scripts output a timestamped archive into `dist/` by default.
+- The bundle includes the current `deploy/.env.example` template but does not include any real `.env` secrets.
 
 ## Docker Development
 

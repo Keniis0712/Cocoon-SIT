@@ -20,6 +20,10 @@ from app.services.observability.artifact_admin_service import ArtifactAdminServi
 from app.services.observability.audit_query_service import AuditQueryService
 from app.services.observability.insight_query_service import InsightQueryService
 from app.services.prompts.service import PromptTemplateService
+from app.services.plugins.dependency_builder import DependencyBuilder
+from app.services.plugins.external_wakeup_service import ExternalWakeupService
+from app.services.plugins.manager import PluginRuntimeManager
+from app.services.plugins.service import PluginService
 from app.services.providers.model_selection_service import ModelSelectionService
 from app.services.providers.provider_factory import ProviderFactory
 from app.services.providers.provider_runtime_config_service import ProviderRuntimeConfigService
@@ -188,4 +192,16 @@ def wire_runtime_services(container) -> None:
         reply_delivery_service=container.reply_delivery_service,
         side_effects=container.side_effects,
         audit_service=container.audit_service,
+    )
+    container.external_wakeup_service = ExternalWakeupService(container.scheduler_node)
+    container.dependency_builder = DependencyBuilder()
+    container.plugin_runtime_manager = PluginRuntimeManager(
+        session_factory=container.session_factory,
+        settings=container.settings,
+        external_wakeup_service=container.external_wakeup_service,
+    )
+    container.plugin_service = PluginService(
+        settings=container.settings,
+        dependency_builder=container.dependency_builder,
+        runtime_manager=container.plugin_runtime_manager,
     )

@@ -34,6 +34,14 @@ from app.models.jobs import (
     WakeupTask,
 )
 from app.models.prompts import PromptTemplate, PromptTemplateRevision, PromptVariable
+from app.models.plugins import (
+    PluginDefinition,
+    PluginDispatchRecord,
+    PluginEventConfig,
+    PluginEventDefinition,
+    PluginRunState,
+    PluginVersion,
+)
 from app.models.system import SystemSettings
 from app.models.workspace import (
     ChatGroupMember,
@@ -85,6 +93,12 @@ __all__ = [
     "PromptTemplateRevision",
     "PromptTemplateType",
     "PromptVariable",
+    "PluginDefinition",
+    "PluginDispatchRecord",
+    "PluginEventConfig",
+    "PluginEventDefinition",
+    "PluginRunState",
+    "PluginVersion",
     "ProviderCredential",
     "Role",
     "SessionState",

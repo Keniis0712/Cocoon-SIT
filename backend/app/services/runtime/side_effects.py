@@ -8,7 +8,7 @@ from app.models import ActionDispatch, AuditRun, MemoryChunk, MemoryTag, Message
 from app.models.entities import ActionStatus
 from app.services.audit.service import AuditService
 from app.services.memory.service import MemoryService
-from app.services.runtime.types import ContextPackage, GenerationOutput, MetaDecision
+from app.services.runtime.types import ContextPackage, GenerationOutput, MemoryCandidate, MetaDecision
 
 
 class SideEffects:
@@ -50,24 +50,19 @@ class SideEffects:
             "current_wakeup_task_id": state.current_wakeup_task_id,
         }
 
-    def persist_generated_output(
+    def persist_generated_message(
         self,
         session: Session,
         context: ContextPackage,
         action: ActionDispatch,
         generation: GenerationOutput,
-    ) -> tuple[Message, MemoryChunk]:
+    ) -> Message:
         event_type = context.runtime_event.event_type
         role = "assistant"
-        memory_scope = "dialogue"
-        if event_type == "wakeup":
-            memory_scope = "system"
-        elif event_type == "pull":
+        if event_type == "pull":
             role = "system"
-            memory_scope = "pull"
         elif event_type == "merge":
             role = "system"
-            memory_scope = "merge"
         message = Message(
             cocoon_id=context.runtime_event.cocoon_id,
             chat_group_id=context.runtime_event.chat_group_id,
@@ -80,40 +75,63 @@ class SideEffects:
         session.flush()
         for tag in context.session_state.active_tags_json:
             session.add(MessageTag(message_id=message.id, tag_id=tag))
-        memory = MemoryChunk(
-            cocoon_id=context.runtime_event.cocoon_id,
-            chat_group_id=context.runtime_event.chat_group_id,
-            owner_user_id=context.memory_owner_user_id,
-            character_id=context.character.id,
-            source_message_id=message.id,
-            scope=memory_scope,
-            content=generation.reply_text,
-            summary=generation.reply_text[:200],
-            tags_json=context.session_state.active_tags_json,
-            meta_json={
-                "action_id": action.id,
-                "event_type": event_type,
-                "target_type": context.target_type,
-                "target_id": context.target_id,
-            },
-        )
-        session.add(memory)
+        return message
+
+    def persist_memory_candidates(
+        self,
+        session: Session,
+        context: ContextPackage,
+        action: ActionDispatch,
+        candidates: list[MemoryCandidate],
+        *,
+        source_message: Message | None = None,
+    ) -> list[MemoryChunk]:
+        memories: list[MemoryChunk] = []
+        for candidate in candidates:
+            summary = candidate.summary.strip()
+            content = candidate.content.strip()
+            if not summary or not content:
+                continue
+            tag_ids = candidate.tags or list(context.session_state.active_tags_json)
+            memory = MemoryChunk(
+                cocoon_id=context.runtime_event.cocoon_id,
+                chat_group_id=context.runtime_event.chat_group_id,
+                owner_user_id=candidate.owner_user_id or context.memory_owner_user_id,
+                character_id=context.character.id,
+                source_message_id=source_message.id if source_message else None,
+                scope=candidate.scope,
+                content=content,
+                summary=summary,
+                tags_json=tag_ids,
+                meta_json={
+                    "action_id": action.id,
+                    "event_type": context.runtime_event.event_type,
+                    "target_type": context.target_type,
+                    "target_id": context.target_id,
+                    "source_kind": "runtime_analysis",
+                    "importance": candidate.importance,
+                },
+            )
+            session.add(memory)
+            session.flush()
+            for tag in tag_ids:
+                session.add(MemoryTag(memory_chunk_id=memory.id, tag_id=tag))
+            self.memory_service.index_memory_chunk(
+                session,
+                memory,
+                source_text=summary,
+                meta_json={
+                    "action_id": action.id,
+                    "event_type": context.runtime_event.event_type,
+                    "target_type": context.target_type,
+                    "target_id": context.target_id,
+                    "source_kind": "runtime_analysis",
+                    "importance": candidate.importance,
+                },
+            )
+            memories.append(memory)
         session.flush()
-        for tag in context.session_state.active_tags_json:
-            session.add(MemoryTag(memory_chunk_id=memory.id, tag_id=tag))
-        self.memory_service.index_memory_chunk(
-            session,
-            memory,
-            source_text=memory.summary or memory.content,
-            meta_json={
-                "action_id": action.id,
-                "event_type": event_type,
-                "target_type": context.target_type,
-                "target_id": context.target_id,
-            },
-        )
-        session.flush()
-        return message, memory
+        return memories
 
     def record_side_effects_result(
         self,
@@ -124,7 +142,7 @@ class SideEffects:
         *,
         action: ActionDispatch,
         message: Message | None = None,
-        memory: MemoryChunk | None = None,
+        memories: list[MemoryChunk] | None = None,
         scheduler_result: dict | None = None,
     ) -> None:
         snapshot = self.build_state_snapshot(state) | {
@@ -133,7 +151,7 @@ class SideEffects:
             "target_type": "chat_group" if action.chat_group_id else "cocoon",
             "target_id": action.chat_group_id or action.cocoon_id,
             "final_message_id": message.id if message else None,
-            "memory_chunk_id": memory.id if memory else None,
+            "memory_chunk_ids": [memory.id for memory in memories or []],
             "scheduler_result": scheduler_result or {},
         }
         self.audit_service.record_json_artifact(

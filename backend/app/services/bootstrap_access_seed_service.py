@@ -38,6 +38,9 @@ class BootstrapAccessSeedService:
             "audits:read": True,
             "insights:read": True,
             "artifacts:cleanup": True,
+            "plugins:read": True,
+            "plugins:write": True,
+            "plugins:run": True,
         }
         admin_role = session.scalar(select(Role).where(Role.name == "admin"))
         if not admin_role:

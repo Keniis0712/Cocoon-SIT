@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     artifact_root: Path = Field(default=Path(".artifacts"))
     artifact_ttl_hours: int = 24 * 7
     provider_master_key: str = "0d2f0gQbYFoA7Ff7w2HoQ5gUlf8QqPgo6pI6sL2X6P0="
+    plugin_root: Path = Field(default=Path(".plugins"))
+    plugin_data_root: Path = Field(default=Path("data/plugins"))
+    plugin_watchdog_interval_seconds: int = 1
+    plugin_heartbeat_timeout_seconds: int = 10
+    plugin_short_lived_default_interval_seconds: int = 60
+    plugin_short_lived_max_workers: int = 2
 
     chat_dispatch_stream: str = "cocoon:dispatch:chat"
     chat_dispatch_group: str = "cocoon-workers"

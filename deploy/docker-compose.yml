@@ -22,7 +22,7 @@ services:
       dockerfile: deploy/backend.Dockerfile
       target: api-runtime
     env_file:
-      - .env.example
+      - .env
     command:
       [
         "sh",
@@ -30,7 +30,11 @@ services:
         "until uv run alembic upgrade head; do echo 'Waiting for database migrations...'; sleep 2; done; exec uv run uvicorn app.main:app --host 0.0.0.0 --port 8000",
       ]
     ports:
-      - "8000:8000"
+      - "8388:8000"
+    volumes:
+      - artifact_data:/app/.artifacts
+      - plugin_root_data:/app/.plugins
+      - plugin_runtime_data:/app/data/plugins
     depends_on:
       - postgres
       - redis
@@ -41,8 +45,12 @@ services:
       dockerfile: deploy/backend.Dockerfile
       target: worker-runtime
     env_file:
-      - .env.example
+      - .env
     command: ["uv", "run", "python", "-m", "app.worker.main"]
+    volumes:
+      - artifact_data:/app/.artifacts
+      - plugin_root_data:/app/.plugins
+      - plugin_runtime_data:/app/data/plugins
     depends_on:
       api:
         condition: service_started
@@ -64,3 +72,6 @@ services:
 
 volumes:
   postgres_data:
+  artifact_data:
+  plugin_root_data:
+  plugin_runtime_data:

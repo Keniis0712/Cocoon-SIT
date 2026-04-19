@@ -29,6 +29,14 @@ class ProviderEmbeddingResponse:
     usage: ProviderUsage
 
 
+@dataclass
+class ProviderStructuredResponse:
+    text: str
+    parsed: dict[str, Any]
+    raw_response: dict[str, Any]
+    usage: ProviderUsage
+
+
 class ChatProvider(ABC):
     @abstractmethod
     def generate_text(
@@ -38,6 +46,19 @@ class ChatProvider(ABC):
         model_name: str,
         provider_config: dict[str, Any],
     ) -> ProviderTextResponse:
+        raise NotImplementedError
+
+    @abstractmethod
+    def generate_structured(
+        self,
+        prompt: str,
+        messages: list[dict[str, Any]],
+        model_name: str,
+        provider_config: dict[str, Any],
+        *,
+        schema: dict[str, Any],
+        output_name: str,
+    ) -> ProviderStructuredResponse:
         raise NotImplementedError
 
 
@@ -77,6 +98,34 @@ class MockChatProvider(ChatProvider):
             reply = provider_config.get("fallback_prefix", "Generated summary") + ": " + condensed_prompt[:180]
         return self._build_response(reply, prompt, model_name)
 
+    def generate_structured(
+        self,
+        prompt: str,
+        messages: list[dict[str, Any]],
+        model_name: str,
+        provider_config: dict[str, Any],
+        *,
+        schema: dict[str, Any],
+        output_name: str,
+    ) -> ProviderStructuredResponse:
+        response = self.generate_text(
+            prompt=prompt,
+            messages=messages,
+            model_name=model_name,
+            provider_config=provider_config,
+        )
+        parsed = self._extract_json_payload(response.text)
+        return ProviderStructuredResponse(
+            text=response.text,
+            parsed=parsed,
+            raw_response={
+                **response.raw_response,
+                "structured_output_name": output_name,
+                "structured_output_schema": schema,
+            },
+            usage=response.usage,
+        )
+
     def _build_response(self, reply: str, prompt: str, model_name: str) -> ProviderTextResponse:
         chunks = [token + " " for token in reply.split(" ") if token]
         usage = ProviderUsage(
@@ -113,6 +162,7 @@ class MockChatProvider(ChatProvider):
         decision = "reply"
         wakeups: list[dict[str, Any]] = []
         cancel_ids: list[str] = []
+        memory_candidates: list[dict[str, Any]] = []
         if "/silent" in latest_user:
             decision = "silence"
         if "schedule two wakeups" in latest_user.lower():
@@ -122,6 +172,17 @@ class MockChatProvider(ChatProvider):
             ]
         if "cancel wakeup" in latest_user.lower() and pending_wakeups:
             cancel_ids = [str(pending_wakeups[0].get("id"))]
+        lower_user = latest_user.lower()
+        if any(token in lower_user for token in ("prefer", "favorite", "remember", "likes", "like ")):
+            memory_candidates = [
+                {
+                    "scope": "dialogue",
+                    "summary": latest_user[:120] or "User preference",
+                    "content": latest_user or "User shared a durable preference.",
+                    "tags": [],
+                    "importance": 6,
+                }
+            ]
         if runtime_event.get("event_type") == "wakeup" and str(runtime_event.get("trigger_kind")) == "idle_timeout":
             decision = "reply"
         return json.dumps(
@@ -133,6 +194,8 @@ class MockChatProvider(ChatProvider):
                 "internal_thought": "Mock structured meta output.",
                 "schedule_wakeups": wakeups,
                 "cancel_wakeup_task_ids": cancel_ids,
+                "generation_brief": latest_user[:200] or None,
+                "memory_candidates": memory_candidates,
             },
             ensure_ascii=False,
         )
@@ -156,6 +219,23 @@ class MockChatProvider(ChatProvider):
             condensed_prompt = " ".join(prompt.strip().split())
             reply_text = provider_config.get("fallback_prefix", "Generated summary") + ": " + condensed_prompt[:180]
         return json.dumps({"reply_text": reply_text}, ensure_ascii=False)
+
+    def _extract_json_payload(self, text: str) -> dict[str, Any]:
+        raw = text.strip()
+        if not raw:
+            return {}
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            start = raw.find("{")
+            end = raw.rfind("}")
+            if start < 0 or end <= start:
+                return {}
+            try:
+                payload = json.loads(raw[start:end + 1])
+            except Exception:
+                return {}
+        return payload if isinstance(payload, dict) else {}
 
 
 class LocalCpuEmbeddingProvider(EmbeddingProvider):

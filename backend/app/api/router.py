@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from app.api.routes.admin import plugins as admin_plugins
 from app.api.routes.access import auth, groups, invites, roles, users
 from app.api.routes.catalog import (
     characters,
@@ -56,3 +57,4 @@ api_router.include_router(checkpoints.router, prefix="/checkpoints", tags=["chec
 api_router.include_router(audits.router, prefix="/audits", tags=["audits"])
 api_router.include_router(insights.router, prefix="/insights", tags=["insights"])
 api_router.include_router(admin_artifacts.router, prefix="/admin/artifacts", tags=["admin"])
+api_router.include_router(admin_plugins.router, prefix="/admin/plugins", tags=["admin"])

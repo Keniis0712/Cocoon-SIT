@@ -11,8 +11,9 @@ from app.services.providers.base import MockChatProvider
 from app.services.providers.registry import ProviderRegistry
 from app.services.runtime.generation.prompt_assembly_service import PromptAssemblyService
 from app.services.runtime.prompting import record_prompt_render_artifacts
-from app.services.runtime.structured_output import extract_json_object
+from app.services.runtime.structured_models import GenerationStructuredOutputModel
 from app.services.runtime.types import ContextPackage, GenerationOutput
+from app.services.runtime.types import MetaDecision
 
 
 class GeneratorNode:
@@ -32,6 +33,7 @@ class GeneratorNode:
         self,
         session: Session,
         context: ContextPackage,
+        meta: MetaDecision,
         audit_run,
         audit_step,
     ) -> GenerationOutput:
@@ -59,17 +61,16 @@ class GeneratorNode:
                 segment.rendered_prompt,
                 summary_prefix=segment.summary_prefix,
             )
-        response = provider.generate_text(
-            prompt=self._build_structured_prompt(context, assembly.combined_prompt),
+        response = provider.generate_structured(
+            prompt=self._build_structured_prompt(context, assembly.combined_prompt, meta),
             messages=assembly.messages,
             model_name=model.model_name,
             provider_config=runtime_provider_config,
+            schema=GenerationStructuredOutputModel.model_json_schema(),
+            output_name="cocoon_generation_output",
         )
-        parsed = extract_json_object(response.text) or {}
-        reply_text = str(parsed.get("reply_text") or "").strip()
-        if not reply_text:
-            reply_text = response.text.strip()
-            parsed = {"reply_text": reply_text}
+        parsed = GenerationStructuredOutputModel.model_validate(response.parsed or {"reply_text": response.text.strip()})
+        reply_text = parsed.reply_text.strip() or response.text.strip()
         self.audit_service.record_json_artifact(
             session,
             audit_run,
@@ -90,7 +91,7 @@ class GeneratorNode:
             chunks=self._build_chunks(reply_text),
             reply_text=reply_text,
             raw_response=response.raw_response,
-            structured_output=parsed,
+            structured_output={"reply_text": reply_text},
             usage={
                 "prompt_tokens": response.usage.prompt_tokens,
                 "completion_tokens": response.usage.completion_tokens,
@@ -100,7 +101,7 @@ class GeneratorNode:
             model_name=model.model_name,
         )
 
-    def _build_structured_prompt(self, context: ContextPackage, rendered_prompt: str) -> str:
+    def _build_structured_prompt(self, context: ContextPackage, rendered_prompt: str, meta: MetaDecision) -> str:
         context_json = json.dumps(
             {
                 "runtime_event": {
@@ -112,6 +113,7 @@ class GeneratorNode:
                 "wakeup_context": context.external_context.get("wakeup_context"),
                 "pending_wakeups": context.external_context.get("pending_wakeups", []),
                 "now_utc": context.external_context.get("now_utc"),
+                "generation_brief": meta.generation_brief,
             },
             ensure_ascii=False,
             default=str,

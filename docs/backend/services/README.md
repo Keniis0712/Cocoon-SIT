@@ -57,6 +57,13 @@ This index mirrors the current service layout under `backend/app/services/` and 
 - [ArtifactAdminService](./observability/artifact-admin-service.md)
 - [InsightQueryService](./observability/insight-query-service.md)
 
+## Plugins
+
+- [PluginService](./plugins/plugin-service.md)
+- [PluginRuntimeManager](./plugins/plugin-runtime-manager.md)
+- [ExternalWakeupService](./plugins/external-wakeup-service.md)
+- [Plugin Manifest](./plugins/plugin-manifest.md)
+
 ## Prompts
 
 - [PromptTemplateService](./prompts/prompt-template-service.md)

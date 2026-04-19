@@ -3,7 +3,7 @@ from sqlalchemy import select
 from app.models import ActionDispatch, AuditArtifact, AuditRun, Character, Cocoon, MemoryChunk, SessionState
 from app.services.runtime.reply_delivery_service import ReplyDeliveryService
 from app.services.runtime.state_patch_service import StatePatchService
-from app.services.runtime.types import ContextPackage, GenerationOutput, MetaDecision, RuntimeEvent
+from app.services.runtime.types import ContextPackage, GenerationOutput, MemoryCandidate, MetaDecision, RuntimeEvent
 
 
 class RecordingHub:
@@ -141,7 +141,7 @@ def test_reply_delivery_service_persists_reply_and_records_artifact(client, defa
         )
         generator_step = container.audit_service.start_step(session, audit_run, "generator_node")
 
-        message, memory = service.deliver(
+        message = service.deliver(
             session,
             context,
             action,
@@ -168,8 +168,59 @@ def test_reply_delivery_service_persists_reply_and_records_artifact(client, defa
         ).first()
 
         assert message.content == "hello world"
-        assert memory is not None
-        assert stored_memory is not None
-        assert stored_memory.scope == "dialogue"
+        assert stored_memory is None
         assert artifact is not None
         assert [payload["type"] for _, payload in hub.events] == ["reply_started", "reply_chunk", "reply_chunk", "reply_done"]
+
+
+def test_side_effects_persist_memory_candidates_without_copying_reply_text(client, default_cocoon_id):
+    container = client.app.state.container
+
+    with container.session_factory() as session:
+        state = session.get(SessionState, default_cocoon_id)
+        assert state is not None
+        state.active_tags_json = ["focus"]
+        context = _build_context(session, default_cocoon_id)
+        action = ActionDispatch(
+            cocoon_id=default_cocoon_id,
+            event_type="message",
+            payload_json={"content": "I prefer jasmine tea"},
+        )
+        session.add(action)
+        session.flush()
+        message = container.side_effects.persist_generated_message(
+            session,
+            context,
+            action,
+            GenerationOutput(
+                rendered_prompt="prompt",
+                chunks=["Noted."],
+                reply_text="Noted, I will remember that.",
+                raw_response={"ok": True},
+                structured_output={"reply_text": "Noted, I will remember that."},
+                usage={"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+                provider_kind="mock",
+                model_name="mock-model",
+            ),
+        )
+        memories = container.side_effects.persist_memory_candidates(
+            session,
+            context,
+            action,
+            [
+                MemoryCandidate(
+                    scope="dialogue",
+                    summary="User prefers jasmine tea",
+                    content="The user said they prefer jasmine tea.",
+                    tags=["focus"],
+                    importance=7,
+                )
+            ],
+            source_message=message,
+        )
+        session.commit()
+
+        assert len(memories) == 1
+        assert memories[0].summary == "User prefers jasmine tea"
+        assert memories[0].content == "The user said they prefer jasmine tea."
+        assert memories[0].content != message.content

@@ -66,6 +66,18 @@ class MetaDecision:
     internal_thought: str
     next_wakeup_hints: list[dict[str, Any]] = field(default_factory=list)
     cancel_wakeup_task_ids: list[str] = field(default_factory=list)
+    generation_brief: str | None = None
+    memory_candidates: list["MemoryCandidate"] = field(default_factory=list)
+
+
+@dataclass
+class MemoryCandidate:
+    scope: str
+    summary: str
+    content: str
+    tags: list[str] = field(default_factory=list)
+    owner_user_id: str | None = None
+    importance: int = 5
 
 
 @dataclass

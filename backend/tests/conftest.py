@@ -28,12 +28,16 @@ def tmp_path() -> Path:
 def test_settings(tmp_path: Path) -> Settings:
     return Settings(
         environment="test",
-        database_url="sqlite+pysqlite:///:memory:",
+        database_url=f"sqlite+pysqlite:///{(tmp_path / 'test.db').as_posix()}",
         chat_dispatch_backend="memory",
         realtime_backend="memory",
         auto_create_schema=True,
         auto_seed_defaults=True,
         artifact_root=tmp_path / ".artifacts",
+        plugin_root=tmp_path / ".plugins",
+        plugin_data_root=tmp_path / "data" / "plugins",
+        plugin_watchdog_interval_seconds=1,
+        plugin_short_lived_default_interval_seconds=1,
         secret_key="test-secret-key-for-cocoon-sit-at-least-32-bytes",
         default_admin_username="admin",
         default_admin_email="admin@example.com",
@@ -142,11 +146,11 @@ def auth_headers(client: TestClient) -> dict[str, str]:
 
 @pytest.fixture
 def default_cocoon_id(client: TestClient, auth_headers: dict[str, str]) -> str:
-    response = client.get("/api/v1/cocoons", headers=auth_headers)
-    assert response.status_code == 200, response.text
-    cocoons = response.json()
-    assert cocoons, "Expected at least one test cocoon"
-    return cocoons[0]["id"]
+    container = client.app.state.container
+    with container.session_factory() as session:
+        cocoon = session.scalar(select(Cocoon).order_by(Cocoon.created_at.asc()))
+        assert cocoon is not None, "Expected at least one test cocoon"
+        return cocoon.id
 
 
 @pytest.fixture
