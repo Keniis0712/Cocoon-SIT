@@ -18,7 +18,8 @@ import { useSearchParams } from "react-router-dom";
 
 import { getAuditRun, getAuditTimeline, listAuditRuns } from "@/api/adminAudits";
 import { getCocoons } from "@/api/cocoons";
-import type { AuditArtifactRead, AuditRunDetail, AuditRunListItem, AuditStepRead, AuditTimelineItem, CocoonRead } from "@/api/types";
+import type { AuditArtifactRead, AuditRunDetail, AuditRunListItem, AuditStepRead, AuditTimelineItem } from "@/api/types/audit";
+import type { CocoonRead } from "@/api/types/cocoons";
 import AccessCard from "@/components/AccessCard";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";

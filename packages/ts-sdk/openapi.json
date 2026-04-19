@@ -2840,8 +2840,8 @@
         "tags": [
           "cocoons"
         ],
-        "summary": "Get Session State",
-        "operationId": "get_session_state_api_v1_cocoons__cocoon_id__state_get",
+        "summary": "Get Cocoon Session State",
+        "operationId": "get_cocoon_session_state_api_v1_cocoons__cocoon_id__state_get",
         "security": [
           {
             "HTTPBearer": []
@@ -2865,6 +2865,662 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SessionStateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat-groups": {
+      "get": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "List Chat Groups",
+        "operationId": "list_chat_groups_api_v1_chat_groups_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChatGroupRoomOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Chat Groups Api V1 Chat Groups Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "Create Chat Group",
+        "operationId": "create_chat_group_api_v1_chat_groups_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatGroupRoomCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatGroupRoomOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/chat-groups/{room_id}": {
+      "get": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "Get Chat Group",
+        "operationId": "get_chat_group_api_v1_chat_groups__room_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatGroupRoomOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "Update Chat Group",
+        "operationId": "update_chat_group_api_v1_chat_groups__room_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatGroupRoomUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatGroupRoomOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "Delete Chat Group",
+        "operationId": "delete_chat_group_api_v1_chat_groups__room_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatGroupRoomOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat-groups/{room_id}/members": {
+      "get": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "List Chat Group Members",
+        "operationId": "list_chat_group_members_api_v1_chat_groups__room_id__members_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChatGroupMemberOut"
+                  },
+                  "title": "Response List Chat Group Members Api V1 Chat Groups  Room Id  Members Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "Add Chat Group Member",
+        "operationId": "add_chat_group_member_api_v1_chat_groups__room_id__members_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatGroupMemberCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatGroupMemberOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat-groups/{room_id}/members/{user_id}": {
+      "patch": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "Update Chat Group Member",
+        "operationId": "update_chat_group_member_api_v1_chat_groups__room_id__members__user_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatGroupMemberUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatGroupMemberOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "Remove Chat Group Member",
+        "operationId": "remove_chat_group_member_api_v1_chat_groups__room_id__members__user_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatGroupMemberOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat-groups/{room_id}/messages": {
+      "get": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "List Chat Group Messages",
+        "operationId": "list_chat_group_messages_api_v1_chat_groups__room_id__messages_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChatMessageOut"
+                  },
+                  "title": "Response List Chat Group Messages Api V1 Chat Groups  Room Id  Messages Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "Send Chat Group Message",
+        "operationId": "send_chat_group_message_api_v1_chat_groups__room_id__messages_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatMessageCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat-groups/{room_id}/messages/{message_id}/retract": {
+      "post": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "Retract Chat Group Message",
+        "operationId": "retract_chat_group_message_api_v1_chat_groups__room_id__messages__message_id__retract_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageRetractResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat-groups/{room_id}/state": {
+      "get": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "Get Chat Group State",
+        "operationId": "get_chat_group_state_api_v1_chat_groups__room_id__state_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatGroupStateOut"
                 }
               }
             }
@@ -3483,80 +4139,6 @@
             }
           }
         }
-      }
-    },
-    "/api/v1/wakeup": {
-      "get": {
-        "tags": [
-          "wakeup"
-        ],
-        "summary": "List Wakeup Tasks",
-        "operationId": "list_wakeup_tasks_api_v1_wakeup_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/WakeupTaskOut"
-                  },
-                  "type": "array",
-                  "title": "Response List Wakeup Tasks Api V1 Wakeup Get"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      },
-      "post": {
-        "tags": [
-          "wakeup"
-        ],
-        "summary": "Enqueue Wakeup",
-        "operationId": "enqueue_wakeup_api_v1_wakeup_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WakeupRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WakeupEnqueueResult"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
       }
     },
     "/api/v1/pulls": {
@@ -4295,6 +4877,17 @@
             ],
             "title": "Cocoon Id"
           },
+          "chat_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat Group Id"
+          },
           "action_id": {
             "anyOf": [
               {
@@ -4704,6 +5297,426 @@
         "type": "object",
         "title": "CharacterUpdate"
       },
+      "ChatGroupMemberCreate": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "member_role": {
+            "type": "string",
+            "title": "Member Role",
+            "default": "member"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "title": "ChatGroupMemberCreate"
+      },
+      "ChatGroupMemberOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "room_id": {
+            "type": "string",
+            "title": "Room Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "member_role": {
+            "type": "string",
+            "title": "Member Role"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "room_id",
+          "user_id",
+          "member_role",
+          "created_at"
+        ],
+        "title": "ChatGroupMemberOut"
+      },
+      "ChatGroupMemberUpdate": {
+        "properties": {
+          "member_role": {
+            "type": "string",
+            "title": "Member Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "member_role"
+        ],
+        "title": "ChatGroupMemberUpdate"
+      },
+      "ChatGroupRoomCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "selected_model_id": {
+            "type": "string",
+            "title": "Selected Model Id"
+          },
+          "default_temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Temperature"
+          },
+          "max_context_messages": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Context Messages"
+          },
+          "auto_compaction_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Compaction Enabled"
+          },
+          "external_platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Platform"
+          },
+          "external_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Group Id"
+          },
+          "external_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Account Id"
+          },
+          "initial_member_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Initial Member Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "character_id",
+          "selected_model_id"
+        ],
+        "title": "ChatGroupRoomCreate"
+      },
+      "ChatGroupRoomOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "owner_user_id": {
+            "type": "string",
+            "title": "Owner User Id"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "selected_model_id": {
+            "type": "string",
+            "title": "Selected Model Id"
+          },
+          "default_temperature": {
+            "type": "number",
+            "title": "Default Temperature"
+          },
+          "max_context_messages": {
+            "type": "integer",
+            "title": "Max Context Messages"
+          },
+          "auto_compaction_enabled": {
+            "type": "boolean",
+            "title": "Auto Compaction Enabled"
+          },
+          "external_platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Platform"
+          },
+          "external_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Group Id"
+          },
+          "external_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Account Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "owner_user_id",
+          "character_id",
+          "selected_model_id",
+          "default_temperature",
+          "max_context_messages",
+          "auto_compaction_enabled",
+          "external_platform",
+          "external_group_id",
+          "external_account_id",
+          "created_at"
+        ],
+        "title": "ChatGroupRoomOut"
+      },
+      "ChatGroupRoomUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "character_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Character Id"
+          },
+          "selected_model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Model Id"
+          },
+          "default_temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Temperature"
+          },
+          "max_context_messages": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Context Messages"
+          },
+          "auto_compaction_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Compaction Enabled"
+          },
+          "external_platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Platform"
+          },
+          "external_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Group Id"
+          },
+          "external_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Account Id"
+          }
+        },
+        "type": "object",
+        "title": "ChatGroupRoomUpdate"
+      },
+      "ChatGroupStateOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "cocoon_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cocoon Id"
+          },
+          "chat_group_id": {
+            "type": "string",
+            "title": "Chat Group Id"
+          },
+          "relation_score": {
+            "type": "integer",
+            "title": "Relation Score"
+          },
+          "persona_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Persona Json"
+          },
+          "active_tags_json": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Active Tags Json"
+          },
+          "current_wakeup_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Wakeup Task Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "chat_group_id",
+          "relation_score",
+          "persona_json",
+          "active_tags_json",
+          "current_wakeup_task_id"
+        ],
+        "title": "ChatGroupStateOut"
+      },
       "ChatMessageCreate": {
         "properties": {
           "content": {
@@ -4741,8 +5754,26 @@
             "title": "Id"
           },
           "cocoon_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Cocoon Id"
+          },
+          "chat_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat Group Id"
           },
           "action_id": {
             "anyOf": [
@@ -4766,6 +5797,17 @@
             ],
             "title": "Client Request Id"
           },
+          "sender_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender User Id"
+          },
           "role": {
             "type": "string",
             "title": "Role"
@@ -4777,6 +5819,44 @@
           "is_thought": {
             "type": "boolean",
             "title": "Is Thought"
+          },
+          "is_retracted": {
+            "type": "boolean",
+            "title": "Is Retracted"
+          },
+          "retracted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retracted At"
+          },
+          "retracted_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retracted By User Id"
+          },
+          "retraction_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retraction Note"
           },
           "tags_json": {
             "items": {
@@ -4800,6 +5880,7 @@
           "role",
           "content",
           "is_thought",
+          "is_retracted",
           "tags_json",
           "created_at"
         ],
@@ -5181,6 +6262,17 @@
               }
             ],
             "title": "Cocoon Id"
+          },
+          "chat_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat Group Id"
           },
           "job_type": {
             "type": "string",
@@ -6321,6 +7413,61 @@
         ],
         "title": "MessageResponse"
       },
+      "MessageRetractResult": {
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "title": "Message Id"
+          },
+          "is_retracted": {
+            "type": "boolean",
+            "title": "Is Retracted"
+          },
+          "retracted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retracted At"
+          },
+          "retracted_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retracted By User Id"
+          },
+          "retraction_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retraction Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message_id",
+          "is_retracted",
+          "retracted_at",
+          "retracted_by_user_id",
+          "retraction_note"
+        ],
+        "title": "MessageRetractResult"
+      },
       "ModelProviderCreate": {
         "properties": {
           "name": {
@@ -7082,9 +8229,24 @@
       },
       "SessionStateOut": {
         "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
           "cocoon_id": {
             "type": "string",
             "title": "Cocoon Id"
+          },
+          "chat_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat Group Id"
           },
           "relation_score": {
             "type": "integer",
@@ -7116,6 +8278,7 @@
         },
         "type": "object",
         "required": [
+          "id",
           "cocoon_id",
           "relation_score",
           "persona_json",
@@ -7322,6 +8485,11 @@
             "minLength": 1,
             "title": "Brief"
           },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility",
+            "default": "private"
+          },
           "is_isolated": {
             "type": "boolean",
             "title": "Is Isolated",
@@ -7354,6 +8522,10 @@
             "type": "string",
             "title": "Brief"
           },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility"
+          },
           "is_isolated": {
             "type": "boolean",
             "title": "Is Isolated"
@@ -7374,6 +8546,7 @@
           "id",
           "tag_id",
           "brief",
+          "visibility",
           "is_isolated",
           "meta_json",
           "created_at"
@@ -7392,6 +8565,17 @@
               }
             ],
             "title": "Brief"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visibility"
           },
           "is_isolated": {
             "anyOf": [
@@ -7666,118 +8850,6 @@
           "type"
         ],
         "title": "ValidationError"
-      },
-      "WakeupEnqueueResult": {
-        "properties": {
-          "task_id": {
-            "type": "string",
-            "title": "Task Id"
-          },
-          "job_id": {
-            "type": "string",
-            "title": "Job Id"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          }
-        },
-        "type": "object",
-        "required": [
-          "task_id",
-          "job_id",
-          "status"
-        ],
-        "title": "WakeupEnqueueResult"
-      },
-      "WakeupRequest": {
-        "properties": {
-          "cocoon_id": {
-            "type": "string",
-            "title": "Cocoon Id"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          },
-          "run_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Run At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "cocoon_id"
-        ],
-        "title": "WakeupRequest"
-      },
-      "WakeupTaskOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "cocoon_id": {
-            "type": "string",
-            "title": "Cocoon Id"
-          },
-          "run_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Run At"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          },
-          "payload_json": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Payload Json"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "cocoon_id",
-          "run_at",
-          "reason",
-          "payload_json",
-          "status",
-          "created_at"
-        ],
-        "title": "WakeupTaskOut"
       },
       "WorkflowMetrics": {
         "properties": {

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { createTag, deleteTag, listTags, updateTag } from "@/api/tags";
-import type { TagPayload, TagRead } from "@/api/types";
+import type { TagPayload, TagRead } from "@/api/types/catalog";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

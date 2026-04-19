@@ -14,6 +14,7 @@ from app.models import (
     Message,
     MessageTag,
 )
+from app.services.workspace.targets import build_target_filter
 
 
 class RoundCleanupService:
@@ -47,26 +48,63 @@ class RoundCleanupService:
         session.query(Message).filter(Message.id.in_(message_ids)).delete(synchronize_session=False)
         session.flush()
 
-    def cleanup_for_edit(self, session: Session, cocoon_id: str, edited_message_id: str) -> None:
+    def cleanup_for_edit(
+        self,
+        session: Session,
+        *args,
+        cocoon_id: str | None = None,
+        chat_group_id: str | None = None,
+        edited_message_id: str | None = None,
+    ) -> None:
+        if args:
+            if len(args) != 2 or cocoon_id is not None or chat_group_id is not None or edited_message_id is not None:
+                raise TypeError("cleanup_for_edit() accepts either legacy positional args or keyword target args")
+            cocoon_id = args[0]
+            edited_message_id = args[1]
+        if edited_message_id is None:
+            raise TypeError("cleanup_for_edit() missing required edited_message_id")
         target = session.get(Message, edited_message_id)
         if not target:
             return
         later_messages = list(
             session.scalars(
                 select(Message)
-                .where(Message.cocoon_id == cocoon_id, Message.created_at > target.created_at)
+                .where(
+                    build_target_filter(Message, cocoon_id=cocoon_id, chat_group_id=chat_group_id),
+                    Message.created_at > target.created_at,
+                )
                 .order_by(Message.created_at.asc())
             ).all()
         )
         self._delete_message_related_rows(session, [item.id for item in later_messages])
 
-    def cleanup_for_retry(self, session: Session, cocoon_id: str, message_id: str | None = None) -> None:
-        query = select(Message).where(Message.cocoon_id == cocoon_id, Message.role == "assistant").order_by(Message.created_at.desc())
+    def cleanup_for_retry(
+        self,
+        session: Session,
+        *args,
+        cocoon_id: str | None = None,
+        chat_group_id: str | None = None,
+        message_id: str | None = None,
+    ) -> None:
+        if args:
+            if len(args) > 2 or cocoon_id is not None or chat_group_id is not None:
+                raise TypeError("cleanup_for_retry() accepts either legacy positional args or keyword target args")
+            cocoon_id = args[0]
+            if len(args) == 2:
+                message_id = args[1]
+        query = (
+            select(Message)
+            .where(
+                build_target_filter(Message, cocoon_id=cocoon_id, chat_group_id=chat_group_id),
+                Message.role == "assistant",
+            )
+            .order_by(Message.created_at.desc())
+        )
         if message_id:
             anchor = session.get(Message, message_id)
             if anchor:
                 query = select(Message).where(
-                    Message.cocoon_id == cocoon_id,
+                    build_target_filter(Message, cocoon_id=cocoon_id, chat_group_id=chat_group_id),
                     Message.role == "assistant",
                     Message.created_at >= anchor.created_at,
                 ).order_by(Message.created_at.desc())

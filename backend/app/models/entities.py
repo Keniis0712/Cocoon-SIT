@@ -36,6 +36,8 @@ from app.models.jobs import (
 from app.models.prompts import PromptTemplate, PromptTemplateRevision, PromptVariable
 from app.models.system import SystemSettings
 from app.models.workspace import (
+    ChatGroupMember,
+    ChatGroupRoom,
     Cocoon,
     CocoonTagBinding,
     FailedRound,
@@ -59,6 +61,8 @@ __all__ = [
     "AvailableModel",
     "Character",
     "CharacterAcl",
+    "ChatGroupMember",
+    "ChatGroupRoom",
     "Checkpoint",
     "Cocoon",
     "CocoonMergeJob",

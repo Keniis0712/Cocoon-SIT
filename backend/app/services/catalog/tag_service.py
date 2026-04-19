@@ -28,7 +28,8 @@ class TagService:
         tag = TagRegistry(
             tag_id=payload.tag_id,
             brief=payload.brief,
-            is_isolated=payload.is_isolated,
+            visibility=payload.visibility,
+            is_isolated=payload.is_isolated or payload.visibility == "private",
             meta_json=payload.meta_json,
         )
         session.add(tag)
@@ -42,6 +43,9 @@ class TagService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found")
         if payload.brief is not None:
             tag.brief = payload.brief
+        if payload.visibility is not None:
+            tag.visibility = payload.visibility
+            tag.is_isolated = payload.visibility == "private" if payload.is_isolated is None else payload.is_isolated
         if payload.is_isolated is not None:
             tag.is_isolated = payload.is_isolated
         if payload.meta_json is not None:

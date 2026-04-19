@@ -16,15 +16,14 @@ import {
   updateCharacter,
 } from "@/api/characters";
 import { listGroups } from "@/api/groups";
+import type { AdminUserRead, GroupRead } from "@/api/types/access";
 import type {
-  AdminUserRead,
   CharacterAclEffectiveEntry,
   CharacterAclEntryRead,
   CharacterAclEntryWrite,
   CharacterPayload,
   CharacterRead,
-  GroupRead,
-} from "@/api/types";
+} from "@/api/types/catalog";
 import AccessCard from "@/components/AccessCard";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";

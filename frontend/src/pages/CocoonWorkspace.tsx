@@ -7,19 +7,17 @@ import { toast } from "sonner";
 import { compactCocoonContext, getCocoon, getCocoonMessages, getCocoonSessionState, retryCocoonReply, sendCocoonMessage, updateCocoon } from "@/api/cocoons";
 import { listModelProviders } from "@/api/providers";
 import { bindCocoonTags, listTags } from "@/api/tags";
-import type { AvailableModelRead, CocoonRead, MessageRead, RuntimeWsEvent, TagRead } from "@/api/types";
+import type { TagRead } from "@/api/types/catalog";
+import type { CocoonRead } from "@/api/types/cocoons";
+import type { MessageRead } from "@/api/types/chat";
+import type { AvailableModelRead } from "@/api/types/providers";
 import PageFrame from "@/components/PageFrame";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { CocoonConversationPanel } from "@/features/cocoons/components/CocoonConversationPanel";
+import { CocoonSessionPanel } from "@/features/cocoons/components/CocoonSessionPanel";
+import { createRuntimeWsEventHandler } from "@/features/workspace/runtimeWsEvents";
 import { useCocoonWs } from "@/hooks/useCocoonWs";
 import { useChatSessionStore } from "@/store/useChatSessionStore";
-
-function formatTime(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString() : "-";
-}
 
 function getVisibleMessages(items: MessageRead[]) {
   return items.filter((item) => !item.is_thought);
@@ -77,6 +75,26 @@ export default function CocoonWorkspacePage() {
     void loadWorkspace(true);
   }, [cocoonId]);
 
+  const handleSocketEvent = createRuntimeWsEventHandler({
+    sessionKey: cocoonId,
+    upsertMessage,
+    setStreamingAssistant,
+    appendStreamingAssistant,
+    applyStatePatch,
+    setError,
+    reloadWorkspace: () => {
+      void loadWorkspace(false);
+    },
+    scrollToBottom: () => {
+      if (viewportRef.current) {
+        viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+      }
+    },
+    onRoundFailed: (detail) => {
+      toast.error(`AI request failed: ${detail}`);
+    },
+  });
+
   useCocoonWs({
     cocoonId,
     enabled: Number.isFinite(cocoonId) && cocoonId > 0,
@@ -97,62 +115,6 @@ export default function CocoonWorkspacePage() {
       hasAutoScrolledRef.current = true;
     }
   }, [visibleMessages.length]);
-
-  function handleSocketEvent(event: RuntimeWsEvent) {
-    if (event.type === "reply_started") {
-      if ("user_message" in event && event.user_message) {
-        upsertMessage(cocoonId, event.user_message);
-      }
-      setStreamingAssistant(cocoonId, "");
-      applyStatePatch(cocoonId, { dispatchState: "running", dispatchReason: null });
-      return;
-    }
-    if (event.type === "reply_chunk") {
-      appendStreamingAssistant(cocoonId, event.delta);
-      return;
-    }
-    if (event.type === "reply_done") {
-      if ("assistant_message" in event && event.assistant_message) {
-        upsertMessage(cocoonId, event.assistant_message);
-      } else {
-        void loadWorkspace(false);
-      }
-      setStreamingAssistant(cocoonId, "");
-      applyStatePatch(cocoonId, { dispatchState: "idle", dispatchReason: null });
-      queueMicrotask(() => {
-        if (viewportRef.current) {
-          viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
-        }
-      });
-      return;
-    }
-    if (event.type === "state_patch") {
-      applyStatePatch(cocoonId, {
-        relationScore: event.relation_score,
-        personaJson: event.persona_json,
-        activeTags: event.active_tags,
-        currentModelId: event.current_model_id,
-        currentWakeupTaskId: event.current_wakeup_task_id ?? null,
-        dispatchState: "idle",
-        dispatchReason: null,
-      });
-      return;
-    }
-    if (event.type === "dispatch_queued") {
-      applyStatePatch(cocoonId, {
-        dispatchState: event.status || "queued",
-        dispatchReason: event.reason ?? null,
-        debounceUntil: event.debounce_until ?? null,
-      });
-      return;
-    }
-    if (event.type === "round_failed") {
-      setStreamingAssistant(cocoonId, "");
-      setError(cocoonId, event.error_detail);
-      applyStatePatch(cocoonId, { dispatchState: "error" });
-      toast.error(`AI request failed: ${event.error_detail}`);
-    }
-  }
 
   async function loadWorkspace(initial = false) {
     if (initial) {
@@ -370,172 +332,46 @@ export default function CocoonWorkspacePage() {
       }
     >
       <div className="grid gap-4 xl:grid-cols-[1.7fr_0.95fr]">
-        <Card className="order-1 min-h-[78vh] border-border/70 bg-card/90">
-          <CardHeader>
-            <CardTitle>Conversation</CardTitle>
-            <CardDescription>Newest messages stay at the bottom. Load older messages upward.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex h-[calc(78vh-5rem)] flex-col gap-4">
-            <div ref={viewportRef} className="flex-1 overflow-auto rounded-[28px] border border-border/70 bg-background/60 p-4">
-              {isLoading ? (
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading messages...</div>
-              ) : (
-                <div className="space-y-4">
-                  {hasMore ? (
-                    <div className="flex justify-center">
-                      <Button variant="outline" size="sm" disabled={isLoadingMore} onClick={loadOlderMessages}>
-                        {isLoadingMore ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ChevronUp className="mr-2 size-4" />}
-                        Load older messages
-                      </Button>
-                    </div>
-                  ) : null}
-                  {visibleMessages.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No messages yet. Send one to start this branch.</div>
-                  ) : null}
-                  {visibleMessages.map((message) => {
-                    const isUser = message.role === "user";
-                    return (
-                      <div key={message.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[88%] rounded-[24px] border px-4 py-3 shadow-sm ${isUser ? "border-primary/30 bg-primary/10" : "border-border/70 bg-card"}`}>
-                          <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{isUser ? "User" : "Assistant"}</span>
-                            <span>{formatTime(message.created_at)}</span>
-                          </div>
-                          <div className="whitespace-pre-wrap text-sm leading-6">{message.content}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {session?.streamingAssistant ? (
-                    <div className="flex justify-start">
-                      <div className="max-w-[88%] rounded-[24px] border border-dashed border-primary/40 bg-primary/5 px-4 py-3">
-                        <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>Assistant</span>
-                          <Badge variant="outline">Streaming</Badge>
-                        </div>
-                        <div className="whitespace-pre-wrap text-sm leading-6">{session.streamingAssistant}</div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-[28px] border border-border/70 bg-background/70 p-3">
-              <Textarea
-                rows={4}
-                placeholder="Type your next message..."
-                value={messageInput}
-                disabled={isSending || isLoading}
-                onChange={(event) => {
-                  if (!typingStartedAtRef.current) {
-                    typingStartedAtRef.current = Date.now();
-                  }
-                  setTyping(cocoonId, true);
-                  setMessageInput(event.target.value);
-                }}
-              />
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <div />
-                <Button disabled={!messageInput.trim() || isSending || isLoading} onClick={handleSendMessage}>
-                  {isSending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                  Send
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <CocoonConversationPanel
+          viewportRef={viewportRef}
+          isLoading={isLoading}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+          visibleMessages={visibleMessages}
+          streamingAssistant={session?.streamingAssistant || ""}
+          messageInput={messageInput}
+          isSending={isSending}
+          onLoadOlderMessages={loadOlderMessages}
+          onMessageInputChange={(value) => {
+            if (!typingStartedAtRef.current) {
+              typingStartedAtRef.current = Date.now();
+            }
+            setTyping(cocoonId, true);
+            setMessageInput(value);
+          }}
+          onSendMessage={handleSendMessage}
+        />
 
         <div className="order-2 space-y-4">
-        <Card className="border-border/70 bg-card/90">
-          <CardHeader>
-            <CardTitle>Current Session</CardTitle>
-            <CardDescription>Manage chat tags and switch the current model in place.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <div className="mb-2 text-sm text-muted-foreground">Active Tags</div>
-              <div className="flex flex-wrap gap-2">
-                {(session?.activeTags?.length ? session.activeTags : selectedCocoon?.tags?.map((item) => item.name) || []).map((tag) => (
-                  <Badge key={tag} variant="secondary">{tag}</Badge>
-                ))}
-                {!(session?.activeTags?.length || selectedCocoon?.tags?.length) ? <span className="text-sm text-muted-foreground">No tags</span> : null}
-              </div>
-            </div>
-            <div>
-              <div className="mb-2 text-sm text-muted-foreground">Edit Chat Tags</div>
-              <div className="rounded-2xl border border-border/70 bg-background/60 p-3">
-                <div className="flex flex-wrap gap-2">
-                  {(selectedCocoon?.tags || []).map((tag) => (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      className="inline-flex items-center rounded-full"
-                      onClick={() => void persistTagIds(selectedTagIds.filter((id) => id !== tag.id))}
-                      disabled={isUpdatingTags}
-                    >
-                      <Badge variant="secondary">{tag.name} x</Badge>
-                    </button>
-                  ))}
-                  {!selectedCocoon?.tags?.length ? <span className="text-sm text-muted-foreground">No tags enabled</span> : null}
-                </div>
-                <div className="mt-3 text-xs text-muted-foreground">
-                  Click an existing tag to remove it, or add more tags below.
-                </div>
-                <div className="mt-3">
-                  <Select value={addTagValue} onValueChange={(value) => void handleAddTag(value)} disabled={isUpdatingTags || !availableAddableTags.length}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Add tag" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__add">
-                        <span className="inline-flex items-center gap-2">
-                          <Plus className="size-4" />
-                          Add tag
-                        </span>
-                      </SelectItem>
-                      {availableAddableTags.map((tag) => (
-                        <SelectItem key={tag.id} value={String(tag.id)}>
-                          {tag.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-            <div>
-              <div className="mb-2 text-sm text-muted-foreground">Current Model</div>
-              <Select value={String(session?.currentModelId || selectedCocoon?.selected_model_id || "")} onValueChange={handleChangeModel}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {providerModels.map((model) => (
-                    <SelectItem key={model.id} value={String(model.id)}>{model.model_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-background/70 p-3 text-sm">
-              <div className="mb-2 text-muted-foreground">State</div>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">Dispatch: {session?.dispatchState || selectedCocoon?.dispatch_status || "idle"}</Badge>
-                <Badge variant="outline">Relation: {session?.relationScore ?? "-"}</Badge>
-                <Badge variant="outline">
-                  Wakeup: {session?.currentWakeupTaskId ? `#${session.currentWakeupTaskId}` : "none"}
-                </Badge>
-              </div>
-              {session?.debounceUntil ? (
-                <div className="mt-3 text-xs text-muted-foreground">
-                  Debounced until {formatTime(session.debounceUntil)}
-                </div>
-              ) : null}
-              {session?.dispatchReason ? <div className="mt-3 text-xs text-muted-foreground">{session.dispatchReason}</div> : null}
-              {session?.lastError ? <div className="mt-3 text-sm text-destructive">{session.lastError}</div> : null}
-            </div>
-          </CardContent>
-        </Card>
+          <CocoonSessionPanel
+            selectedCocoon={selectedCocoon}
+            providerModels={providerModels}
+            sessionActiveTags={session?.activeTags || []}
+            selectedTagIds={selectedTagIds}
+            availableAddableTags={availableAddableTags}
+            addTagValue={addTagValue}
+            isUpdatingTags={isUpdatingTags}
+            currentModelId={session?.currentModelId}
+            dispatchState={session?.dispatchState}
+            relationScore={session?.relationScore}
+            currentWakeupTaskId={session?.currentWakeupTaskId}
+            debounceUntil={session?.debounceUntil}
+            dispatchReason={session?.dispatchReason}
+            lastError={session?.lastError}
+            onRemoveTag={(tagId) => void persistTagIds(selectedTagIds.filter((id) => id !== tagId))}
+            onAddTag={(value) => void handleAddTag(value)}
+            onChangeModel={handleChangeModel}
+          />
         </div>
       </div>
     </PageFrame>

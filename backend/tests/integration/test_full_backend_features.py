@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from sqlalchemy import select
 
 from app.models import (
@@ -192,15 +194,14 @@ def test_resource_crud_and_tag_binding_flow(client, auth_headers):
     assert tree.json()
 
 
-def test_wakeup_pull_merge_rollback_compaction_and_insights(client, worker_runtime, auth_headers, default_cocoon_id):
-    character_id, model_id = _default_character_and_model_ids(client, auth_headers)
-    source = client.post(
-        "/api/v1/cocoons",
-        headers=auth_headers,
-        json={"name": "Source Branch", "character_id": character_id, "selected_model_id": model_id},
-    )
-    assert source.status_code == 200, source.text
-    source_cocoon_id = source.json()["id"]
+def test_wakeup_pull_merge_rollback_compaction_and_insights(
+    client,
+    worker_runtime,
+    auth_headers,
+    default_cocoon_id,
+    create_branch_cocoon,
+):
+    source_cocoon_id = create_branch_cocoon("Source Branch")["id"]
 
     send_source = client.post(
         f"/api/v1/cocoons/{source_cocoon_id}/messages",
@@ -210,12 +211,16 @@ def test_wakeup_pull_merge_rollback_compaction_and_insights(client, worker_runti
     assert send_source.status_code == 202, send_source.text
     _process_all_chat_jobs(worker_runtime)
 
-    wakeup = client.post(
-        "/api/v1/wakeup",
-        headers=auth_headers,
-        json={"cocoon_id": default_cocoon_id, "reason": "check in later"},
-    )
-    assert wakeup.status_code == 200, wakeup.text
+    container = client.app.state.container
+    with container.session_factory() as session:
+        container.scheduler_node.schedule_wakeup(
+            session,
+            cocoon_id=default_cocoon_id,
+            run_at=datetime.now(UTC),
+            reason="check in later",
+            payload_json={"scheduled_by": "test"},
+        )
+        session.commit()
     assert _process_one_durable_job(worker_runtime) is True
 
     pull = client.post(
@@ -312,9 +317,26 @@ def test_wakeup_pull_merge_rollback_compaction_and_insights(client, worker_runti
     _process_until_durable_job_completed(worker_runtime, client, cleanup.json()["id"])
 
     with client.app.state.container.session_factory() as session:
-        wakeup_task = session.scalars(select(WakeupTask)).first()
-        assert wakeup_task is not None
-        assert wakeup_task.status == "completed"
+        manual_wakeup_task = session.scalar(
+            select(WakeupTask)
+            .where(
+                WakeupTask.cocoon_id == default_cocoon_id,
+                WakeupTask.reason == "check in later",
+            )
+            .order_by(WakeupTask.created_at.asc())
+        )
+        assert manual_wakeup_task is not None
+        assert manual_wakeup_task.status == "completed"
+
+        queued_idle_wakeups = list(
+            session.scalars(
+                select(WakeupTask).where(
+                    WakeupTask.cocoon_id == default_cocoon_id,
+                    WakeupTask.status == "queued",
+                )
+            ).all()
+        )
+        assert all(task.payload_json.get("trigger_kind") == "idle_timeout" for task in queued_idle_wakeups)
 
         default_cocoon = session.get(Cocoon, default_cocoon_id)
         assert default_cocoon is not None

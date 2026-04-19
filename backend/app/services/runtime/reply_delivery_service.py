@@ -31,23 +31,47 @@ class ReplyDeliveryService:
         generator_step,
         generation: GenerationOutput,
     ) -> tuple[Message, object]:
-        self.realtime_hub.publish(context.cocoon.id, {"type": "reply_started", "action_id": action.id})
+        self.realtime_hub.publish(
+            context.channel_key,
+            {
+                "type": "reply_started",
+                "action_id": action.id,
+                "cocoon_id": context.runtime_event.cocoon_id,
+                "chat_group_id": context.runtime_event.chat_group_id,
+            },
+        )
         for chunk in generation.chunks:
             self.realtime_hub.publish(
-                context.cocoon.id,
-                {"type": "reply_chunk", "action_id": action.id, "text": chunk},
+                context.channel_key,
+                {
+                    "type": "reply_chunk",
+                    "action_id": action.id,
+                    "text": chunk,
+                    "cocoon_id": context.runtime_event.cocoon_id,
+                    "chat_group_id": context.runtime_event.chat_group_id,
+                },
             )
         message, memory = self.side_effects.persist_generated_output(session, context, action, generation)
         self.realtime_hub.publish(
-            context.cocoon.id,
-            {"type": "reply_done", "action_id": action.id, "final_message_id": message.id},
+            context.channel_key,
+            {
+                "type": "reply_done",
+                "action_id": action.id,
+                "final_message_id": message.id,
+                "cocoon_id": context.runtime_event.cocoon_id,
+                "chat_group_id": context.runtime_event.chat_group_id,
+            },
         )
         output_artifact = self.audit_service.record_json_artifact(
             session,
             audit_run,
             generator_step,
             "generator_output",
-            {"final_message_id": message.id, "content": generation.full_text},
+            {
+                "final_message_id": message.id,
+                "content": generation.reply_text,
+                "structured_output": generation.structured_output,
+            },
             summary="Assistant reply snapshot",
             metadata_json={
                 "provider_kind": generation.provider_kind,

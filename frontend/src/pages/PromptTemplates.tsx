@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 import { listPromptTemplates, resetPromptTemplate, savePromptTemplate } from "@/api/prompts";
-import type { PromptTemplatePayload, PromptTemplateRead } from "@/api/types";
+import type { PromptTemplatePayload, PromptTemplateRead } from "@/api/types/prompts";
 import AccessCard from "@/components/AccessCard";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";

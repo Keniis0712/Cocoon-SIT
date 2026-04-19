@@ -9,6 +9,7 @@ from app.models import Checkpoint, Cocoon, Message, SessionState
 from app.models.entities import ActionStatus
 from app.services.audit.service import AuditService
 from app.services.runtime.round_cleanup import RoundCleanupService
+from app.services.workspace.targets import get_session_state
 
 
 class RollbackJobService:
@@ -27,7 +28,7 @@ class RollbackJobService:
         checkpoint = session.get(Checkpoint, checkpoint_id)
         if not checkpoint:
             raise ValueError("Checkpoint not found")
-        run = self.audit_service.start_run(session, checkpoint.cocoon_id, None, "rollback")
+        run = self.audit_service.start_run(session, checkpoint.cocoon_id, None, None, "rollback")
         step = self.audit_service.start_step(session, run, "rollback")
         anchor = session.get(Message, checkpoint.anchor_message_id)
         cocoon = session.get(Cocoon, checkpoint.cocoon_id)
@@ -46,7 +47,7 @@ class RollbackJobService:
             select(Checkpoint).where(Checkpoint.cocoon_id == checkpoint.cocoon_id)
         ).all():
             item.is_active = item.id == checkpoint.id
-        state = session.get(SessionState, checkpoint.cocoon_id)
+        state = get_session_state(session, cocoon_id=checkpoint.cocoon_id)
         if state:
             state.active_tags_json = anchor.tags_json
             state.persona_json = state.persona_json | {"rollback_checkpoint_id": checkpoint.id}

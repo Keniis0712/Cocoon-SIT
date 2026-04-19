@@ -10,6 +10,7 @@ from app.models import Cocoon, CocoonTagBinding, SessionState, TagRegistry
 from app.services.memory.service import MemoryService
 from app.services.runtime.context.message_window_service import MessageWindowService
 from app.services.runtime.types import RuntimeEvent
+from app.services.workspace.targets import get_session_state
 
 
 class ExternalContextService:
@@ -41,13 +42,13 @@ class ExternalContextService:
         if not source_cocoon:
             return external_context
 
-        source_state = session.get(SessionState, source_cocoon_id)
+        source_state = get_session_state(session, cocoon_id=source_cocoon_id)
         source_active_tags = source_state.active_tags_json if source_state else []
         source_messages = self.message_window_service.list_visible_messages(
             session,
-            source_cocoon_id,
             source_cocoon.max_context_messages,
             source_active_tags,
+            cocoon_id=source_cocoon_id,
         )
         source_memories = self.memory_service.get_visible_memories(
             session=session,

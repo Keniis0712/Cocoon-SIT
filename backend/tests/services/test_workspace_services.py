@@ -15,33 +15,39 @@ class _DummyWebSocket:
         self.accepted = True
 
 
-def test_cocoon_tree_service_builds_nested_tree(client, auth_headers):
+def test_cocoon_tree_service_builds_nested_tree(client, auth_headers, default_cocoon_id, create_branch_cocoon):
     container = client.app.state.container
-    character_id = client.get("/api/v1/characters", headers=auth_headers).json()[0]["id"]
-    model_id = client.get("/api/v1/providers/models", headers=auth_headers).json()[0]["id"]
-
-    parent = client.post(
-        "/api/v1/cocoons",
-        headers=auth_headers,
-        json={"name": "Parent", "character_id": character_id, "selected_model_id": model_id},
-    ).json()
-    child = client.post(
-        "/api/v1/cocoons",
-        headers=auth_headers,
-        json={
-            "name": "Child",
-            "character_id": character_id,
-            "selected_model_id": model_id,
-            "parent_id": parent["id"],
-        },
-    ).json()
+    child = create_branch_cocoon("Child")
 
     with container.session_factory() as session:
         nodes = list(session.scalars(select(Cocoon).order_by(Cocoon.created_at.asc())).all())
         tree = container.cocoon_tree_service.build_tree(nodes)
 
-    parent_node = next(node for node in tree if node.id == parent["id"])
+    parent_node = next(node for node in tree if node.id == default_cocoon_id)
     assert parent_node.children[0].id == child["id"]
+
+
+def test_create_cocoon_rejects_second_root_for_same_character(client, auth_headers, default_cocoon_id):
+    container = client.app.state.container
+    with container.session_factory() as session:
+        root = session.get(Cocoon, default_cocoon_id)
+        assert root is not None
+        character_id = root.character_id
+        selected_model_id = root.selected_model_id
+        assert selected_model_id is not None
+
+    response = client.post(
+        "/api/v1/cocoons",
+        headers=auth_headers,
+        json={
+            "name": "Duplicate Root",
+            "character_id": character_id,
+            "selected_model_id": selected_model_id,
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"] == "A root cocoon already exists for this user and character"
 
 
 def test_message_dispatch_service_enqueues_chat_round(client, default_cocoon_id):
@@ -71,12 +77,25 @@ def test_message_dispatch_commits_before_enqueuing(client, default_cocoon_id, mo
     seen: dict[str, str | None] = {"action_id": None}
     original_enqueue = container.chat_queue.enqueue
 
-    def enqueue_and_verify(action_id: str, cocoon_id: str, event_type: str, payload: dict) -> int:
+    def enqueue_and_verify(
+        action_id: str,
+        *,
+        event_type: str,
+        cocoon_id: str | None = None,
+        chat_group_id: str | None = None,
+        payload: dict,
+    ) -> int:
         with container.session_factory() as verification_session:
             persisted = verification_session.get(ActionDispatch, action_id)
             assert persisted is not None
             seen["action_id"] = persisted.id
-        return original_enqueue(action_id, cocoon_id, event_type, payload)
+        return original_enqueue(
+            action_id,
+            event_type=event_type,
+            cocoon_id=cocoon_id,
+            chat_group_id=chat_group_id,
+            payload=payload,
+        )
 
     monkeypatch.setattr(container.chat_queue, "enqueue", enqueue_and_verify)
 

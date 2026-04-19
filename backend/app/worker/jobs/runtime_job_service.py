@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.models import CocoonMergeJob, CocoonPullJob, DurableJob, SessionState, WakeupTask
 from app.models.entities import DurableJobStatus
+from app.services.runtime.wakeup_tasks import sync_current_wakeup_task_id
 from app.services.runtime.chat_runtime import ChatRuntime
+from app.services.workspace.targets import get_session_state
 from app.worker.jobs.runtime_action_service import RuntimeActionService
 
 
@@ -25,20 +27,29 @@ class RuntimeJobService:
     def execute_wakeup(self, session: Session, job: DurableJob) -> None:
         """Execute a wakeup durable job through the runtime."""
         task = session.get(WakeupTask, job.payload_json["wakeup_task_id"])
+        if task and task.status == DurableJobStatus.cancelled:
+            sync_current_wakeup_task_id(session, cocoon_id=job.cocoon_id, chat_group_id=job.chat_group_id)
+            return
         if task:
             task.status = DurableJobStatus.running
-            state = session.get(SessionState, task.cocoon_id)
+            state = get_session_state(session, cocoon_id=task.cocoon_id, chat_group_id=task.chat_group_id)
             if state and state.current_wakeup_task_id == task.id:
                 state.current_wakeup_task_id = None
         action = self.runtime_action_service.create_runtime_action(
             session,
-            cocoon_id=job.cocoon_id,
             event_type="wakeup",
-            payload_json={"wakeup_task_id": task.id if task else None, "reason": task.reason if task else None},
+            payload_json={
+                "wakeup_task_id": task.id if task else None,
+                "reason": task.reason if task else None,
+                **(task.payload_json if task else {}),
+            },
+            cocoon_id=job.cocoon_id,
+            chat_group_id=job.chat_group_id,
         )
         self.chat_runtime.run(session, action)
         if task:
             task.status = DurableJobStatus.completed
+        sync_current_wakeup_task_id(session, cocoon_id=job.cocoon_id, chat_group_id=job.chat_group_id)
 
     def execute_pull(self, session: Session, job: DurableJob) -> None:
         """Execute a pull durable job through the runtime."""
@@ -47,9 +58,9 @@ class RuntimeJobService:
         )
         action = self.runtime_action_service.create_runtime_action(
             session,
-            cocoon_id=job.cocoon_id,
             event_type="pull",
             payload_json=job.payload_json,
+            cocoon_id=job.cocoon_id,
         )
         self.chat_runtime.run(session, action)
         if pull_job:
@@ -63,9 +74,9 @@ class RuntimeJobService:
         )
         action = self.runtime_action_service.create_runtime_action(
             session,
-            cocoon_id=job.cocoon_id,
             event_type="merge",
             payload_json=job.payload_json,
+            cocoon_id=job.cocoon_id,
         )
         self.chat_runtime.run(session, action)
         if merge_job:

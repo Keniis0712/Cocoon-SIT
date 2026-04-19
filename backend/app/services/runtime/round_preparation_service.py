@@ -21,22 +21,30 @@ class RoundPreparationService:
 
     def prepare(self, session: Session, action: ActionDispatch) -> tuple[RuntimeEvent, AuditRun]:
         if action.event_type == "edit":
-            self.round_cleanup.cleanup_for_edit(session, action.cocoon_id, action.payload_json["message_id"])
+            self.round_cleanup.cleanup_for_edit(
+                session,
+                cocoon_id=action.cocoon_id,
+                chat_group_id=action.chat_group_id,
+                edited_message_id=action.payload_json["message_id"],
+            )
         elif action.event_type == "retry":
             self.round_cleanup.cleanup_for_retry(
                 session,
-                action.cocoon_id,
-                action.payload_json.get("message_id"),
+                cocoon_id=action.cocoon_id,
+                chat_group_id=action.chat_group_id,
+                message_id=action.payload_json.get("message_id"),
             )
         event = RuntimeEvent(
             event_type=action.event_type,
             cocoon_id=action.cocoon_id,
+            chat_group_id=action.chat_group_id,
             action_id=action.id,
             payload=action.payload_json,
         )
         audit_run = self.audit_service.start_run(
             session=session,
             cocoon_id=action.cocoon_id,
+            chat_group_id=action.chat_group_id,
             action=action,
             operation_type=action.event_type,
         )

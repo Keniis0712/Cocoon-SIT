@@ -1,12 +1,17 @@
 """Runtime context builder composed from smaller context subservices."""
 
+from datetime import UTC, datetime
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Character, Cocoon, SessionState
+from app.models import Character, ChatGroupRoom, Cocoon, TagRegistry
 from app.services.memory.service import MemoryService
 from app.services.runtime.context.external_context_service import ExternalContextService
 from app.services.runtime.context.message_window_service import MessageWindowService
 from app.services.runtime.types import ContextPackage, RuntimeEvent
+from app.services.runtime.wakeup_tasks import list_pending_wakeup_tasks
+from app.services.workspace.targets import ensure_session_state
 
 
 class ContextBuilder:
@@ -26,48 +31,102 @@ class ContextBuilder:
         )
 
     def build(self, session: Session, event: RuntimeEvent) -> ContextPackage:
-        cocoon = session.get(Cocoon, event.cocoon_id)
-        if not cocoon:
-            raise ValueError(f"Cocoon not found: {event.cocoon_id}")
-        character = session.get(Character, cocoon.character_id)
+        conversation = self._resolve_conversation(session, event)
+        character = session.get(Character, conversation.character_id)
         if not character:
-            raise ValueError(f"Character not found: {cocoon.character_id}")
-        state = session.get(SessionState, event.cocoon_id)
-        if not state:
-            state = SessionState(cocoon_id=event.cocoon_id)
-            session.add(state)
-            session.flush()
+            raise ValueError(f"Character not found: {conversation.character_id}")
+        state = ensure_session_state(
+            session,
+            cocoon_id=event.cocoon_id,
+            chat_group_id=event.chat_group_id,
+        )
 
         visible_messages = self.message_window_service.list_visible_messages(
             session,
-            event.cocoon_id,
-            cocoon.max_context_messages,
+            conversation.max_context_messages,
             state.active_tags_json,
+            cocoon_id=event.cocoon_id,
+            chat_group_id=event.chat_group_id,
         )
+        memory_owner_user_id = self._resolve_memory_owner_user_id(event, conversation, visible_messages)
         query_text = self._resolve_query_text(event, visible_messages)
         memory_hits = self.memory_service.retrieve_visible_memories(
             session=session,
-            cocoon_id=event.cocoon_id,
             active_tags=state.active_tags_json,
+            cocoon_id=event.cocoon_id,
+            owner_user_id=memory_owner_user_id,
+            character_id=character.id,
             query_text=query_text,
             limit=5,
         )
         external_context = self.external_context_service.build(session, event)
+        pending_wakeups = list_pending_wakeup_tasks(
+            session,
+            cocoon_id=event.cocoon_id,
+            chat_group_id=event.chat_group_id,
+        )
+        external_context["pending_wakeups"] = [
+            {
+                "id": task.id,
+                "run_at": task.run_at.isoformat(),
+                "reason": task.reason,
+                "status": task.status,
+                "cancelled_at": task.cancelled_at.isoformat() if task.cancelled_at else None,
+                "superseded_by_task_id": task.superseded_by_task_id,
+                "payload_json": task.payload_json,
+            }
+            for task in pending_wakeups
+        ]
+        external_context["now_utc"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
+        tags = list(session.scalars(select(TagRegistry)).all())
+        external_context["tag_visibility_by_ref"] = {
+            **{tag.id: tag.visibility for tag in tags},
+            **{tag.tag_id: tag.visibility for tag in tags},
+        }
         return ContextPackage(
             runtime_event=event,
-            cocoon=cocoon,
+            conversation=conversation,
             character=character,
             session_state=state,
             visible_messages=visible_messages,
             memory_context=[hit.memory for hit in memory_hits],
+            memory_owner_user_id=memory_owner_user_id,
             memory_hits=memory_hits,
             external_context=external_context,
         )
 
+    def _resolve_conversation(self, session: Session, event: RuntimeEvent) -> Cocoon | ChatGroupRoom:
+        if event.chat_group_id:
+            room = session.get(ChatGroupRoom, event.chat_group_id)
+            if not room:
+                raise ValueError(f"Chat group room not found: {event.chat_group_id}")
+            return room
+        cocoon = session.get(Cocoon, event.cocoon_id)
+        if not cocoon:
+            raise ValueError(f"Cocoon not found: {event.cocoon_id}")
+        return cocoon
+
+    def _resolve_memory_owner_user_id(
+        self,
+        event: RuntimeEvent,
+        conversation: Cocoon | ChatGroupRoom,
+        visible_messages: list,
+    ) -> str | None:
+        if event.target_type == "cocoon":
+            return conversation.owner_user_id
+        if sender_user_id := event.payload.get("sender_user_id"):
+            return str(sender_user_id)
+        if sender_user_id := event.payload.get("memory_owner_user_id"):
+            return str(sender_user_id)
+        for message in reversed(visible_messages):
+            if message.role == "user" and message.sender_user_id:
+                return message.sender_user_id
+        return conversation.owner_user_id
+
     def _resolve_query_text(self, event: RuntimeEvent, visible_messages: list) -> str | None:
         if event.event_type == "chat":
             for message in reversed(visible_messages):
-                if message.role == "user":
+                if message.role == "user" and not message.is_retracted:
                     return message.content
         if event.event_type in {"pull", "merge"}:
             source_cocoon_id = event.payload.get("source_cocoon_id")

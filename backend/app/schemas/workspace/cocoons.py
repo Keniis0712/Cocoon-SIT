@@ -45,7 +45,9 @@ class CocoonTreeNode(BaseModel):
 
 
 class SessionStateOut(ORMModel):
+    id: str
     cocoon_id: str
+    chat_group_id: str | None = None
     relation_score: int
     persona_json: dict
     active_tags_json: list[str]
@@ -60,6 +62,11 @@ class ChatMessageCreate(BaseModel):
     content: str = Field(min_length=1)
     client_request_id: str
     timezone: str | None = None
+    client_sent_at: datetime | None = None
+    locale: str | None = None
+    idle_seconds: int | None = None
+    recent_turn_count: int | None = None
+    typing_hint_ms: int | None = None
 
 
 class UserMessageEditRequest(BaseModel):
@@ -77,12 +84,18 @@ class RollbackRequest(BaseModel):
 
 class ChatMessageOut(ORMModel):
     id: str
-    cocoon_id: str
+    cocoon_id: str | None
+    chat_group_id: str | None = None
     action_id: str | None
     client_request_id: str | None
+    sender_user_id: str | None = None
     role: str
     content: str
     is_thought: bool
+    is_retracted: bool
+    retracted_at: datetime | None = None
+    retracted_by_user_id: str | None = None
+    retraction_note: str | None = None
     tags_json: list[str]
     created_at: datetime
 

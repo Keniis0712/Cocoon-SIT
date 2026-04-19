@@ -1,0 +1,23 @@
+{
+  "title": "欢迎回来",
+  "description": "登录后进入 Cocoon-SIT 工作台，继续配置角色、模型和嵌套茧对话。",
+  "registerTitle": "创建新账号",
+  "registerDescription": "使用邀请码完成注册，并直接进入 Cocoon-SIT 工作台。",
+  "submit": "立即登录",
+  "submitting": "正在登录...",
+  "registerSubmit": "立即注册",
+  "registerSubmitting": "正在注册...",
+  "modeLogin": "登录",
+  "modeRegister": "注册",
+  "placeholderUser": "账号",
+  "placeholderPass": "密码",
+  "inviteCode": "邀请码",
+  "error": "登录失败，请检查用户名和密码",
+  "registerError": "注册失败，请检查邀请码和输入信息",
+  "backendAddress": "默认后端地址：127.0.0.1:8088",
+  "adminHint": "默认管理员账号来自后端 .env 配置。",
+  "registerHint": "注册要求邀请码，密码至少 8 位。",
+  "registerInviteHint": "注册成功后会直接建立邀请树关系并登录。",
+  "registrationEnabled": "当前允许自助注册",
+  "registrationDisabled": "当前未开放自助注册"
+}

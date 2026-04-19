@@ -15,11 +15,13 @@ class AuditRunService:
         self,
         session: Session,
         cocoon_id: str | None,
+        chat_group_id: str | None,
         action: ActionDispatch | None,
         operation_type: str,
     ) -> AuditRun:
         run = AuditRun(
             cocoon_id=cocoon_id,
+            chat_group_id=chat_group_id,
             action_id=action.id if action else None,
             operation_type=operation_type,
             status=ActionStatus.running,

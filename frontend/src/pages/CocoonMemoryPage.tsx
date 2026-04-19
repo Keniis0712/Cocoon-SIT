@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { deleteCocoonMemory, getCocoon, getCocoonMemories } from "@/api/cocoons";
-import type { CocoonRead, MemoryChunkRead } from "@/api/types";
+import type { CocoonRead, MemoryChunkRead } from "@/api/types/cocoons";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ function formatTime(value: string | null | undefined) {
 }
 
 export default function CocoonMemoryPage() {
+  const { t } = useTranslation("workspace");
   const navigate = useNavigate();
   const params = useParams();
   const cocoonId = Number(params.cocoonId);
@@ -42,50 +44,50 @@ export default function CocoonMemoryPage() {
       setItems(memoryResp.items);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to load cocoon memories");
+      toast.error(t("memoryLoadFailed"));
     } finally {
       setIsLoading(false);
     }
   }
 
   async function handleDeleteMemory(memory: MemoryChunkRead) {
-    if (!window.confirm(`Delete memory #${memory.id}?`)) {
+    if (!window.confirm(t("deleteMemoryConfirm", { id: memory.id }))) {
       return;
     }
     try {
       await deleteCocoonMemory(cocoonId, memory.id);
       setItems((prev) => prev.filter((item) => item.id !== memory.id));
-      toast.success("Memory deleted");
+      toast.success(t("memoryDeleted"));
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "Failed to delete memory");
+      toast.error(error instanceof Error ? error.message : t("memoryDeleteFailed"));
     }
   }
 
   return (
     <PageFrame
-      title={`${cocoon?.name || "Cocoon"} / Memories`}
-      description="Newest memories first. Individual memory deletion is now available."
+      title={t("memoryPageTitle", { name: cocoon?.name || "Cocoon" })}
+      description={t("memoryPageDescription")}
       actions={
         <Button variant="outline" onClick={() => navigate(`/cocoons/${cocoonId}`)}>
           <ArrowLeft className="mr-2 size-4" />
-          Back to chat
+          {t("backToChat")}
         </Button>
       }
     >
       <Card className="border-border/70 bg-card/90">
         <CardHeader>
-          <CardTitle>Memory Chunks</CardTitle>
-          <CardDescription>Review long-term memory for this cocoon and remove stale entries when needed.</CardDescription>
+          <CardTitle>{t("memoryChunksTitle")}</CardTitle>
+          <CardDescription>{t("memoryChunksDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {isLoading ? (
             <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              Loading memories...
+              {t("memoryPageLoading")}
             </div>
           ) : items.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              No visible memories for this cocoon.
+              {t("memoryPageEmpty")}
             </div>
           ) : (
             items.map((memory) => (
@@ -94,7 +96,7 @@ export default function CocoonMemoryPage() {
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline">#{memory.id}</Badge>
                     <Badge variant="secondary">{memory.source_kind}</Badge>
-                    {memory.is_summary ? <Badge variant="secondary">summary</Badge> : null}
+                    {memory.is_summary ? <Badge variant="secondary">{t("summaryTag")}</Badge> : null}
                     {(memory.tags || []).map((tag) => (
                       <Badge key={`${memory.id}-${tag}`} variant="outline">
                         {tag}
@@ -103,12 +105,12 @@ export default function CocoonMemoryPage() {
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => void handleDeleteMemory(memory)}>
                     <Trash2 className="mr-2 size-4" />
-                    Delete
+                    {t("deleteMemory")}
                   </Button>
                 </div>
                 <div className="whitespace-pre-wrap text-sm leading-6">{memory.content}</div>
                 <div className="mt-3 text-xs text-muted-foreground">
-                  Importance {memory.importance} / {formatTime(memory.created_at)}
+                  {t("importanceWithTime", { importance: memory.importance, time: formatTime(memory.created_at) })}
                 </div>
               </div>
             ))

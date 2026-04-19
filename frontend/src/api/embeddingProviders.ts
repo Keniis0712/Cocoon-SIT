@@ -1,6 +1,7 @@
 import { apiCall } from "./client";
 import { rememberLegacyId, resolveActualId } from "./id-map";
-import type { EmbeddingProviderPayload, EmbeddingProviderRead, PageResp } from "./types";
+import type { PageResp } from "./types/common";
+import type { EmbeddingProviderPayload, EmbeddingProviderRead } from "./types/providers";
 
 function makePage<T>(items: T[], page: number, pageSize: number): PageResp<T> {
   const total = items.length;

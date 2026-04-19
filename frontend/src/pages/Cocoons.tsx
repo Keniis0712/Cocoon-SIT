@@ -9,7 +9,9 @@ import { toast } from "sonner";
 import { getCharacters } from "@/api/characters";
 import { createCocoon, deleteCocoon, getCocoon, getCocoonTree, updateCocoon } from "@/api/cocoons";
 import { listModelProviders } from "@/api/providers";
-import type { CharacterRead, CocoonPayload, CocoonRead, CocoonTreeNode, ModelProviderRead } from "@/api/types";
+import type { CharacterRead } from "@/api/types/catalog";
+import type { CocoonPayload, CocoonRead, CocoonTreeNode } from "@/api/types/cocoons";
+import type { ModelProviderRead } from "@/api/types/providers";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -74,6 +76,13 @@ function formatTime(value: string | null | undefined) {
 function parseNumber(value: string) {
   const normalized = value.trim();
   return normalized ? Number(normalized) : undefined;
+}
+
+function friendlyCocoonErrorMessage(rawMessage: string) {
+  if (rawMessage.includes("A root cocoon already exists for this user and character")) {
+    return "You already have a private root cocoon for this character. Open the existing one, or create a child cocoon to continue from it.";
+  }
+  return rawMessage;
 }
 
 function buildModelOptions(providers: ModelProviderRead[]) {
@@ -302,8 +311,11 @@ export default function CocoonsPage() {
       }
       await loadSelectedCocoon(result.id);
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(t("cocoons.saveFailed"));
+      if (isAxiosError(error)) {
+        toast.error(friendlyCocoonErrorMessage(String(error.response?.data?.detail || error.message)));
+      } else {
+        toast.error(t("cocoons.saveFailed"));
+      }
     } finally {
       setIsSaving(false);
     }

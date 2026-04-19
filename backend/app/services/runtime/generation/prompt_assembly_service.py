@@ -91,8 +91,13 @@ class PromptAssemblyService:
                 summary_prefix=template_type,
             ),
             combined_prompt=combined_prompt,
-            messages=[
-                {"role": message.role, "content": message.content}
-                for message in message_source
-            ],
+            messages=[self._provider_message_payload(message, context) for message in message_source],
         )
+
+    def _provider_message_payload(self, message, context: ContextPackage) -> dict[str, str]:
+        content = message.content
+        if context.target_type == "chat_group" and message.role == "user" and message.sender_user_id:
+            content = f"[sender:{message.sender_user_id}] {content}"
+        if message.is_retracted:
+            content = f"{content}\n\n[system note: this message was later retracted]"
+        return {"role": message.role, "content": content}

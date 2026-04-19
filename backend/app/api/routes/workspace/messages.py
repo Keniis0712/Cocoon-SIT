@@ -36,11 +36,8 @@ def list_messages(
     _=Depends(require_permission("cocoons:read")),
 ) -> list[Message]:
     db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=False)
-    return list(
-        db.scalars(
-            select(Message).where(Message.cocoon_id == cocoon_id).order_by(Message.created_at.asc())
-        ).all()
-    )
+    messages = db.info["container"].message_service.list_messages(db, cocoon_id=cocoon_id)
+    return [db.info["container"].message_service.serialize_message(message) for message in messages]
 
 
 @router.post("/{cocoon_id}/messages", status_code=202, response_model=AcceptedResponse)
@@ -60,6 +57,12 @@ def send_message(
             content=payload.content,
             client_request_id=payload.client_request_id,
             timezone=payload.timezone,
+            client_sent_at=payload.client_sent_at,
+            locale=payload.locale,
+            idle_seconds=payload.idle_seconds,
+            recent_turn_count=payload.recent_turn_count,
+            typing_hint_ms=payload.typing_hint_ms,
+            sender_user_id=user.id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

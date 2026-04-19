@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 
@@ -121,12 +122,16 @@ def test_wakeup_context_is_available_to_meta_templates(
     )
     assert response.status_code == 200, response.text
 
-    wakeup_response = client.post(
-        "/api/v1/wakeup",
-        headers=auth_headers,
-        json={"cocoon_id": default_cocoon_id, "reason": "scheduled from prompt test"},
-    )
-    assert wakeup_response.status_code == 200, wakeup_response.text
+    container = client.app.state.container
+    with container.session_factory() as session:
+        container.scheduler_node.schedule_wakeup(
+            session,
+            cocoon_id=default_cocoon_id,
+            run_at=datetime.now(UTC),
+            reason="scheduled from prompt test",
+            payload_json={"scheduled_by": "test"},
+        )
+        session.commit()
     assert worker_runtime.process_next_durable_job() is True
 
     with client.app.state.container.session_factory() as session:

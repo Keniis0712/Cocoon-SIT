@@ -3,7 +3,7 @@ import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { createEmbeddingProvider, listEmbeddingProviders, updateEmbeddingProvider } from "@/api/embeddingProviders";
-import type { EmbeddingProviderPayload, EmbeddingProviderRead } from "@/api/types";
+import type { EmbeddingProviderPayload, EmbeddingProviderRead } from "@/api/types/providers";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

@@ -14,6 +14,7 @@ async def cocoon_ws(websocket: WebSocket, cocoon_id: str) -> None:
             websocket,
             cocoon_id,
             "cocoons:read",
+            target_type="cocoon",
         )
     except WebSocketException as exc:
         await websocket.close(code=exc.code)
@@ -22,4 +23,4 @@ async def cocoon_ws(websocket: WebSocket, cocoon_id: str) -> None:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        container.workspace_realtime_service.disconnect(cocoon_id, websocket)
+        container.workspace_realtime_service.disconnect(cocoon_id, websocket, target_type="cocoon")

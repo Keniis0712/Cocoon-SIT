@@ -29,6 +29,7 @@ class AuditStepOut(ORMModel):
 class AuditRunOut(ORMModel):
     id: str
     cocoon_id: str | None
+    chat_group_id: str | None = None
     action_id: str | None
     operation_type: str
     status: str

@@ -21,6 +21,7 @@ class DurableJobService:
         lock_key: str,
         payload_json: dict,
         cocoon_id: str | None = None,
+        chat_group_id: str | None = None,
         available_at: datetime | None = None,
     ) -> DurableJob:
         job = DurableJob(
@@ -28,6 +29,7 @@ class DurableJobService:
             lock_key=lock_key,
             payload_json=payload_json,
             cocoon_id=cocoon_id,
+            chat_group_id=chat_group_id,
             status=DurableJobStatus.queued,
             available_at=available_at or datetime.now(UTC).replace(tzinfo=None),
         )

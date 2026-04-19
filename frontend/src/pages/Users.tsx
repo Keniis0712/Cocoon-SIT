@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { createAdminUser, listAdminUsers, updateAdminUser } from "@/api/admin-users";
 import { listRoles } from "@/api/roles";
-import type { AdminUserCreatePayload, AdminUserRead, AdminUserUpdatePayload, RoleRead } from "@/api/types";
+import type { AdminUserCreatePayload, AdminUserRead, AdminUserUpdatePayload, RoleRead } from "@/api/types/access";
 import AccessCard from "@/components/AccessCard";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { MessageRead } from "@/api/types";
+import type { MessageRead } from "@/api/types/chat";
 
 type SessionState = {
   messages: MessageRead[];
@@ -17,17 +17,19 @@ type SessionState = {
   lastError: string | null;
 };
 
+type SessionKey = string | number;
+
 type ChatSessionStore = {
-  sessions: Record<number, SessionState>;
-  ensureSession: (cocoonId: number) => void;
-  resetSession: (cocoonId: number) => void;
-  setMessages: (cocoonId: number, messages: MessageRead[]) => void;
-  prependMessages: (cocoonId: number, messages: MessageRead[]) => void;
-  upsertMessage: (cocoonId: number, message: MessageRead) => void;
-  setStreamingAssistant: (cocoonId: number, value: string) => void;
-  appendStreamingAssistant: (cocoonId: number, value: string) => void;
+  sessions: Record<string, SessionState>;
+  ensureSession: (sessionKey: SessionKey) => void;
+  resetSession: (sessionKey: SessionKey) => void;
+  setMessages: (sessionKey: SessionKey, messages: MessageRead[]) => void;
+  prependMessages: (sessionKey: SessionKey, messages: MessageRead[]) => void;
+  upsertMessage: (sessionKey: SessionKey, message: MessageRead) => void;
+  setStreamingAssistant: (sessionKey: SessionKey, value: string) => void;
+  appendStreamingAssistant: (sessionKey: SessionKey, value: string) => void;
   applyStatePatch: (
-    cocoonId: number,
+    sessionKey: SessionKey,
     patch: {
       relationScore?: number | null;
       personaJson?: Record<string, unknown>;
@@ -39,8 +41,8 @@ type ChatSessionStore = {
       debounceUntil?: string | null;
     },
   ) => void;
-  setTyping: (cocoonId: number, isTyping: boolean) => void;
-  setError: (cocoonId: number, error: string | null) => void;
+  setTyping: (sessionKey: SessionKey, isTyping: boolean) => void;
+  setError: (sessionKey: SessionKey, error: string | null) => void;
 };
 
 const EMPTY_SESSION: SessionState = {
@@ -75,117 +77,121 @@ function mergeMessages(existing: MessageRead[], nextItems: MessageRead[]) {
   return sortMessages([...map.values()]);
 }
 
+function keyOf(sessionKey: SessionKey) {
+  return String(sessionKey);
+}
+
 export const useChatSessionStore = create<ChatSessionStore>((set, get) => ({
   sessions: {},
-  ensureSession: (cocoonId) =>
+  ensureSession: (sessionKey) =>
     set((state) => ({
-      sessions: state.sessions[cocoonId]
+      sessions: state.sessions[keyOf(sessionKey)]
         ? state.sessions
-        : { ...state.sessions, [cocoonId]: { ...EMPTY_SESSION } },
+        : { ...state.sessions, [keyOf(sessionKey)]: { ...EMPTY_SESSION } },
     })),
-  resetSession: (cocoonId) =>
+  resetSession: (sessionKey) =>
     set((state) => ({
-      sessions: { ...state.sessions, [cocoonId]: { ...EMPTY_SESSION } },
+      sessions: { ...state.sessions, [keyOf(sessionKey)]: { ...EMPTY_SESSION } },
     })),
-  setMessages: (cocoonId, messages) =>
+  setMessages: (sessionKey, messages) =>
     set((state) => ({
       sessions: {
         ...state.sessions,
-        [cocoonId]: {
-          ...(state.sessions[cocoonId] || EMPTY_SESSION),
+        [keyOf(sessionKey)]: {
+          ...(state.sessions[keyOf(sessionKey)] || EMPTY_SESSION),
           messages: sortMessages(messages),
         },
       },
     })),
-  prependMessages: (cocoonId, messages) =>
+  prependMessages: (sessionKey, messages) =>
     set((state) => ({
       sessions: {
         ...state.sessions,
-        [cocoonId]: {
-          ...(state.sessions[cocoonId] || EMPTY_SESSION),
-          messages: mergeMessages(state.sessions[cocoonId]?.messages || [], messages),
+        [keyOf(sessionKey)]: {
+          ...(state.sessions[keyOf(sessionKey)] || EMPTY_SESSION),
+          messages: mergeMessages(state.sessions[keyOf(sessionKey)]?.messages || [], messages),
         },
       },
     })),
-  upsertMessage: (cocoonId, message) =>
+  upsertMessage: (sessionKey, message) =>
     set((state) => ({
       sessions: {
         ...state.sessions,
-        [cocoonId]: {
-          ...(state.sessions[cocoonId] || EMPTY_SESSION),
-          messages: mergeMessages(state.sessions[cocoonId]?.messages || [], [message]),
+        [keyOf(sessionKey)]: {
+          ...(state.sessions[keyOf(sessionKey)] || EMPTY_SESSION),
+          messages: mergeMessages(state.sessions[keyOf(sessionKey)]?.messages || [], [message]),
         },
       },
     })),
-  setStreamingAssistant: (cocoonId, value) =>
+  setStreamingAssistant: (sessionKey, value) =>
     set((state) => ({
       sessions: {
         ...state.sessions,
-        [cocoonId]: {
-          ...(state.sessions[cocoonId] || EMPTY_SESSION),
+        [keyOf(sessionKey)]: {
+          ...(state.sessions[keyOf(sessionKey)] || EMPTY_SESSION),
           streamingAssistant: value,
         },
       },
     })),
-  appendStreamingAssistant: (cocoonId, value) =>
+  appendStreamingAssistant: (sessionKey, value) =>
     set((state) => ({
       sessions: {
         ...state.sessions,
-        [cocoonId]: {
-          ...(state.sessions[cocoonId] || EMPTY_SESSION),
-          streamingAssistant: `${state.sessions[cocoonId]?.streamingAssistant || ""}${value || ""}`,
+        [keyOf(sessionKey)]: {
+          ...(state.sessions[keyOf(sessionKey)] || EMPTY_SESSION),
+          streamingAssistant: `${state.sessions[keyOf(sessionKey)]?.streamingAssistant || ""}${value || ""}`,
         },
       },
     })),
-  applyStatePatch: (cocoonId, patch) =>
+  applyStatePatch: (sessionKey, patch) =>
     set((state) => ({
       sessions: {
         ...state.sessions,
-        [cocoonId]: {
-          ...(state.sessions[cocoonId] || EMPTY_SESSION),
-          relationScore: patch.relationScore ?? state.sessions[cocoonId]?.relationScore ?? null,
-          personaJson: patch.personaJson ?? state.sessions[cocoonId]?.personaJson ?? {},
-          activeTags: patch.activeTags ?? state.sessions[cocoonId]?.activeTags ?? [],
-          currentModelId: patch.currentModelId ?? state.sessions[cocoonId]?.currentModelId ?? null,
+        [keyOf(sessionKey)]: {
+          ...(state.sessions[keyOf(sessionKey)] || EMPTY_SESSION),
+          relationScore: patch.relationScore ?? state.sessions[keyOf(sessionKey)]?.relationScore ?? null,
+          personaJson: patch.personaJson ?? state.sessions[keyOf(sessionKey)]?.personaJson ?? {},
+          activeTags: patch.activeTags ?? state.sessions[keyOf(sessionKey)]?.activeTags ?? [],
+          currentModelId: patch.currentModelId ?? state.sessions[keyOf(sessionKey)]?.currentModelId ?? null,
           currentWakeupTaskId:
-            patch.currentWakeupTaskId ?? state.sessions[cocoonId]?.currentWakeupTaskId ?? null,
-          dispatchState: patch.dispatchState ?? state.sessions[cocoonId]?.dispatchState ?? "idle",
-          dispatchReason: patch.dispatchReason ?? state.sessions[cocoonId]?.dispatchReason ?? null,
-          debounceUntil: patch.debounceUntil ?? state.sessions[cocoonId]?.debounceUntil ?? null,
+            patch.currentWakeupTaskId ?? state.sessions[keyOf(sessionKey)]?.currentWakeupTaskId ?? null,
+          dispatchState: patch.dispatchState ?? state.sessions[keyOf(sessionKey)]?.dispatchState ?? "idle",
+          dispatchReason: patch.dispatchReason ?? state.sessions[keyOf(sessionKey)]?.dispatchReason ?? null,
+          debounceUntil: patch.debounceUntil ?? state.sessions[keyOf(sessionKey)]?.debounceUntil ?? null,
         },
       },
     })),
-  setTyping: (cocoonId, isTyping) =>
+  setTyping: (sessionKey, isTyping) =>
     set((state) => ({
       sessions: {
         ...state.sessions,
-        [cocoonId]: {
-          ...(state.sessions[cocoonId] || EMPTY_SESSION),
+        [keyOf(sessionKey)]: {
+          ...(state.sessions[keyOf(sessionKey)] || EMPTY_SESSION),
           isUserTyping: isTyping,
         },
       },
     })),
-  setError: (cocoonId, error) =>
+  setError: (sessionKey, error) =>
     set((state) => ({
       sessions: {
         ...state.sessions,
-        [cocoonId]: {
-          ...(state.sessions[cocoonId] || EMPTY_SESSION),
+        [keyOf(sessionKey)]: {
+          ...(state.sessions[keyOf(sessionKey)] || EMPTY_SESSION),
           lastError: error,
         },
       },
     })),
 }));
 
-export function getChatSession(cocoonId: number) {
-  return getOrCreateSession(cocoonId);
+export function getChatSession(sessionKey: SessionKey) {
+  return getOrCreateSession(sessionKey);
 }
 
-function getOrCreateSession(cocoonId: number) {
-  const current = useChatSessionStore.getState().sessions[cocoonId];
+function getOrCreateSession(sessionKey: SessionKey) {
+  const current = useChatSessionStore.getState().sessions[keyOf(sessionKey)];
   if (current) {
     return current;
   }
-  useChatSessionStore.getState().ensureSession(cocoonId);
-  return useChatSessionStore.getState().sessions[cocoonId] || { ...EMPTY_SESSION };
+  useChatSessionStore.getState().ensureSession(sessionKey);
+  return useChatSessionStore.getState().sessions[keyOf(sessionKey)] || { ...EMPTY_SESSION };
 }

@@ -1,6 +1,6 @@
 import { apiCall } from "./client";
 import { rememberLegacyId, resolveActualId } from "./id-map";
-import type { SystemSettingsRead, SystemSettingsUpdate } from "./types";
+import type { SystemSettingsRead, SystemSettingsUpdate } from "./types/settings";
 
 function mapSettings(item: {
   allow_registration: boolean;

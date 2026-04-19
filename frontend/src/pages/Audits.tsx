@@ -6,7 +6,8 @@ import { useSearchParams } from "react-router-dom";
 
 import { getCocoonAuditRound, listCocoonAuditRounds } from "@/api/audits";
 import { getCocoons } from "@/api/cocoons";
-import type { AiAuditTraceDetail, AiAuditTraceListItem, CocoonRead } from "@/api/types";
+import type { AiAuditTraceDetail, AiAuditTraceListItem } from "@/api/types/audit";
+import type { CocoonRead } from "@/api/types/cocoons";
 import AccessCard from "@/components/AccessCard";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
@@ -112,7 +113,7 @@ export default function AuditsPage() {
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2 text-base"><FileSearch className="size-4 text-primary" />{t("audits.filters")}</CardTitle></CardHeader>
             <CardContent className="grid gap-4">
-              <div className="grid gap-2"><Label>Cocoon</Label><Select value={selectedCocoonId} onValueChange={(value) => { setSelectedCocoonId(value); setPage(1); setSelectedRound(null); }}><SelectTrigger><SelectValue placeholder={t("audits.selectCocoon")} /></SelectTrigger><SelectContent>{cocoons.map((item) => <SelectItem key={item.id} value={String(item.id)}>{item.name} #{item.id}</SelectItem>)}</SelectContent></Select></div>
+              <div className="grid gap-2"><Label>{t("audits.selectCocoon")}</Label><Select value={selectedCocoonId} onValueChange={(value) => { setSelectedCocoonId(value); setPage(1); setSelectedRound(null); }}><SelectTrigger><SelectValue placeholder={t("audits.selectCocoon")} /></SelectTrigger><SelectContent>{cocoons.map((item) => <SelectItem key={item.id} value={String(item.id)}>{item.name} #{item.id}</SelectItem>)}</SelectContent></Select></div>
               <div className="grid gap-2"><Label>{t("common.keyword")}</Label><Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder={t("audits.keywordPlaceholder")} /></div>
               <div className="grid gap-2"><Label>{t("audits.roundUid")}</Label><Input value={roundUid} onChange={(event) => { setRoundUid(event.target.value); setPage(1); }} placeholder={t("audits.roundUidPlaceholder")} /></div>
             </CardContent>

@@ -7,6 +7,10 @@ from sqlalchemy import JSON
 from sqlalchemy.types import TypeDecorator, UserDefinedType
 
 
+def _format_vector_literal(value: Sequence[float]) -> str:
+    return "[" + ",".join(str(float(item)) for item in value) + "]"
+
+
 class VectorComparator(UserDefinedType.Comparator):
     def cosine_distance(self, other):
         return self.expr.op("<=>")(other)
@@ -28,7 +32,9 @@ class PGVector(UserDefinedType):
         def process(value):
             if value is None:
                 return None
-            return [float(item) for item in value]
+            if isinstance(value, str):
+                return value
+            return _format_vector_literal(value)
 
         return process
 
@@ -66,6 +72,8 @@ class EmbeddingVector(TypeDecorator):
     def process_bind_param(self, value: Sequence[float] | None, dialect):
         if value is None:
             return None
+        if dialect.name == "postgresql":
+            return _format_vector_literal(value)
         return [float(item) for item in value]
 
     def process_result_value(self, value, dialect):

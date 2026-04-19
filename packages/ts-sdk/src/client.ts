@@ -88,6 +88,22 @@ export class CocoonApiClient {
     return url.toString();
   }
 
+  makeChatGroupWsUrl(roomId: string): string {
+    const url = new URL(`${this.baseUrl}/api/v1/chat-groups/${roomId}/ws`);
+    if (url.protocol === "https:") {
+      url.protocol = "wss:";
+    } else if (url.protocol === "http:") {
+      url.protocol = "ws:";
+    }
+
+    const token = this.getAccessToken?.();
+    if (token) {
+      url.searchParams.set("access_token", token);
+    }
+
+    return url.toString();
+  }
+
   health() {
     return this.request<Schemas["HealthResponse"]>("/api/v1/health");
   }
@@ -373,6 +389,77 @@ export class CocoonApiClient {
     return this.request<Schemas["CocoonOut"][]>("/api/v1/cocoons");
   }
 
+  listChatGroups() {
+    return this.request<Schemas["ChatGroupRoomOut"][]>("/api/v1/chat-groups");
+  }
+
+  createChatGroup(body: Schemas["ChatGroupRoomCreate"]) {
+    return this.request<Schemas["ChatGroupRoomOut"]>("/api/v1/chat-groups", { method: "POST", body });
+  }
+
+  getChatGroup(roomId: string) {
+    return this.request<Schemas["ChatGroupRoomOut"]>(`/api/v1/chat-groups/${roomId}`);
+  }
+
+  updateChatGroup(roomId: string, body: Schemas["ChatGroupRoomUpdate"]) {
+    return this.request<Schemas["ChatGroupRoomOut"]>(`/api/v1/chat-groups/${roomId}`, {
+      method: "PATCH",
+      body,
+    });
+  }
+
+  deleteChatGroup(roomId: string) {
+    return this.request<Schemas["ChatGroupRoomOut"]>(`/api/v1/chat-groups/${roomId}`, {
+      method: "DELETE",
+    });
+  }
+
+  listChatGroupMembers(roomId: string) {
+    return this.request<Schemas["ChatGroupMemberOut"][]>(`/api/v1/chat-groups/${roomId}/members`);
+  }
+
+  addChatGroupMember(roomId: string, body: Schemas["ChatGroupMemberCreate"]) {
+    return this.request<Schemas["ChatGroupMemberOut"]>(`/api/v1/chat-groups/${roomId}/members`, {
+      method: "POST",
+      body,
+    });
+  }
+
+  updateChatGroupMember(roomId: string, userId: string, body: Schemas["ChatGroupMemberUpdate"]) {
+    return this.request<Schemas["ChatGroupMemberOut"]>(`/api/v1/chat-groups/${roomId}/members/${userId}`, {
+      method: "PATCH",
+      body,
+    });
+  }
+
+  removeChatGroupMember(roomId: string, userId: string) {
+    return this.request<Schemas["ChatGroupMemberOut"]>(`/api/v1/chat-groups/${roomId}/members/${userId}`, {
+      method: "DELETE",
+    });
+  }
+
+  listChatGroupMessages(roomId: string) {
+    return this.request<Schemas["ChatMessageOut"][]>(`/api/v1/chat-groups/${roomId}/messages`);
+  }
+
+  sendChatGroupMessage(roomId: string, body: Schemas["ChatMessageCreate"]) {
+    return this.request<Schemas["AcceptedResponse"]>(`/api/v1/chat-groups/${roomId}/messages`, {
+      method: "POST",
+      body,
+    });
+  }
+
+  retractChatGroupMessage(roomId: string, messageId: string) {
+    return this.request<Schemas["MessageRetractResult"]>(
+      `/api/v1/chat-groups/${roomId}/messages/${messageId}/retract`,
+      { method: "POST" },
+    );
+  }
+
+  getChatGroupState(roomId: string) {
+    return this.request<Schemas["ChatGroupStateOut"]>(`/api/v1/chat-groups/${roomId}/state`);
+  }
+
   createCocoon(body: Schemas["CocoonCreate"]) {
     return this.request<Schemas["CocoonOut"]>("/api/v1/cocoons", { method: "POST", body });
   }
@@ -469,14 +556,6 @@ export class CocoonApiClient {
 
   createCheckpoint(body: Schemas["CheckpointCreate"]) {
     return this.request<Schemas["CheckpointOut"]>("/api/v1/checkpoints", { method: "POST", body });
-  }
-
-  listWakeupTasks() {
-    return this.request<Schemas["WakeupTaskOut"][]>("/api/v1/wakeup");
-  }
-
-  enqueueWakeup(body: Schemas["WakeupRequest"]) {
-    return this.request<Schemas["WakeupEnqueueResult"]>("/api/v1/wakeup", { method: "POST", body });
   }
 
   listPulls() {

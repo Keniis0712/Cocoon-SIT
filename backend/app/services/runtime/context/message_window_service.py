@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Message, MessageTag
+from app.services.workspace.targets import build_target_filter
 
 
 class MessageWindowService:
@@ -14,15 +15,17 @@ class MessageWindowService:
     def list_visible_messages(
         self,
         session: Session,
-        cocoon_id: str,
         max_context_messages: int,
         active_tags: list[str],
+        *,
+        cocoon_id: str | None = None,
+        chat_group_id: str | None = None,
     ) -> list[Message]:
         """Return the recent message window, filtered by active tags when present."""
         visible_messages = list(
             session.scalars(
                 select(Message)
-                .where(Message.cocoon_id == cocoon_id)
+                .where(build_target_filter(Message, cocoon_id=cocoon_id, chat_group_id=chat_group_id))
                 .order_by(Message.created_at.desc())
                 .limit(max_context_messages)
             ).all()

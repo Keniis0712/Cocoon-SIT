@@ -14,7 +14,7 @@ import {
   removeGroupMember,
   updateGroup,
 } from "@/api/groups";
-import type { AdminUserRead, GroupCreatePayload, GroupMemberRead, GroupRead } from "@/api/types";
+import type { AdminUserRead, GroupCreatePayload, GroupMemberRead, GroupRead } from "@/api/types/access";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

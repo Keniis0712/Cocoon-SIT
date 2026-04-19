@@ -1,12 +1,12 @@
 import { apiCall } from "./client";
 import { rememberLegacyId, resolveActualId } from "./id-map";
+import type { PageResp } from "./types/common";
 import type {
   AvailableModelRead,
   ModelProviderPayload,
   ModelProviderRead,
   ModelProviderTestResponse,
-  PageResp,
-} from "./types";
+} from "./types/providers";
 
 function makePage<T>(items: T[], page: number, pageSize: number): PageResp<T> {
   const total = items.length;

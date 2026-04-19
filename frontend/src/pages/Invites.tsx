@@ -23,7 +23,7 @@ import type {
   InviteQuotaGrantCreatePayload,
   InviteQuotaGrantRead,
   InviteSummary,
-} from "@/api/types";
+} from "@/api/types/access";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

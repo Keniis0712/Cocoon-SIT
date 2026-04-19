@@ -7,7 +7,8 @@ import { toast } from "sonner";
 
 import { getCocoons } from "@/api/cocoons";
 import { createMergeJob, getMergeJobDetail, listMergeJobs } from "@/api/merges";
-import type { CocoonMergeCreatePayload, CocoonMergeJobDetail, CocoonMergeJobRead, CocoonRead } from "@/api/types";
+import type { CocoonRead } from "@/api/types/cocoons";
+import type { CocoonMergeCreatePayload, CocoonMergeJobDetail, CocoonMergeJobRead } from "@/api/types/operations";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

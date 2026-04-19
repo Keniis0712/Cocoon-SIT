@@ -9,29 +9,83 @@ from app.services.audit.service import AuditService
 from app.services.runtime.types import ContextPackage
 
 
+def _tag_visibility_map(context: ContextPackage) -> dict[str, str]:
+    payload = context.external_context.get("tag_visibility_by_ref") or {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _mentionable_for_target(tag_refs: list[str], context: ContextPackage, visibility_map: dict[str, str]) -> bool:
+    if not tag_refs:
+        return True
+    allowed = {"public"} if context.target_type == "chat_group" else {"public", "group_private"}
+    for tag_ref in tag_refs:
+        visibility = visibility_map.get(tag_ref, "private")
+        if visibility not in allowed:
+            return False
+    return True
+
+
+def _runtime_message_payload(message, context: ContextPackage, visibility_map: dict[str, str]) -> dict[str, Any]:
+    tag_refs = list(message.tags_json or [])
+    retracted_suffix = "\n\n[system note: this message was later retracted]" if message.is_retracted else ""
+    return {
+        "role": message.role,
+        "content": f"{message.content}{retracted_suffix}",
+        "sender_user_id": message.sender_user_id,
+        "sender_display_name": message.sender_user_id,
+        "is_retracted": message.is_retracted,
+        "tag_refs": tag_refs,
+        "tag_visibility": {tag_ref: visibility_map.get(tag_ref, "private") for tag_ref in tag_refs},
+        "mentionable_in_current_target": _mentionable_for_target(tag_refs, context, visibility_map),
+    }
+
+
+def _runtime_memory_payload(memory, context: ContextPackage, visibility_map: dict[str, str]) -> dict[str, Any]:
+    tag_refs = list(memory.tags_json or [])
+    return {
+        "scope": memory.scope,
+        "summary": memory.summary,
+        "content": memory.content,
+        "owner_user_id": memory.owner_user_id,
+        "character_id": memory.character_id,
+        "tag_refs": tag_refs,
+        "tag_visibility": {tag_ref: visibility_map.get(tag_ref, "private") for tag_ref in tag_refs},
+        "mentionable_in_current_target": _mentionable_for_target(tag_refs, context, visibility_map),
+        "source_target_type": "chat_group" if memory.chat_group_id else "cocoon",
+        "source_target_id": memory.chat_group_id or memory.cocoon_id,
+    }
+
+
 def build_runtime_prompt_variables(
     context: ContextPackage,
     *,
     provider_capabilities: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    visibility_map = _tag_visibility_map(context)
     return {
         "character_settings": context.character.settings_json
         | {"prompt_summary": context.character.prompt_summary},
+        "conversation_target": {
+            "type": context.target_type,
+            "id": context.target_id,
+            "name": context.cocoon.name,
+        },
         "session_state": {
             "relation_score": context.session_state.relation_score,
             "persona": context.session_state.persona_json,
             "active_tags": context.session_state.active_tags_json,
+            "pending_wakeups": context.external_context.get("pending_wakeups", []),
         },
-        "visible_messages": [
-            {"role": message.role, "content": message.content}
-            for message in context.visible_messages
-        ],
-        "memory_context": [
-            {"scope": memory.scope, "summary": memory.summary, "content": memory.content}
-            for memory in context.memory_context
-        ],
-        "runtime_event": context.runtime_event.payload,
+        "visible_messages": [_runtime_message_payload(message, context, visibility_map) for message in context.visible_messages],
+        "memory_context": [_runtime_memory_payload(memory, context, visibility_map) for memory in context.memory_context],
+        "runtime_event": {
+            "event_type": context.runtime_event.event_type,
+            "target_type": context.runtime_event.target_type,
+            "target_id": context.runtime_event.target_id,
+            **context.runtime_event.payload,
+        },
         "wakeup_context": context.external_context.get("wakeup_context"),
+        "pending_wakeups": context.external_context.get("pending_wakeups", []),
         "merge_context": context.external_context.get("merge_context"),
         "provider_capabilities": provider_capabilities or {},
     }

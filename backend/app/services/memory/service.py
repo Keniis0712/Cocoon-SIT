@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import Float, bindparam, cast, select
 from sqlalchemy.orm import Session
 
 from app.models import EmbeddingProvider, MemoryChunk, MemoryEmbedding, MemoryTag
+from app.models.vector import PGVector
 from app.services.providers.registry import ProviderRegistry
 
 
@@ -43,13 +44,22 @@ class MemoryService:
     def _load_candidate_memories(
         self,
         session: Session,
-        cocoon_id: str,
         active_tags: list[str],
         *,
+        cocoon_id: str | None = None,
+        owner_user_id: str | None = None,
+        character_id: str | None = None,
         scopes: list[str] | None = None,
         limit: int,
     ) -> list[MemoryChunk]:
-        query = select(MemoryChunk).where(MemoryChunk.cocoon_id == cocoon_id)
+        query = select(MemoryChunk)
+        if owner_user_id and character_id:
+            query = query.where(
+                MemoryChunk.owner_user_id == owner_user_id,
+                MemoryChunk.character_id == character_id,
+            )
+        elif cocoon_id:
+            query = query.where(MemoryChunk.cocoon_id == cocoon_id)
         if scopes:
             query = query.where(MemoryChunk.scope.in_(scopes))
         memories = list(
@@ -75,17 +85,21 @@ class MemoryService:
     def retrieve_visible_memories(
         self,
         session: Session,
-        cocoon_id: str,
         active_tags: list[str],
         *,
+        cocoon_id: str | None = None,
+        owner_user_id: str | None = None,
+        character_id: str | None = None,
         query_text: str | None = None,
         scopes: list[str] | None = None,
         limit: int = 5,
     ) -> list[MemoryRetrievalHit]:
         candidates = self._load_candidate_memories(
             session,
-            cocoon_id,
             active_tags,
+            cocoon_id=cocoon_id,
+            owner_user_id=owner_user_id,
+            character_id=character_id,
             scopes=scopes,
             limit=limit,
         )
@@ -125,7 +139,16 @@ class MemoryService:
 
         query_vector = embedding_response.vectors[0]
         candidate_ids = [memory.id for memory in candidates]
-        distance_expr = MemoryEmbedding.embedding.cosine_distance(query_vector).label("distance")
+        query_vector_type = PGVector(len(query_vector))
+        query_vector_param = bindparam(
+            "query_vector",
+            value=query_vector,
+            type_=query_vector_type,
+        )
+        distance_expr = cast(
+            MemoryEmbedding.embedding.cosine_distance(cast(query_vector_param, query_vector_type)),
+            Float,
+        ).label("distance")
         rows = session.execute(
             select(
                 MemoryEmbedding.memory_chunk_id,
@@ -174,10 +197,12 @@ class MemoryService:
     def get_visible_memories(
         self,
         session: Session,
-        cocoon_id: str,
         active_tags: list[str],
         limit: int = 5,
         *,
+        cocoon_id: str | None = None,
+        owner_user_id: str | None = None,
+        character_id: str | None = None,
         query_text: str | None = None,
         scopes: list[str] | None = None,
     ) -> list[MemoryChunk]:
@@ -185,8 +210,10 @@ class MemoryService:
             hit.memory
             for hit in self.retrieve_visible_memories(
                 session,
-                cocoon_id,
                 active_tags,
+                cocoon_id=cocoon_id,
+                owner_user_id=owner_user_id,
+                character_id=character_id,
                 query_text=query_text,
                 scopes=scopes,
                 limit=limit,

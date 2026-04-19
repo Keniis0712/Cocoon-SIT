@@ -33,7 +33,6 @@ from app.services.runtime.context.message_window_service import MessageWindowSer
 from app.services.runtime.context_builder import ContextBuilder
 from app.services.runtime.generation.prompt_assembly_service import PromptAssemblyService
 from app.services.runtime.generator_node import GeneratorNode
-from app.services.runtime.meta.wakeup_command_parser import WakeupCommandParser
 from app.services.runtime.meta_node import MetaNode
 from app.services.runtime.reply_delivery_service import ReplyDeliveryService
 from app.services.runtime.round_preparation_service import RoundPreparationService
@@ -48,7 +47,9 @@ from app.services.security.token_service import TokenService
 from app.services.storage.filesystem import FilesystemArtifactStore
 from app.services.workspace.cocoon_tag_service import CocoonTagService
 from app.services.workspace.cocoon_tree_service import CocoonTreeService
+from app.services.workspace.chat_group_service import ChatGroupService
 from app.services.workspace.message_dispatch_service import MessageDispatchService
+from app.services.workspace.message_service import MessageService
 from app.services.workspace.workspace_realtime_service import WorkspaceRealtimeService
 from app.services.jobs.durable_jobs import DurableJobService
 
@@ -116,11 +117,13 @@ def wire_provider_and_catalog_services(container) -> None:
 
 def wire_workspace_services(container) -> None:
     container.cocoon_tree_service = CocoonTreeService()
+    container.chat_group_service = ChatGroupService(container.system_settings_service)
     container.message_dispatch_service = MessageDispatchService(
         container.chat_queue,
         container.realtime_hub,
         system_settings_service=container.system_settings_service,
     )
+    container.message_service = MessageService()
     container.cocoon_tag_service = CocoonTagService()
     container.workspace_realtime_service = WorkspaceRealtimeService(
         container.session_factory,
@@ -148,7 +151,6 @@ def wire_runtime_services(container) -> None:
         memory_service=container.memory_service,
         message_window_service=container.message_window_service,
     )
-    container.wakeup_command_parser = WakeupCommandParser()
     container.prompt_assembly_service = PromptAssemblyService(container.prompt_service)
     container.side_effects = SideEffects(container.audit_service, container.memory_service)
     container.round_preparation_service = RoundPreparationService(
@@ -173,7 +175,7 @@ def wire_runtime_services(container) -> None:
         meta_node=MetaNode(
             prompt_service=container.prompt_service,
             audit_service=container.audit_service,
-            wakeup_command_parser=container.wakeup_command_parser,
+            provider_registry=container.provider_registry,
         ),
         generator_node=GeneratorNode(
             prompt_assembly_service=container.prompt_assembly_service,

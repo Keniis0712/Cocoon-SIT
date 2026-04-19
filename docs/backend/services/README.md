@@ -96,7 +96,6 @@ This index mirrors the current service layout under `backend/app/services/` and 
 - [MessageWindowService](./runtime/context/message-window-service.md)
 - [ExternalContextService](./runtime/context/external-context-service.md)
 - [MetaNode](./runtime/meta/meta-node.md)
-- [WakeupCommandParser](./runtime/meta/wakeup-command-parser.md)
 - [GeneratorNode](./runtime/generation/generator-node.md)
 - [PromptAssemblyService](./runtime/generation/prompt-assembly-service.md)
 

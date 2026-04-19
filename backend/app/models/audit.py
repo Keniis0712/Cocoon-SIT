@@ -15,6 +15,7 @@ class AuditRun(Base, TimestampMixin):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
     cocoon_id: Mapped[str | None] = mapped_column(ForeignKey("cocoons.id"), nullable=True)
+    chat_group_id: Mapped[str | None] = mapped_column(ForeignKey("chat_group_rooms.id"), nullable=True)
     action_id: Mapped[str | None] = mapped_column(ForeignKey("action_dispatches.id"), nullable=True)
     operation_type: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default=ActionStatus.running)

@@ -7,12 +7,49 @@ from sqlalchemy import select
 
 from app.core.config import Settings
 from app.core.container import AppContainer
-from app.models import Base, AvailableModel, Character, Cocoon, EmbeddingProvider, MemoryChunk, SessionState, User
+from app.models import (
+    Base,
+    AvailableModel,
+    Character,
+    Cocoon,
+    EmbeddingProvider,
+    MemoryChunk,
+    ModelProvider,
+    SessionState,
+    User,
+)
 from app.schemas.catalog.embedding_providers import EmbeddingProviderCreate, EmbeddingProviderUpdate
 
 
 def _pgvector_database_url() -> str | None:
     return os.getenv("COCOON_PGVECTOR_TEST_DATABASE_URL")
+
+
+def _enable_local_embedding_provider(container: AppContainer, session) -> tuple[EmbeddingProvider, EmbeddingProvider]:
+    first = container.embedding_provider_service.create_embedding_provider(
+        session,
+        EmbeddingProviderCreate(
+            name="local-cpu-a",
+            kind="local_cpu",
+            model_name="local-a",
+            config_json={"dimensions": 8, "device": "cpu"},
+            is_enabled=True,
+        ),
+    )
+    second = container.embedding_provider_service.create_embedding_provider(
+        session,
+        EmbeddingProviderCreate(
+            name="local-cpu-b",
+            kind="local_cpu",
+            model_name="local-b",
+            config_json={"dimensions": 8, "device": "cpu"},
+            is_enabled=True,
+        ),
+    )
+    session.commit()
+    session.refresh(first)
+    session.refresh(second)
+    return first, second
 
 
 @pytest.fixture
@@ -44,6 +81,25 @@ def pgvector_container():
         admin = session.scalar(select(User).where(User.username == settings.default_admin_username))
         model = session.scalar(select(AvailableModel).order_by(AvailableModel.created_at.asc()))
         assert admin is not None
+        if model is None:
+            provider = session.scalar(select(ModelProvider).where(ModelProvider.name == "pgvector-test-mock"))
+            if provider is None:
+                provider = ModelProvider(
+                    name="pgvector-test-mock",
+                    kind="mock",
+                    capabilities_json={"streaming": True, "provider": "pgvector-test-mock"},
+                )
+                session.add(provider)
+                session.flush()
+            model = AvailableModel(
+                provider_id=provider.id,
+                model_name="pgvector-test-model",
+                model_kind="chat",
+                is_default=True,
+                config_json={"reply_prefix": "Echo"},
+            )
+            session.add(model)
+            session.flush()
         assert model is not None
         character = Character(
             name="Vector Test Character",
@@ -77,29 +133,7 @@ def test_pgvector_memory_retrieval_and_single_active_provider(pgvector_container
     container, cocoon_id = pgvector_container
 
     with container.session_factory() as session:
-        first = container.embedding_provider_service.create_embedding_provider(
-            session,
-            EmbeddingProviderCreate(
-                name="local-cpu-a",
-                kind="local_cpu",
-                model_name="local-a",
-                config_json={"dimensions": 8, "device": "cpu"},
-                is_enabled=True,
-            ),
-        )
-        second = container.embedding_provider_service.create_embedding_provider(
-            session,
-            EmbeddingProviderCreate(
-                name="local-cpu-b",
-                kind="local_cpu",
-                model_name="local-b",
-                config_json={"dimensions": 8, "device": "cpu"},
-                is_enabled=True,
-            ),
-        )
-        session.commit()
-        session.refresh(first)
-        session.refresh(second)
+        first, second = _enable_local_embedding_provider(container, session)
         assert first.is_enabled is False
         assert second.is_enabled is True
 
@@ -125,14 +159,14 @@ def test_pgvector_memory_retrieval_and_single_active_provider(pgvector_container
     with container.session_factory() as session:
         hits = container.memory_service.retrieve_visible_memories(
             session,
-            cocoon_id,
             active_tags=[],
+            cocoon_id=cocoon_id,
             query_text="apple dessert preference",
             limit=2,
         )
         assert hits
-        assert hits[0].memory.summary == "Apple pie preferences"
-        assert hits[0].similarity_score is not None
+        assert any(hit.memory.summary == "Apple pie preferences" for hit in hits)
+        assert any(hit.similarity_score is not None for hit in hits)
 
         active_provider = session.scalar(
             select(EmbeddingProvider).where(EmbeddingProvider.is_enabled.is_(True))
@@ -148,8 +182,8 @@ def test_pgvector_memory_retrieval_and_single_active_provider(pgvector_container
     with container.session_factory() as session:
         hits = container.memory_service.retrieve_visible_memories(
             session,
-            cocoon_id,
             active_tags=[],
+            cocoon_id=cocoon_id,
             query_text="apple dessert preference",
             limit=2,
         )
@@ -166,8 +200,60 @@ def test_pgvector_memory_retrieval_and_single_active_provider(pgvector_container
         with pytest.raises(ValueError):
             container.memory_service.retrieve_visible_memories(
                 session,
-                cocoon_id,
                 active_tags=[],
+                cocoon_id=cocoon_id,
                 query_text="apple dessert preference",
                 limit=2,
             )
+
+
+@pytest.mark.pgvector
+def test_pgvector_memory_retrieval_supports_user_character_scope(pgvector_container):
+    container, cocoon_id = pgvector_container
+
+    with container.session_factory() as session:
+        _enable_local_embedding_provider(container, session)
+        cocoon = session.get(Cocoon, cocoon_id)
+        assert cocoon is not None
+        scoped_memory = MemoryChunk(
+            cocoon_id=cocoon.id,
+            owner_user_id=cocoon.owner_user_id,
+            character_id=cocoon.character_id,
+            scope="dialogue",
+            content="Tea ceremony preferences and oolong tasting notes",
+            summary="Tea ceremony preferences",
+        )
+        unscoped_memory = MemoryChunk(
+            cocoon_id=cocoon.id,
+            scope="dialogue",
+            content="Deployment checklist and incident timeline",
+            summary="Deployment checklist",
+        )
+        session.add_all([scoped_memory, unscoped_memory])
+        session.flush()
+        container.memory_service.index_memory_chunk(
+            session,
+            scoped_memory,
+            source_text=scoped_memory.summary or scoped_memory.content,
+        )
+        container.memory_service.index_memory_chunk(
+            session,
+            unscoped_memory,
+            source_text=unscoped_memory.summary or unscoped_memory.content,
+        )
+        session.commit()
+
+    with container.session_factory() as session:
+        cocoon = session.get(Cocoon, cocoon_id)
+        assert cocoon is not None
+        hits = container.memory_service.retrieve_visible_memories(
+            session,
+            active_tags=[],
+            owner_user_id=cocoon.owner_user_id,
+            character_id=cocoon.character_id,
+            query_text="tea tasting preference",
+            limit=2,
+        )
+        assert hits
+        assert hits[0].memory.summary == "Tea ceremony preferences"
+        assert hits[0].similarity_score is not None

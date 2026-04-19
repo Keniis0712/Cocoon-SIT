@@ -68,7 +68,8 @@ class ChatRuntime:
                 "persona_patch": meta.persona_patch,
                 "tag_ops": meta.tag_ops,
                 "internal_thought": meta.internal_thought,
-                "next_wakeup_hint": meta.next_wakeup_hint,
+                "next_wakeup_hints": meta.next_wakeup_hints,
+                "cancel_wakeup_task_ids": meta.cancel_wakeup_task_ids,
             },
         )
         self.state_patch_service.apply_and_publish(
@@ -118,11 +119,11 @@ class ChatRuntime:
             memory=memory,
             scheduler_result=scheduler_result,
         )
-        if meta.decision != "silence":
-            self.state_patch_service.publish_snapshot(
-                context.cocoon.id,
-                context.session_state,
-                action_id=action.id,
-            )
+        self.state_patch_service.publish_snapshot(
+            action_id=action.id,
+            state=context.session_state,
+            cocoon_id=context.runtime_event.cocoon_id,
+            chat_group_id=context.runtime_event.chat_group_id,
+        )
         self.audit_service.finish_step(session, side_effects_step, ActionStatus.completed)
         self.side_effects.finish_action(session, action, audit_run, ActionStatus.completed)

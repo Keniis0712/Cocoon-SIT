@@ -2,7 +2,7 @@ import type { Schemas } from "@cocoon-sit/ts-sdk";
 
 import { apiCall, createAnonymousClient, createTokenClient } from "./client";
 import { rememberLegacyId, rememberLegacyStringId } from "./id-map";
-import type { PublicFeaturesRead } from "./types";
+import type { PublicFeaturesRead } from "./types/providers";
 
 type PermissionMap = Record<string, boolean>;
 

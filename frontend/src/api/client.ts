@@ -71,6 +71,10 @@ export function makeCocoonWsUrl(cocoonId: string) {
   return getApiClient().makeCocoonWsUrl(cocoonId);
 }
 
+export function makeChatGroupWsUrl(roomId: string) {
+  return getApiClient().makeChatGroupWsUrl(roomId);
+}
+
 export function unsupportedFeature(message: string): never {
   throw new Error(message);
 }

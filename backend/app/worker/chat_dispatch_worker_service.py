@@ -37,11 +37,18 @@ class ChatDispatchWorkerService:
             try:
                 self.chat_runtime.run(session=session, action=action)
             except Exception as exc:  # noqa: BLE001
+                session.rollback()
+                action = session.get(ActionDispatch, envelope.action_id)
+                if not action:
+                    self.chat_queue.ack(envelope)
+                    session.commit()
+                    return True
                 action.status = ActionStatus.failed
                 action.error_text = str(exc)
                 session.add(
                     FailedRound(
                         cocoon_id=action.cocoon_id,
+                        chat_group_id=action.chat_group_id,
                         action_id=action.id,
                         event_type=action.event_type,
                         reason=str(exc),

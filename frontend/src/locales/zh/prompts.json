@@ -1,0 +1,67 @@
+{
+  "title": "提示词模板",
+  "description": "编辑运行时使用的全局提示词栈，覆盖 meta 决策、回复生成、记忆压缩、pull、merge 和审计摘要。",
+  "noPermission": "当前账号没有管理提示词模板的权限。",
+  "backToSettings": "返回设置",
+  "saved": "提示词模板已保存",
+  "saveFailed": "保存提示词模板失败",
+  "reset": "重置",
+  "resetDone": "提示词模板已重置为默认值",
+  "resetFailed": "重置提示词模板失败",
+  "resetConfirm": "要把 {{name}} 重置为当前系统默认模板吗？",
+  "statusTitle": "提示词状态",
+  "statusDescription": "这些模板是全局生效的，会在下一轮运行时直接生效。",
+  "statusTemplates": "已注册模板",
+  "types": {
+    "system": {
+      "name": "系统模板",
+      "description": "所有运行轮次共享的身份框架、语气基调和硬约束。"
+    },
+    "meta": {
+      "name": "Meta 模板",
+      "description": "回复前的判断模板，用来决定当前轮次是否回复以及如何回复。"
+    },
+    "generator": {
+      "name": "生成模板",
+      "description": "普通对话轮次的主回复生成模板。"
+    },
+    "memory_summary": {
+      "name": "记忆摘要模板",
+      "description": "指导记忆压缩和长期摘要写入。"
+    },
+    "pull": {
+      "name": "Pull 模板",
+      "description": "指导一个 Cocoon 吸收另一侧知识时的总结方式。"
+    },
+    "merge": {
+      "name": "Merge 模板",
+      "description": "指导 merge 阶段的总结与调和输出。"
+    },
+    "audit_summary": {
+      "name": "审计摘要模板",
+      "description": "用于为已完成轮次生成审计摘要。"
+    }
+  },
+  "allowedVariables": "可用变量",
+  "activeRevision": "当前生效版本",
+  "version": "版本",
+  "checksum": "校验值",
+  "noActiveRevision": "当前还没有生效版本。",
+  "noContent": "当前没有可用的模板内容。",
+  "editTitle": "编辑 {{name}}",
+  "dialogDescription": "每次保存都会生成一条新的不可变 revision。",
+  "content": "模板内容",
+  "helperTitle": "变量助手",
+  "helperDescription": "点击变量可以把对应占位符插入到模板中。",
+  "insert": "插入",
+  "variables": {
+    "character_settings": "结构化角色数据，包含角色专属提示词摘要和相关设定。",
+    "session_state": "当前会话的动态状态，例如关系分、人格补丁和激活标签。",
+    "visible_messages": "当前轮次可见的最近对话消息。",
+    "memory_context": "检索到的长期记忆与摘要。",
+    "runtime_event": "当前运行事件载荷，例如聊天、wakeup、pull 或 merge。",
+    "wakeup_context": "当本轮由 wakeup 任务触发时附带的上下文。",
+    "merge_context": "当本轮正在处理 merge 时附带的 merge 上下文。",
+    "provider_capabilities": "当前轮次解析出的模型或 provider 能力信息。"
+  }
+}

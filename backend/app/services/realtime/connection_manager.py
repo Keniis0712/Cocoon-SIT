@@ -9,7 +9,7 @@ from fastapi import WebSocket
 
 
 class ConnectionManager:
-    """Tracks active websocket connections per cocoon inside one process."""
+    """Tracks active websocket connections per realtime channel inside one process."""
 
     def __init__(self) -> None:
         self.connections: dict[str, set[WebSocket]] = defaultdict(set)
@@ -19,24 +19,24 @@ class ConnectionManager:
         """Bind the running event loop used for cross-thread delivery."""
         self.loop = loop
 
-    async def connect(self, cocoon_id: str, websocket: WebSocket) -> None:
-        """Accept and register a websocket for the target cocoon."""
+    async def connect(self, channel_key: str, websocket: WebSocket) -> None:
+        """Accept and register a websocket for the target channel."""
         await websocket.accept()
-        self.connections[cocoon_id].add(websocket)
+        self.connections[channel_key].add(websocket)
 
-    def disconnect(self, cocoon_id: str, websocket: WebSocket) -> None:
-        """Remove a websocket from the cocoon connection registry."""
-        self.connections[cocoon_id].discard(websocket)
-        if not self.connections[cocoon_id]:
-            self.connections.pop(cocoon_id, None)
+    def disconnect(self, channel_key: str, websocket: WebSocket) -> None:
+        """Remove a websocket from the channel connection registry."""
+        self.connections[channel_key].discard(websocket)
+        if not self.connections[channel_key]:
+            self.connections.pop(channel_key, None)
 
-    async def broadcast_local(self, cocoon_id: str, event: dict) -> None:
-        """Broadcast an event to every local websocket subscribed to a cocoon."""
+    async def broadcast_local(self, channel_key: str, event: dict) -> None:
+        """Broadcast an event to every local websocket subscribed to a channel."""
         stale: list[WebSocket] = []
-        for websocket in list(self.connections.get(cocoon_id, set())):
+        for websocket in list(self.connections.get(channel_key, set())):
             try:
                 await websocket.send_json(event)
             except Exception:
                 stale.append(websocket)
         for websocket in stale:
-            self.disconnect(cocoon_id, websocket)
+            self.disconnect(channel_key, websocket)

@@ -15,7 +15,7 @@ def test_audit_run_service_creates_and_finishes_run_and_step(client, default_coc
         session.add(action)
         session.flush()
 
-        run = container.audit_service.run_service.start_run(session, default_cocoon_id, action, "chat")
+        run = container.audit_service.run_service.start_run(session, default_cocoon_id, None, action, "chat")
         step = container.audit_service.run_service.start_step(session, run, "context_builder")
         container.audit_service.run_service.finish_step(session, step, ActionStatus.completed)
         container.audit_service.run_service.finish_run(session, run, ActionStatus.completed)
@@ -33,7 +33,7 @@ def test_audit_artifact_and_link_services_record_metadata(client, default_cocoon
     container = client.app.state.container
 
     with container.session_factory() as session:
-        run = container.audit_service.start_run(session, default_cocoon_id, None, "artifact-test")
+        run = container.audit_service.start_run(session, default_cocoon_id, None, None, "artifact-test")
         step = container.audit_service.start_step(session, run, "generator")
         artifact = container.audit_service.artifact_service.record_json_artifact(
             session,
@@ -66,7 +66,7 @@ def test_audit_cleanup_service_deletes_expired_artifacts(client, default_cocoon_
     container = client.app.state.container
 
     with container.session_factory() as session:
-        run = container.audit_service.start_run(session, default_cocoon_id, None, "cleanup-test")
+        run = container.audit_service.start_run(session, default_cocoon_id, None, None, "cleanup-test")
         artifact = container.audit_service.record_json_artifact(
             session,
             run,

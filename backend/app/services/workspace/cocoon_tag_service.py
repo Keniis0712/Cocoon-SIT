@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import CocoonTagBinding, SessionState
+from app.services.workspace.targets import get_session_state
 
 
 class CocoonTagService:
@@ -24,7 +25,7 @@ class CocoonTagService:
             return existing
         binding = CocoonTagBinding(cocoon_id=cocoon_id, tag_id=tag_id)
         session.add(binding)
-        state = session.get(SessionState, cocoon_id)
+        state = get_session_state(session, cocoon_id=cocoon_id)
         if state and tag_id not in state.active_tags_json:
             state.active_tags_json = [*state.active_tags_json, tag_id]
         session.flush()
@@ -40,7 +41,7 @@ class CocoonTagService:
         )
         if not binding:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag binding not found")
-        state = session.get(SessionState, cocoon_id)
+        state = get_session_state(session, cocoon_id=cocoon_id)
         if state:
             state.active_tags_json = [item for item in state.active_tags_json if item != tag_id]
         session.delete(binding)

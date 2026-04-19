@@ -11,7 +11,7 @@ import {
   testModelProvider,
   updateModelProvider,
 } from "@/api/providers";
-import type { ModelProviderPayload, ModelProviderRead } from "@/api/types";
+import type { ModelProviderPayload, ModelProviderRead } from "@/api/types/providers";
 import AccessCard from "@/components/AccessCard";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";

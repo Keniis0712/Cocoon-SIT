@@ -147,3 +147,29 @@ def default_cocoon_id(client: TestClient, auth_headers: dict[str, str]) -> str:
     cocoons = response.json()
     assert cocoons, "Expected at least one test cocoon"
     return cocoons[0]["id"]
+
+
+@pytest.fixture
+def create_branch_cocoon(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    default_cocoon_id: str,
+):
+    def _create(name: str, *, parent_id: str | None = None) -> dict:
+        container = client.app.state.container
+        with container.session_factory() as session:
+            parent = session.get(Cocoon, parent_id or default_cocoon_id)
+            assert parent is not None
+            selected_model_id = parent.selected_model_id
+            assert selected_model_id is not None
+            payload = {
+                "name": name,
+                "character_id": parent.character_id,
+                "selected_model_id": selected_model_id,
+                "parent_id": parent.id,
+            }
+        response = client.post("/api/v1/cocoons", headers=auth_headers, json=payload)
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    return _create

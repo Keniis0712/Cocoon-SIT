@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Cocoon, Message, SessionState
+from app.services.workspace.targets import get_session_state as get_target_session_state
 
 
 def list_cocoons(session: Session) -> list[Cocoon]:
@@ -17,4 +18,4 @@ def list_messages(session: Session, cocoon_id: str) -> list[Message]:
 
 
 def get_session_state(session: Session, cocoon_id: str) -> SessionState | None:
-    return session.get(SessionState, cocoon_id)
+    return get_target_session_state(session, cocoon_id=cocoon_id)

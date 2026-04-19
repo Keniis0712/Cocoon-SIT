@@ -1,5 +1,5 @@
 import { apiCall } from "./client";
-import type { InsightsOverview, MemoryInsights, NamedMetric, RuntimeInsights, TokenUsageSeries } from "./types";
+import type { InsightsOverview, MemoryInsights, NamedMetric, RuntimeInsights, TokenUsageSeries } from "./types/insights";
 
 function toNamedMetrics(record: Record<string, number>): NamedMetric[] {
   return Object.entries(record).map(([name, value]) => ({ name, value }));

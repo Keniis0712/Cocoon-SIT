@@ -1,5 +1,5 @@
 import { apiCall } from "./client";
-import type { PromptTemplatePayload, PromptTemplateRead, PromptTemplateRevisionRead } from "./types";
+import type { PromptTemplatePayload, PromptTemplateRead, PromptTemplateRevisionRead } from "./types/prompts";
 
 function mapRevision(
   item:

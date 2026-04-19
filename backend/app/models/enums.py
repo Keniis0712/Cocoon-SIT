@@ -15,6 +15,7 @@ class DurableJobStatus(StrEnum):
     running = "running"
     completed = "completed"
     failed = "failed"
+    cancelled = "cancelled"
 
 
 class DurableJobType(StrEnum):

@@ -4,6 +4,7 @@ from redis import Redis
 
 from app.services.jobs.chat_dispatch_codec import ChatDispatchCodec
 from app.services.jobs.chat_dispatch_types import ChatDispatchEnvelope, ChatDispatchQueue
+from app.services.workspace.targets import resolve_target_type
 
 
 class RedisChatDispatchQueue(ChatDispatchQueue):
@@ -27,12 +28,22 @@ class RedisChatDispatchQueue(ChatDispatchQueue):
         except Exception:
             pass
 
-    def enqueue(self, action_id: str, cocoon_id: str, event_type: str, payload: dict) -> int:
+    def enqueue(
+        self,
+        action_id: str,
+        *,
+        event_type: str,
+        cocoon_id: str | None = None,
+        chat_group_id: str | None = None,
+        payload: dict,
+    ) -> int:
+        target_type, target_id = resolve_target_type(cocoon_id=cocoon_id, chat_group_id=chat_group_id)
         self.redis.xadd(
             self.stream_name,
             {
                 "action_id": action_id,
-                "cocoon_id": cocoon_id,
+                "target_type": target_type,
+                "target_id": target_id,
                 "event_type": event_type,
                 "payload": self.codec.encode_payload(payload),
             },
@@ -54,7 +65,8 @@ class RedisChatDispatchQueue(ChatDispatchQueue):
         return ChatDispatchEnvelope(
             stream_id=stream_id,
             action_id=payload["action_id"],
-            cocoon_id=payload["cocoon_id"],
+            target_type=payload["target_type"],
+            target_id=payload["target_id"],
             event_type=payload["event_type"],
             payload=self.codec.decode_payload(payload.get("payload")),
         )

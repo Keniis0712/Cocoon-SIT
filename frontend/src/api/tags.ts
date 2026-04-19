@@ -6,6 +6,7 @@ function mapTag(item: {
   id: string;
   tag_id: string;
   brief: string;
+  visibility?: string;
   is_isolated: boolean;
   meta_json: Record<string, unknown>;
   created_at: string;
@@ -35,6 +36,7 @@ export function createTag(payload: TagPayload) {
     const created = await client.createTag({
       tag_id: payload.name.trim(),
       brief: payload.brief || "",
+      visibility: payload.visibility_mode || "private",
       is_isolated: payload.visibility_mode !== "public",
       meta_json: {
         priority: payload.priority || 0,
@@ -50,6 +52,7 @@ export function updateTag(tagId: number, payload: Partial<TagPayload>) {
   return apiCall(async (client) => {
     const updated = await client.updateTag(resolveActualId("tag", tagId), {
       brief: payload.brief || "",
+      visibility: payload.visibility_mode || undefined,
       is_isolated: payload.visibility_mode ? payload.visibility_mode !== "public" : false,
       meta_json: {
         priority: payload.priority || 0,

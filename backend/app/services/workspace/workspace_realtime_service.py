@@ -9,6 +9,7 @@ from app.models import Cocoon
 from app.services.realtime.connection_manager import ConnectionManager
 from app.services.security.authorization_service import AuthorizationService
 from app.services.security.token_authentication_service import TokenAuthenticationService
+from app.services.workspace.targets import target_channel_key
 
 
 def _extract_bearer_token(raw_authorization: str | None) -> str | None:
@@ -47,15 +48,32 @@ class WorkspaceRealtimeService:
             )
         return token
 
-    async def connect_authenticated(self, websocket: WebSocket, cocoon_id: str, permission: str) -> None:
-        """Authenticate websocket access, ensure cocoon exists, and connect it."""
+    async def connect_authenticated(
+        self,
+        websocket: WebSocket,
+        target_id: str,
+        permission: str,
+        *,
+        target_type: str = "cocoon",
+    ) -> None:
+        """Authenticate websocket access, ensure the conversation target exists, and connect it."""
         token = self._extract_token(websocket)
         with self.session_factory() as session:
             user = self.token_authentication_service.resolve_active_websocket_user(session, token)
             self.token_authentication_service.require_user_permission(session, user, permission)
-            self.authorization_service.require_cocoon_access(session, user, cocoon_id, write=False)
-        await self.connection_manager.connect(cocoon_id, websocket)
+            if target_type == "cocoon":
+                self.authorization_service.require_cocoon_access(session, user, target_id, write=False)
+                channel_key = target_channel_key(cocoon_id=target_id)
+            else:
+                self.authorization_service.require_chat_group_access(session, user, target_id)
+                channel_key = target_channel_key(chat_group_id=target_id)
+        await self.connection_manager.connect(channel_key, websocket)
 
-    def disconnect(self, cocoon_id: str, websocket: WebSocket) -> None:
-        """Disconnect a cocoon websocket."""
-        self.connection_manager.disconnect(cocoon_id, websocket)
+    def disconnect(self, target_id: str, websocket: WebSocket, *, target_type: str = "cocoon") -> None:
+        """Disconnect a target websocket."""
+        channel_key = (
+            target_channel_key(cocoon_id=target_id)
+            if target_type == "cocoon"
+            else target_channel_key(chat_group_id=target_id)
+        )
+        self.connection_manager.disconnect(channel_key, websocket)

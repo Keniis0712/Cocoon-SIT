@@ -34,6 +34,7 @@ from app.schemas.workspace.cocoons import (
     CocoonUpdate,
     SessionStateOut,
 )
+from app.services.workspace.targets import ensure_session_state, get_session_state as load_session_state
 
 
 router = APIRouter()
@@ -134,6 +135,19 @@ def create_cocoon(
 ) -> Cocoon:
     settings = db.info["container"].system_settings_service.get_settings(db)
     db.info["container"].system_settings_service.require_model_allowed(db, payload.selected_model_id)
+    if payload.parent_id is None:
+        existing_root = db.scalar(
+            select(Cocoon).where(
+                Cocoon.owner_user_id == user.id,
+                Cocoon.character_id == payload.character_id,
+                Cocoon.parent_id.is_(None),
+            )
+        )
+        if existing_root:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A root cocoon already exists for this user and character",
+            )
     cocoon = Cocoon(
         name=payload.name,
         character_id=payload.character_id,
@@ -158,8 +172,7 @@ def create_cocoon(
     )
     db.add(cocoon)
     db.flush()
-    db.add(SessionState(cocoon_id=cocoon.id, persona_json={}, active_tags_json=[]))
-    db.flush()
+    ensure_session_state(db, cocoon_id=cocoon.id)
     return cocoon
 
 
@@ -221,14 +234,14 @@ def get_cocoon(
 
 
 @router.get("/{cocoon_id}/state", response_model=SessionStateOut)
-def get_session_state(
+def get_cocoon_session_state(
     cocoon_id: str,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     _=Depends(require_permission("cocoons:read")),
 ) -> SessionState:
     db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=False)
-    state = db.get(SessionState, cocoon_id)
+    state = load_session_state(db, cocoon_id=cocoon_id)
     if not state:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session state not found")
     return state

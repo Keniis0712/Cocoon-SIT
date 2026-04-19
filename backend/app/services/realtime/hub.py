@@ -29,10 +29,10 @@ class RealtimeHub:
         """Stop the backplane listener."""
         self.backplane.stop()
 
-    def publish(self, cocoon_id: str, event: dict) -> None:
+    def publish(self, channel_key: str, event: dict) -> None:
         """Publish an event into the configured backplane."""
-        self.backplane.publish(cocoon_id, event)
+        self.backplane.publish(channel_key, event)
 
-    def handle_backplane_event(self, cocoon_id: str, event: dict) -> None:
+    def handle_backplane_event(self, channel_key: str, event: dict) -> None:
         """Forward a backplane event into local websocket delivery."""
-        self.delivery_service.deliver(self.manager, cocoon_id, event)
+        self.delivery_service.deliver(self.manager, channel_key, event)

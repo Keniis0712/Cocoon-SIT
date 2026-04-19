@@ -1,0 +1,23 @@
+{
+  "title": "Welcome Back",
+  "description": "Sign in to enter the Cocoon-SIT workspace and continue configuring characters, models, and nested cocoon conversations.",
+  "registerTitle": "Create Account",
+  "registerDescription": "Register with an invite code and enter the Cocoon-SIT workspace right away.",
+  "submit": "Sign In",
+  "submitting": "Signing in...",
+  "registerSubmit": "Register",
+  "registerSubmitting": "Registering...",
+  "modeLogin": "Login",
+  "modeRegister": "Register",
+  "placeholderUser": "Username",
+  "placeholderPass": "Password",
+  "inviteCode": "Invite Code",
+  "error": "Sign in failed. Please check your username and password.",
+  "registerError": "Registration failed. Please verify the invite code and your input.",
+  "backendAddress": "Default backend: 127.0.0.1:8088",
+  "adminHint": "The default admin account comes from the backend .env configuration.",
+  "registerHint": "Registration requires an invite code and a password with at least 8 characters.",
+  "registerInviteHint": "Successful registration creates the invite-tree relationship and signs you in immediately.",
+  "registrationEnabled": "Self-service registration is enabled",
+  "registrationDisabled": "Self-service registration is disabled"
+}

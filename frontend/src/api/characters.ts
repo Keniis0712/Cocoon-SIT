@@ -4,14 +4,14 @@ import {
   rememberLegacyStringId,
   resolveActualId,
 } from "./id-map";
+import type { PageResp } from "./types/common";
 import type {
   CharacterAclEffectiveEntry,
   CharacterAclEntryRead,
   CharacterAclEntryWrite,
   CharacterPayload,
   CharacterRead,
-  PageResp,
-} from "./types";
+} from "./types/catalog";
 
 function makePage<T>(items: T[], page: number, pageSize: number): PageResp<T> {
   const total = items.length;

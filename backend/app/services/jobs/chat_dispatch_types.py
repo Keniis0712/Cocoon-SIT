@@ -9,7 +9,8 @@ from typing import Any
 class ChatDispatchEnvelope:
     stream_id: str
     action_id: str
-    cocoon_id: str
+    target_type: str
+    target_id: str
     event_type: str
     payload: dict[str, Any]
 
@@ -18,7 +19,15 @@ class ChatDispatchQueue(ABC):
     """Abstract queue used to hand chat actions from API to worker."""
 
     @abstractmethod
-    def enqueue(self, action_id: str, cocoon_id: str, event_type: str, payload: dict[str, Any]) -> int:
+    def enqueue(
+        self,
+        action_id: str,
+        *,
+        event_type: str,
+        cocoon_id: str | None = None,
+        chat_group_id: str | None = None,
+        payload: dict[str, Any],
+    ) -> int:
         raise NotImplementedError
 
     @abstractmethod

@@ -4,19 +4,7 @@ from app.models import Character, Cocoon, MemoryChunk, Message, SessionState
 from app.services.runtime.context.external_context_service import ExternalContextService
 from app.services.runtime.context.message_window_service import MessageWindowService
 from app.services.runtime.generation.prompt_assembly_service import PromptAssemblyService
-from app.services.runtime.meta.wakeup_command_parser import WakeupCommandParser
 from app.services.runtime.types import ContextPackage, RuntimeEvent
-
-
-def test_wakeup_command_parser_emits_delay_and_reason():
-    parser = WakeupCommandParser()
-
-    hint = parser.parse("/wakeup 15m Follow up tomorrow")
-
-    assert hint is not None
-    assert hint["delay_seconds"] == 15 * 60
-    assert hint["reason"] == "Follow up tomorrow"
-    assert hint["payload_json"]["scheduled_by"] == "meta_command"
 
 
 def test_message_window_service_filters_by_active_tags(client, default_cocoon_id):
@@ -43,17 +31,9 @@ def test_message_window_service_filters_by_active_tags(client, default_cocoon_id
         assert "Hidden" not in contents
 
 
-def test_external_context_service_builds_merge_context(client, auth_headers, default_cocoon_id):
+def test_external_context_service_builds_merge_context(client, auth_headers, default_cocoon_id, create_branch_cocoon):
     container = client.app.state.container
-    character_id = client.get("/api/v1/characters", headers=auth_headers).json()[0]["id"]
-    model_id = client.get("/api/v1/providers/models", headers=auth_headers).json()[0]["id"]
-    source = client.post(
-        "/api/v1/cocoons",
-        headers=auth_headers,
-        json={"name": "Source Context", "character_id": character_id, "selected_model_id": model_id},
-    )
-    assert source.status_code == 200, source.text
-    source_cocoon_id = source.json()["id"]
+    source_cocoon_id = create_branch_cocoon("Source Context")["id"]
 
     with container.session_factory() as session:
         state = session.get(SessionState, source_cocoon_id) or SessionState(cocoon_id=source_cocoon_id)
@@ -73,6 +53,7 @@ def test_external_context_service_builds_merge_context(client, auth_headers, def
             RuntimeEvent(
                 event_type="merge",
                 cocoon_id=default_cocoon_id,
+                chat_group_id=None,
                 action_id="action-1",
                 payload={"source_cocoon_id": source_cocoon_id},
             ),
@@ -101,10 +82,11 @@ def test_prompt_assembly_service_uses_merge_template(client, auth_headers, defau
             runtime_event=RuntimeEvent(
                 event_type="merge",
                 cocoon_id=default_cocoon_id,
+                chat_group_id=None,
                 action_id="merge-action",
                 payload={"source_cocoon_id": "source-1"},
             ),
-            cocoon=cocoon,
+            conversation=cocoon,
             character=character,
             session_state=state,
             visible_messages=visible_messages,

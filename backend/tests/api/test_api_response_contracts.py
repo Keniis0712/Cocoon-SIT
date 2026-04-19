@@ -24,6 +24,14 @@ def test_access_and_workspace_routes_return_typed_contracts(client, auth_headers
         assert {"id", "scope", "summary", "content", "tags_json", "created_at"} <= set(memory.json()[0].keys())
 
 
+def test_cocoon_state_route_returns_session_state(client, auth_headers, default_cocoon_id):
+    response = client.get(f"/api/v1/cocoons/{default_cocoon_id}/state", headers=auth_headers)
+    assert response.status_code == 200, response.text
+    assert {"id", "cocoon_id", "chat_group_id", "relation_score", "persona_json", "active_tags_json"} <= set(
+        response.json().keys()
+    )
+
+
 def test_observability_routes_return_typed_contracts(client, worker_runtime, auth_headers, default_cocoon_id):
     send = client.post(
         f"/api/v1/cocoons/{default_cocoon_id}/messages",
@@ -60,24 +68,8 @@ def test_observability_routes_return_typed_contracts(client, worker_runtime, aut
     assert {"id", "job_type", "status", "payload_json"} <= set(cleanup.json().keys())
 
 
-def test_job_enqueue_routes_return_typed_contracts(client, auth_headers, default_cocoon_id):
-    character_id = client.get("/api/v1/characters", headers=auth_headers).json()[0]["id"]
-    model_id = client.get("/api/v1/providers/models", headers=auth_headers).json()[0]["id"]
-    source = client.post(
-        "/api/v1/cocoons",
-        headers=auth_headers,
-        json={"name": "Contract Source", "character_id": character_id, "selected_model_id": model_id},
-    )
-    assert source.status_code == 200, source.text
-    source_cocoon_id = source.json()["id"]
-
-    wakeup = client.post(
-        "/api/v1/wakeup",
-        headers=auth_headers,
-        json={"cocoon_id": default_cocoon_id, "reason": "contract wakeup"},
-    )
-    assert wakeup.status_code == 200, wakeup.text
-    assert set(wakeup.json().keys()) == {"task_id", "job_id", "status"}
+def test_job_enqueue_routes_return_typed_contracts(client, auth_headers, default_cocoon_id, create_branch_cocoon):
+    source_cocoon_id = create_branch_cocoon("Contract Source")["id"]
 
     pull = client.post(
         "/api/v1/pulls",
@@ -94,3 +86,12 @@ def test_job_enqueue_routes_return_typed_contracts(client, auth_headers, default
     )
     assert merge.status_code == 200, merge.text
     assert set(merge.json().keys()) == {"job_id", "merge_job_id", "status"}
+
+
+def test_manual_wakeup_api_is_not_exposed(client, auth_headers, default_cocoon_id):
+    response = client.post(
+        "/api/v1/wakeup",
+        headers=auth_headers,
+        json={"cocoon_id": default_cocoon_id, "reason": "manual wakeup"},
+    )
+    assert response.status_code == 404, response.text

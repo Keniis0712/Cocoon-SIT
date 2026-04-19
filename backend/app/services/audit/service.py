@@ -35,10 +35,11 @@ class AuditService:
         self,
         session: Session,
         cocoon_id: str | None,
+        chat_group_id: str | None,
         action: ActionDispatch | None,
         operation_type: str,
     ) -> AuditRun:
-        return self.run_service.start_run(session, cocoon_id, action, operation_type)
+        return self.run_service.start_run(session, cocoon_id, chat_group_id, action, operation_type)
 
     def finish_run(self, session: Session, run: AuditRun, status: str) -> AuditRun:
         return self.run_service.finish_run(session, run, status)

@@ -7,6 +7,7 @@ const MainLayout = lazy(() => import("@/components/MainLayout"));
 const AuditsWorkbenchPage = lazy(() => import("@/pages/AuditsWorkbench"));
 const CharactersPage = lazy(() => import("@/pages/Characters"));
 const ChatGroupsPage = lazy(() => import("@/pages/ChatGroupsPage"));
+const ChatGroupWorkspacePage = lazy(() => import("@/pages/ChatGroupWorkspace"));
 const CocoonMemoryPage = lazy(() => import("@/pages/CocoonMemoryPage"));
 const CocoonWorkspacePage = lazy(() => import("@/pages/CocoonWorkspace"));
 const CocoonsPage = lazy(() => import("@/pages/Cocoons"));
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
       { path: "/cocoons/:cocoonId/memory", element: renderLazyPage(CocoonMemoryPage) },
       { path: "/cocoons/:cocoonId/memories", element: renderLazyPage(CocoonMemoryPage) },
       { path: "/chat-groups", element: renderLazyPage(ChatGroupsPage) },
+      { path: "/chat-groups/:roomId", element: renderLazyPage(ChatGroupWorkspacePage) },
       { path: "/tags", element: renderLazyPage(TagsPage) },
       { path: "/characters", element: renderLazyPage(CharactersPage) },
       { path: "/groups", element: renderLazyPage(GroupsPage) },

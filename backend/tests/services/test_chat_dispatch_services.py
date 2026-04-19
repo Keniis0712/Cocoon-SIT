@@ -40,11 +40,13 @@ def test_chat_dispatch_codec_round_trips_payload():
 def test_in_memory_chat_dispatch_queue_preserves_payload():
     queue = InMemoryChatDispatchQueue()
 
-    queue.enqueue("action-1", "cocoon-1", "chat", {"message_id": "msg-1"})
+    queue.enqueue("action-1", event_type="chat", cocoon_id="cocoon-1", payload={"message_id": "msg-1"})
     envelope = queue.consume_next()
 
     assert envelope is not None
     assert envelope.action_id == "action-1"
+    assert envelope.target_type == "cocoon"
+    assert envelope.target_id == "cocoon-1"
     assert envelope.payload == {"message_id": "msg-1"}
 
 
@@ -62,12 +64,19 @@ def test_redis_chat_dispatch_queue_serializes_payload(monkeypatch):
         consumer_name="worker-1",
     )
 
-    queue.enqueue("action-1", "cocoon-1", "edit", {"message_id": "msg-1", "retry": False})
+    queue.enqueue(
+        "action-1",
+        event_type="edit",
+        cocoon_id="cocoon-1",
+        payload={"message_id": "msg-1", "retry": False},
+    )
     envelope = queue.consume_next()
 
     assert fake_redis.group_created is True
     assert envelope is not None
     assert envelope.event_type == "edit"
+    assert envelope.target_type == "cocoon"
+    assert envelope.target_id == "cocoon-1"
     assert envelope.payload == {"message_id": "msg-1", "retry": False}
 
     queue.ack(envelope)

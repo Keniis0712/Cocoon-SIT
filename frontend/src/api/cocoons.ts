@@ -1,4 +1,6 @@
 import { apiCall, makeCocoonWsUrl } from "./client";
+import { createPendingUserMessage, mapWorkspaceMessage } from "./adapters/messages";
+import { mapRuntimeWsEvent } from "./adapters/runtimeWs";
 import {
   rememberLegacyId,
   rememberLegacyStringId,
@@ -7,10 +9,6 @@ import {
 import type {
   AvailableModelRead,
   CharacterRead,
-  ChatEnqueueResponse,
-  ChatMessagePage,
-  ChatRequest,
-  ChatStreamEvent,
   CocoonCompactionPayload,
   CocoonPayload,
   CocoonRead,
@@ -19,10 +17,9 @@ import type {
   DurableJobRead,
   MemoryChunkRead,
   PageResp,
-  RuntimeWsEvent,
-  StatePatchEvent,
   TagRead,
 } from "./types";
+import type { ChatEnqueueResponse, ChatMessagePage, ChatRequest, ChatStreamEvent, RuntimeWsEvent } from "./types/chat";
 
 function makePage<T>(items: T[], page: number, pageSize: number): PageResp<T> {
   const total = items.length;
@@ -224,35 +221,6 @@ function mapTreeNode(item: { id: string; name: string; parent_id: string | null;
   };
 }
 
-function mapMessage(item: {
-  id: string;
-  cocoon_id: string;
-  action_id: string | null;
-  client_request_id: string | null;
-  role: string;
-  content: string;
-  is_thought: boolean;
-  created_at: string;
-}): import("./types").MessageRead {
-  return {
-    id: rememberLegacyId("message", item.id),
-    message_uid: item.id,
-    cocoon_id: rememberLegacyId("cocoon", item.cocoon_id),
-    chat_group_id: null,
-    source_cocoon_id: null,
-    origin_cocoon_id: null,
-    role: item.role,
-    content: item.content,
-    is_thought: item.is_thought,
-    visibility_level: 0,
-    delivery_status: "done",
-    processing_status: "done",
-    reply_to_message_id: null,
-    created_at: item.created_at,
-    updated_at: item.created_at,
-  };
-}
-
 function mapMemory(item: {
   id: string;
   cocoon_id?: string;
@@ -281,36 +249,6 @@ function mapMemory(item: {
     source_message: null,
     tags: item.tags_json,
   };
-}
-
-function mapRuntimeEvent(event: any): RuntimeWsEvent {
-  if (event.type === "reply_started") {
-    if (event.user_message) {
-      return { ...event, user_message: mapMessage(event.user_message) };
-    }
-    return event as RuntimeWsEvent;
-  }
-  if (event.type === "reply_chunk") {
-    return {
-      ...event,
-      delta: typeof event.delta === "string" ? event.delta : typeof event.text === "string" ? event.text : "",
-      flush: Boolean(event.flush),
-    } as RuntimeWsEvent;
-  }
-  if (event.type === "reply_done") {
-    if (event.assistant_message) {
-      return { ...event, assistant_message: mapMessage(event.assistant_message) };
-    }
-    return event as RuntimeWsEvent;
-  }
-  if (event.type === "state_patch") {
-    return {
-      ...event,
-      current_wakeup_task_id: event.current_wakeup_task_id ?? null,
-      current_model_id: event.current_model_id ? rememberLegacyId("model", event.current_model_id) : null,
-    } satisfies StatePatchEvent;
-  }
-  return event as RuntimeWsEvent;
 }
 
 export function getCocoons(page: number, page_size: number, _scope: "mine" | "all" = "mine"): Promise<PageResp<CocoonRead>> {
@@ -407,7 +345,7 @@ export function getCocoonMessages(
 ): Promise<ChatMessagePage> {
   return apiCall(async (client) => {
     const actualCocoonId = resolveActualId("cocoon", cocoon_id);
-    const all = (await client.listMessages(actualCocoonId)).map(mapMessage);
+    const all = (await client.listMessages(actualCocoonId)).map(mapWorkspaceMessage);
     const beforeActual = before_message_id ? resolveActualId("message", before_message_id) : null;
     const beforeIndex = beforeActual ? all.findIndex((item) => item.message_uid === beforeActual) : all.length;
     const end = beforeIndex >= 0 ? beforeIndex : all.length;
@@ -463,23 +401,10 @@ export function sendCocoonMessage(cocoon_id: number, data: ChatRequest) {
       accepted: accepted.accepted,
       dispatch_status: accepted.status,
       debounce_until: epochSecondsToIso(accepted.debounce_until),
-      user_message: {
-        id: rememberLegacyId("message", `pending:${accepted.action_id}`),
-        message_uid: `pending:${accepted.action_id}`,
-        cocoon_id,
-        chat_group_id: null,
-        source_cocoon_id: null,
-        origin_cocoon_id: null,
-        role: "user",
-        content: data.content,
-        is_thought: false,
-        visibility_level: 0,
-        delivery_status: "pending",
-        processing_status: "queued",
-        reply_to_message_id: null,
-        created_at: new Date().toISOString(),
-        updated_at: null,
-      },
+      user_message: createPendingUserMessage(accepted.action_id, data.content, {
+        kind: "cocoon",
+        targetId: cocoon_id,
+      }),
     } satisfies ChatEnqueueResponse;
   });
 }
@@ -498,7 +423,11 @@ export function connectCocoonWorkspaceSocket(
     handlers.onOpen?.();
   };
   socket.onmessage = (event) => {
-    handlers.onMessage(mapRuntimeEvent(JSON.parse(String(event.data))));
+    handlers.onMessage(
+      mapRuntimeWsEvent(JSON.parse(String(event.data)), mapWorkspaceMessage, {
+        mapModelId: (modelId) => (modelId ? rememberLegacyId("model", String(modelId)) : null),
+      }),
+    );
   };
   socket.onerror = (event) => handlers.onError?.(event);
   socket.onclose = (event) => handlers.onClose?.(event);

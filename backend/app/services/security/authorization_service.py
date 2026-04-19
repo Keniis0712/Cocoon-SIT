@@ -10,6 +10,8 @@ from app.models import (
     AuditRun,
     Character,
     CharacterAcl,
+    ChatGroupMember,
+    ChatGroupRoom,
     Cocoon,
     Role,
     User,
@@ -126,11 +128,82 @@ class AuthorizationService:
         target = self.require_cocoon_access(session, user, target_cocoon_id, write=True)
         return source, target
 
+    def get_chat_group_membership(
+        self,
+        session: Session,
+        user_id: str,
+        room_id: str,
+    ) -> ChatGroupMember | None:
+        return session.scalar(
+            select(ChatGroupMember).where(
+                ChatGroupMember.room_id == room_id,
+                ChatGroupMember.user_id == user_id,
+            )
+        )
+
+    def can_read_chat_group(self, session: Session, user: User, room: ChatGroupRoom) -> bool:
+        if self.is_admin(session, user):
+            return True
+        if room.owner_user_id == user.id:
+            return True
+        return self.get_chat_group_membership(session, user.id, room.id) is not None
+
+    def can_chat_in_chat_group(self, session: Session, user: User, room: ChatGroupRoom) -> bool:
+        return self.can_read_chat_group(session, user, room)
+
+    def can_manage_chat_group(self, session: Session, user: User, room: ChatGroupRoom) -> bool:
+        if self.is_admin(session, user):
+            return True
+        if room.owner_user_id == user.id:
+            return True
+        membership = self.get_chat_group_membership(session, user.id, room.id)
+        return bool(membership and membership.member_role == "admin")
+
+    def require_chat_group_access(
+        self,
+        session: Session,
+        user: User,
+        room_id: str,
+        *,
+        write: bool = False,
+        manage: bool = False,
+        owner: bool = False,
+    ) -> ChatGroupRoom:
+        room = session.get(ChatGroupRoom, room_id)
+        if not room:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat group room not found")
+        if owner:
+            if self.is_admin(session, user) or room.owner_user_id == user.id:
+                return room
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat group owner access denied")
+        if manage:
+            if self.can_manage_chat_group(session, user, room):
+                return room
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat group management denied")
+        if write:
+            if self.can_chat_in_chat_group(session, user, room):
+                return room
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat group chat access denied")
+        if self.can_read_chat_group(session, user, room):
+            return room
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat group access denied")
+
+    def filter_visible_chat_groups(
+        self,
+        session: Session,
+        user: User,
+        rooms: list[ChatGroupRoom],
+    ) -> list[ChatGroupRoom]:
+        return [item for item in rooms if self.can_read_chat_group(session, user, item)]
+
     def can_view_audit_run(self, session: Session, user: User, run: AuditRun) -> bool:
-        if run.cocoon_id is None:
-            return self.is_admin(session, user)
-        cocoon = session.get(Cocoon, run.cocoon_id)
-        return bool(cocoon and self.can_access_cocoon(session, user, cocoon, write=False))
+        if run.cocoon_id is not None:
+            cocoon = session.get(Cocoon, run.cocoon_id)
+            return bool(cocoon and self.can_access_cocoon(session, user, cocoon, write=False))
+        if run.chat_group_id is not None:
+            room = session.get(ChatGroupRoom, run.chat_group_id)
+            return bool(room and self.can_read_chat_group(session, user, room))
+        return self.is_admin(session, user)
 
     def filter_visible_audit_runs(self, session: Session, user: User, runs: list[AuditRun]) -> list[AuditRun]:
         return [item for item in runs if self.can_view_audit_run(session, user, item)]

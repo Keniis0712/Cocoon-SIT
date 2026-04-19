@@ -6,6 +6,7 @@ import {
   Binary,
   BarChart3,
   BrainCircuit,
+  MessagesSquare,
   FileCode2,
   FileSearch,
   FolderTree,
@@ -41,6 +42,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const workspaceItems = [
     hasAnyPermission(userInfo, ["cocoons:read", "cocoons:write"])
       ? { title: t("nav.cocoons"), url: "/cocoons", icon: <BrainCircuit /> }
+      : null,
+    hasAnyPermission(userInfo, ["cocoons:read", "cocoons:write"])
+      ? { title: t("nav.chatGroups"), url: "/chat-groups", icon: <MessagesSquare /> }
       : null,
     hasAnyPermission(userInfo, ["characters:read", "characters:write"])
       ? { title: t("nav.characters"), url: "/characters", icon: <Users /> }

@@ -34,7 +34,7 @@ class CompactionJobService:
         cocoon = session.get(Cocoon, cocoon_id)
         if not cocoon:
             raise ValueError("Cocoon not found")
-        run = self.audit_service.start_run(session, cocoon_id, None, "compaction")
+        run = self.audit_service.start_run(session, cocoon_id, None, None, "compaction")
         step = self.audit_service.start_step(session, run, "compaction")
         query = (
             select(Message)
@@ -119,6 +119,8 @@ class CompactionJobService:
         summary_text = response.text
         chunk = MemoryChunk(
             cocoon_id=cocoon_id,
+            owner_user_id=cocoon.owner_user_id,
+            character_id=cocoon.character_id,
             scope="summary",
             content=summary_text,
             summary=summary_text[:200],

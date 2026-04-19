@@ -15,6 +15,7 @@ from app.api.routes.catalog import (
 )
 from app.api.routes.observability import admin_artifacts, audits, health, insights
 from app.api.routes.workspace import (
+    chat_groups,
     checkpoints,
     cocoons,
     memory,
@@ -24,7 +25,6 @@ from app.api.routes.workspace import (
     realtime,
     rollback,
     tags as workspace_tags,
-    wakeup,
 )
 
 
@@ -44,12 +44,12 @@ api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
 api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
 api_router.include_router(prompt_templates.router, prefix="/prompt-templates", tags=["prompt-templates"])
 api_router.include_router(cocoons.router, prefix="/cocoons", tags=["cocoons"])
+api_router.include_router(chat_groups.router, prefix="/chat-groups", tags=["chat-groups"])
 api_router.include_router(messages.router, prefix="/cocoons", tags=["cocoons"])
 api_router.include_router(workspace_tags.router, prefix="/cocoons", tags=["cocoons"])
 api_router.include_router(rollback.router, prefix="/cocoons", tags=["cocoons"])
 api_router.include_router(realtime.router, prefix="/cocoons", tags=["cocoons"])
 api_router.include_router(memory.router, prefix="/memory", tags=["memory"])
-api_router.include_router(wakeup.router, prefix="/wakeup", tags=["wakeup"])
 api_router.include_router(pulls.router, prefix="/pulls", tags=["pulls"])
 api_router.include_router(merges.router, prefix="/merges", tags=["merges"])
 api_router.include_router(checkpoints.router, prefix="/checkpoints", tags=["checkpoints"])

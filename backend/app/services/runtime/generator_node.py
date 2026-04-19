@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import json
+
 from sqlalchemy.orm import Session
 
 from app.services.audit.service import AuditService
+from app.services.providers.base import MockChatProvider
 from app.services.providers.registry import ProviderRegistry
 from app.services.runtime.generation.prompt_assembly_service import PromptAssemblyService
 from app.services.runtime.prompting import record_prompt_render_artifacts
+from app.services.runtime.structured_output import extract_json_object
 from app.services.runtime.types import ContextPackage, GenerationOutput
 
 
@@ -56,11 +60,16 @@ class GeneratorNode:
                 summary_prefix=segment.summary_prefix,
             )
         response = provider.generate_text(
-            prompt=assembly.combined_prompt,
+            prompt=self._build_structured_prompt(context, assembly.combined_prompt),
             messages=assembly.messages,
             model_name=model.model_name,
             provider_config=runtime_provider_config,
         )
+        parsed = extract_json_object(response.text) or {}
+        reply_text = str(parsed.get("reply_text") or "").strip()
+        if not reply_text:
+            reply_text = response.text.strip()
+            parsed = {"reply_text": reply_text}
         self.audit_service.record_json_artifact(
             session,
             audit_run,
@@ -78,9 +87,10 @@ class GeneratorNode:
         )
         return GenerationOutput(
             rendered_prompt=assembly.combined_prompt,
-            chunks=response.chunks,
-            full_text=response.text,
+            chunks=self._build_chunks(reply_text),
+            reply_text=reply_text,
             raw_response=response.raw_response,
+            structured_output=parsed,
             usage={
                 "prompt_tokens": response.usage.prompt_tokens,
                 "completion_tokens": response.usage.completion_tokens,
@@ -89,3 +99,37 @@ class GeneratorNode:
             provider_kind=provider_record.kind,
             model_name=model.model_name,
         )
+
+    def _build_structured_prompt(self, context: ContextPackage, rendered_prompt: str) -> str:
+        context_json = json.dumps(
+            {
+                "runtime_event": {
+                    "event_type": context.runtime_event.event_type,
+                    "target_type": context.runtime_event.target_type,
+                    "target_id": context.runtime_event.target_id,
+                    **context.runtime_event.payload,
+                },
+                "wakeup_context": context.external_context.get("wakeup_context"),
+                "pending_wakeups": context.external_context.get("pending_wakeups", []),
+                "now_utc": context.external_context.get("now_utc"),
+            },
+            ensure_ascii=False,
+            default=str,
+        )
+        return (
+            f"{MockChatProvider.GENERATOR_MARKER}\n"
+            "Return a strict JSON object with key reply_text.\n"
+            "If this is an idle wakeup, you may proactively message the user, mention that the conversation became quiet, "
+            "and use the provided time/reason context naturally.\n"
+            "CONTEXT_JSON_START\n"
+            f"{context_json}\n"
+            "CONTEXT_JSON_END\n"
+            "PROMPT_TEXT_START\n"
+            f"{rendered_prompt}\n"
+            "PROMPT_TEXT_END"
+        )
+
+    def _build_chunks(self, reply_text: str) -> list[str]:
+        if not reply_text:
+            return []
+        return [token + " " for token in reply_text.split(" ") if token]

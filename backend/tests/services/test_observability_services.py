@@ -11,7 +11,7 @@ def test_audit_query_service_returns_typed_run_views(client, default_cocoon_id):
         action = ActionDispatch(cocoon_id=default_cocoon_id, event_type="chat", payload_json={})
         session.add(action)
         session.flush()
-        run = container.audit_service.start_run(session, default_cocoon_id, action, "chat")
+        run = container.audit_service.start_run(session, default_cocoon_id, None, action, "chat")
         step = container.audit_service.start_step(session, run, "generator")
         artifact = container.audit_service.record_json_artifact(
             session,
@@ -47,7 +47,7 @@ def test_artifact_admin_service_lists_and_cleans_artifacts(client, default_cocoo
     container = client.app.state.container
 
     with container.session_factory() as session:
-        run = container.audit_service.start_run(session, default_cocoon_id, None, "artifact-admin")
+        run = container.audit_service.start_run(session, default_cocoon_id, None, None, "artifact-admin")
         artifact = container.audit_service.record_json_artifact(
             session,
             run,

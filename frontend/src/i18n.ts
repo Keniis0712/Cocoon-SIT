@@ -3,7 +3,29 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
 const supportedLanguages = ["zh", "en"] as const;
+const namespaces = [
+  "common",
+  "nav",
+  "login",
+  "me",
+  "users",
+  "characters",
+  "groups",
+  "invites",
+  "merges",
+  "settings",
+  "tags",
+  "prompts",
+  "cocoons",
+  "workspace",
+  "audits",
+  "insights",
+  "chatGroups",
+] as const;
 type SupportedLanguage = (typeof supportedLanguages)[number];
+type Namespace = (typeof namespaces)[number];
+
+const localeModules = import.meta.glob("./locales/*/*.json");
 
 function normalizeLanguage(language: string | readonly string[] | undefined | null): SupportedLanguage {
   const value = Array.isArray(language) ? language[0] : language;
@@ -13,18 +35,36 @@ function normalizeLanguage(language: string | readonly string[] | undefined | nu
   return value.toLowerCase().startsWith("en") ? "en" : "zh";
 }
 
-async function loadTranslations(language: SupportedLanguage) {
-  if (language === "en") {
-    return (await import("./locales/en.json")).default;
+async function loadNamespace(language: SupportedLanguage, namespace: Namespace) {
+  const key = `./locales/${language}/${namespace}.json`;
+  const loader = localeModules[key];
+  if (!loader) {
+    throw new Error(`Missing locale namespace: ${key}`);
   }
-  return (await import("./locales/zh.json")).default;
+  const module = await loader();
+  return (module as { default: Record<string, unknown> }).default;
+}
+
+async function loadTranslations(language: SupportedLanguage) {
+  const entries = await Promise.all(
+    namespaces.map(async (namespace) => [namespace, await loadNamespace(language, namespace)] as const),
+  );
+  const resources = Object.fromEntries(entries) as Record<Namespace, Record<string, unknown>>;
+  const translation = Object.fromEntries(entries) as Record<string, Record<string, unknown>>;
+  return {
+    ...resources,
+    translation,
+  };
 }
 
 export async function ensureLanguageResources(language: string) {
   const normalized = normalizeLanguage(language);
   if (!i18n.hasResourceBundle(normalized, "translation")) {
-    const messages = await loadTranslations(normalized);
-    i18n.addResourceBundle(normalized, "translation", messages, true, true);
+    const bundles = await loadTranslations(normalized);
+    for (const namespace of namespaces) {
+      i18n.addResourceBundle(normalized, namespace, bundles[namespace], true, true);
+    }
+    i18n.addResourceBundle(normalized, "translation", bundles.translation, true, true);
   }
   return normalized;
 }
@@ -50,10 +90,10 @@ export async function initializeI18n() {
     .init({
       lng: initialLanguage,
       resources: {
-        [initialLanguage]: {
-          translation: initialMessages,
-        },
+        [initialLanguage]: initialMessages,
       },
+      ns: ["translation", ...namespaces],
+      defaultNS: "translation",
       supportedLngs: [...supportedLanguages],
       fallbackLng: "zh",
       interpolation: {

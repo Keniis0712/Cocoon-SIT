@@ -12,7 +12,7 @@
 - `docs/prompt-variables.md`
 - `docs/ws-events.md`
 - `current-architecture.md`
-- `frontend-architecture.md`
+- `docs/frontend/README.md`
 
 这里只记录两类内容：
 
@@ -55,7 +55,7 @@
 
 | ID | 文档说法 | 实际状态 | 结论 |
 | --- | --- | --- | --- |
-| D1 | `frontend-architecture.md` 仍把旧页面结构写成当前实现 | 当前前端目录、路由与组件职责已明显调整 | 文档过期 |
+| D1 | 旧前端架构文档仍把旧页面结构写成当前实现 | 当前前端目录、路由与组件职责已明显调整，文档已开始迁入 `docs/frontend/` | 迁移中 |
 | D2 | 若干架构文档仍以旧 runtime / audit / memory 模块命名为准 | 代码已收敛到新 runtime / audit / memory 路径 | 文档过期 |
 | D3 | 若干文档仍默认前端暴露更多旧版运维动作 | 前端现已收口到真实后端能力 | 文档过期 |
 

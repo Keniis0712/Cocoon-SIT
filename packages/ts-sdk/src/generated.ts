@@ -764,8 +764,133 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Session State */
-        get: operations["get_session_state_api_v1_cocoons__cocoon_id__state_get"];
+        /** Get Cocoon Session State */
+        get: operations["get_cocoon_session_state_api_v1_cocoons__cocoon_id__state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Chat Groups */
+        get: operations["list_chat_groups_api_v1_chat_groups_get"];
+        put?: never;
+        /** Create Chat Group */
+        post: operations["create_chat_group_api_v1_chat_groups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat-groups/{room_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chat Group */
+        get: operations["get_chat_group_api_v1_chat_groups__room_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Chat Group */
+        delete: operations["delete_chat_group_api_v1_chat_groups__room_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Chat Group */
+        patch: operations["update_chat_group_api_v1_chat_groups__room_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/chat-groups/{room_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Chat Group Members */
+        get: operations["list_chat_group_members_api_v1_chat_groups__room_id__members_get"];
+        put?: never;
+        /** Add Chat Group Member */
+        post: operations["add_chat_group_member_api_v1_chat_groups__room_id__members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat-groups/{room_id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Chat Group Member */
+        delete: operations["remove_chat_group_member_api_v1_chat_groups__room_id__members__user_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Chat Group Member */
+        patch: operations["update_chat_group_member_api_v1_chat_groups__room_id__members__user_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/chat-groups/{room_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Chat Group Messages */
+        get: operations["list_chat_group_messages_api_v1_chat_groups__room_id__messages_get"];
+        put?: never;
+        /** Send Chat Group Message */
+        post: operations["send_chat_group_message_api_v1_chat_groups__room_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat-groups/{room_id}/messages/{message_id}/retract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retract Chat Group Message */
+        post: operations["retract_chat_group_message_api_v1_chat_groups__room_id__messages__message_id__retract_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat-groups/{room_id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chat Group State */
+        get: operations["get_chat_group_state_api_v1_chat_groups__room_id__state_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -924,24 +1049,6 @@ export interface paths {
         post?: never;
         /** Delete Memory */
         delete: operations["delete_memory_api_v1_memory__cocoon_id___memory_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/wakeup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Wakeup Tasks */
-        get: operations["list_wakeup_tasks_api_v1_wakeup_get"];
-        put?: never;
-        /** Enqueue Wakeup */
-        post: operations["enqueue_wakeup_api_v1_wakeup_post"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1215,6 +1322,8 @@ export interface components {
             id: string;
             /** Cocoon Id */
             cocoon_id: string | null;
+            /** Chat Group Id */
+            chat_group_id?: string | null;
             /** Action Id */
             action_id: string | null;
             /** Operation Type */
@@ -1387,6 +1496,130 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** ChatGroupMemberCreate */
+        ChatGroupMemberCreate: {
+            /** User Id */
+            user_id: string;
+            /**
+             * Member Role
+             * @default member
+             */
+            member_role: string;
+        };
+        /** ChatGroupMemberOut */
+        ChatGroupMemberOut: {
+            /** Id */
+            id: string;
+            /** Room Id */
+            room_id: string;
+            /** User Id */
+            user_id: string;
+            /** Member Role */
+            member_role: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ChatGroupMemberUpdate */
+        ChatGroupMemberUpdate: {
+            /** Member Role */
+            member_role: string;
+        };
+        /** ChatGroupRoomCreate */
+        ChatGroupRoomCreate: {
+            /** Name */
+            name: string;
+            /** Character Id */
+            character_id: string;
+            /** Selected Model Id */
+            selected_model_id: string;
+            /** Default Temperature */
+            default_temperature?: number | null;
+            /** Max Context Messages */
+            max_context_messages?: number | null;
+            /** Auto Compaction Enabled */
+            auto_compaction_enabled?: boolean | null;
+            /** External Platform */
+            external_platform?: string | null;
+            /** External Group Id */
+            external_group_id?: string | null;
+            /** External Account Id */
+            external_account_id?: string | null;
+            /** Initial Member Ids */
+            initial_member_ids?: string[];
+        };
+        /** ChatGroupRoomOut */
+        ChatGroupRoomOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Owner User Id */
+            owner_user_id: string;
+            /** Character Id */
+            character_id: string;
+            /** Selected Model Id */
+            selected_model_id: string;
+            /** Default Temperature */
+            default_temperature: number;
+            /** Max Context Messages */
+            max_context_messages: number;
+            /** Auto Compaction Enabled */
+            auto_compaction_enabled: boolean;
+            /** External Platform */
+            external_platform: string | null;
+            /** External Group Id */
+            external_group_id: string | null;
+            /** External Account Id */
+            external_account_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ChatGroupRoomUpdate */
+        ChatGroupRoomUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Character Id */
+            character_id?: string | null;
+            /** Selected Model Id */
+            selected_model_id?: string | null;
+            /** Default Temperature */
+            default_temperature?: number | null;
+            /** Max Context Messages */
+            max_context_messages?: number | null;
+            /** Auto Compaction Enabled */
+            auto_compaction_enabled?: boolean | null;
+            /** External Platform */
+            external_platform?: string | null;
+            /** External Group Id */
+            external_group_id?: string | null;
+            /** External Account Id */
+            external_account_id?: string | null;
+        };
+        /** ChatGroupStateOut */
+        ChatGroupStateOut: {
+            /** Id */
+            id: string;
+            /** Cocoon Id */
+            cocoon_id?: string | null;
+            /** Chat Group Id */
+            chat_group_id: string;
+            /** Relation Score */
+            relation_score: number;
+            /** Persona Json */
+            persona_json: {
+                [key: string]: unknown;
+            };
+            /** Active Tags Json */
+            active_tags_json: string[];
+            /** Current Wakeup Task Id */
+            current_wakeup_task_id: string | null;
+        };
         /** ChatMessageCreate */
         ChatMessageCreate: {
             /** Content */
@@ -1401,17 +1634,29 @@ export interface components {
             /** Id */
             id: string;
             /** Cocoon Id */
-            cocoon_id: string;
+            cocoon_id: string | null;
+            /** Chat Group Id */
+            chat_group_id?: string | null;
             /** Action Id */
             action_id: string | null;
             /** Client Request Id */
             client_request_id: string | null;
+            /** Sender User Id */
+            sender_user_id?: string | null;
             /** Role */
             role: string;
             /** Content */
             content: string;
             /** Is Thought */
             is_thought: boolean;
+            /** Is Retracted */
+            is_retracted: boolean;
+            /** Retracted At */
+            retracted_at?: string | null;
+            /** Retracted By User Id */
+            retracted_by_user_id?: string | null;
+            /** Retraction Note */
+            retraction_note?: string | null;
             /** Tags Json */
             tags_json: string[];
             /**
@@ -1546,6 +1791,8 @@ export interface components {
             id: string;
             /** Cocoon Id */
             cocoon_id: string | null;
+            /** Chat Group Id */
+            chat_group_id?: string | null;
             /** Job Type */
             job_type: string;
             /** Status */
@@ -1961,6 +2208,19 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** MessageRetractResult */
+        MessageRetractResult: {
+            /** Message Id */
+            message_id: string;
+            /** Is Retracted */
+            is_retracted: boolean;
+            /** Retracted At */
+            retracted_at: string | null;
+            /** Retracted By User Id */
+            retracted_by_user_id: string | null;
+            /** Retraction Note */
+            retraction_note: string | null;
+        };
         /** ModelProviderCreate */
         ModelProviderCreate: {
             /** Name */
@@ -2289,8 +2549,12 @@ export interface components {
         };
         /** SessionStateOut */
         SessionStateOut: {
+            /** Id */
+            id: string;
             /** Cocoon Id */
             cocoon_id: string;
+            /** Chat Group Id */
+            chat_group_id?: string | null;
             /** Relation Score */
             relation_score: number;
             /** Persona Json */
@@ -2363,6 +2627,11 @@ export interface components {
             /** Brief */
             brief: string;
             /**
+             * Visibility
+             * @default private
+             */
+            visibility: string;
+            /**
              * Is Isolated
              * @default false
              */
@@ -2380,6 +2649,8 @@ export interface components {
             tag_id: string;
             /** Brief */
             brief: string;
+            /** Visibility */
+            visibility: string;
             /** Is Isolated */
             is_isolated: boolean;
             /** Meta Json */
@@ -2396,6 +2667,8 @@ export interface components {
         TagUpdate: {
             /** Brief */
             brief?: string | null;
+            /** Visibility */
+            visibility?: string | null;
             /** Is Isolated */
             is_isolated?: boolean | null;
             /** Meta Json */
@@ -2481,49 +2754,6 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
-        };
-        /** WakeupEnqueueResult */
-        WakeupEnqueueResult: {
-            /** Task Id */
-            task_id: string;
-            /** Job Id */
-            job_id: string;
-            /** Status */
-            status: string;
-        };
-        /** WakeupRequest */
-        WakeupRequest: {
-            /** Cocoon Id */
-            cocoon_id: string;
-            /** Reason */
-            reason?: string | null;
-            /** Run At */
-            run_at?: string | null;
-        };
-        /** WakeupTaskOut */
-        WakeupTaskOut: {
-            /** Id */
-            id: string;
-            /** Cocoon Id */
-            cocoon_id: string;
-            /**
-             * Run At
-             * Format: date-time
-             */
-            run_at: string;
-            /** Reason */
-            reason: string | null;
-            /** Payload Json */
-            payload_json: {
-                [key: string]: unknown;
-            };
-            /** Status */
-            status: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
         };
         /** WorkflowMetrics */
         WorkflowMetrics: {
@@ -4487,7 +4717,7 @@ export interface operations {
             };
         };
     };
-    get_session_state_api_v1_cocoons__cocoon_id__state_get: {
+    get_cocoon_session_state_api_v1_cocoons__cocoon_id__state_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -4505,6 +4735,419 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionStateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_chat_groups_api_v1_chat_groups_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatGroupRoomOut"][];
+                };
+            };
+        };
+    };
+    create_chat_group_api_v1_chat_groups_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatGroupRoomCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatGroupRoomOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chat_group_api_v1_chat_groups__room_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatGroupRoomOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_chat_group_api_v1_chat_groups__room_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatGroupRoomOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_chat_group_api_v1_chat_groups__room_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatGroupRoomUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatGroupRoomOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_chat_group_members_api_v1_chat_groups__room_id__members_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatGroupMemberOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_chat_group_member_api_v1_chat_groups__room_id__members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatGroupMemberCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatGroupMemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_chat_group_member_api_v1_chat_groups__room_id__members__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatGroupMemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_chat_group_member_api_v1_chat_groups__room_id__members__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatGroupMemberUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatGroupMemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_chat_group_messages_api_v1_chat_groups__room_id__messages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatMessageOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_chat_group_message_api_v1_chat_groups__room_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatMessageCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retract_chat_group_message_api_v1_chat_groups__room_id__messages__message_id__retract_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageRetractResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chat_group_state_api_v1_chat_groups__room_id__state_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatGroupStateOut"];
                 };
             };
             /** @description Validation Error */
@@ -4872,59 +5515,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemoryChunkOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_wakeup_tasks_api_v1_wakeup_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WakeupTaskOut"][];
-                };
-            };
-        };
-    };
-    enqueue_wakeup_api_v1_wakeup_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WakeupRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WakeupEnqueueResult"];
                 };
             };
             /** @description Validation Error */

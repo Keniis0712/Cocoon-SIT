@@ -69,10 +69,11 @@ class SideEffects:
             role = "system"
             memory_scope = "merge"
         message = Message(
-            cocoon_id=context.cocoon.id,
+            cocoon_id=context.runtime_event.cocoon_id,
+            chat_group_id=context.runtime_event.chat_group_id,
             action_id=action.id,
             role=role,
-            content=generation.full_text,
+            content=generation.reply_text,
             tags_json=context.session_state.active_tags_json,
         )
         session.add(message)
@@ -80,13 +81,21 @@ class SideEffects:
         for tag in context.session_state.active_tags_json:
             session.add(MessageTag(message_id=message.id, tag_id=tag))
         memory = MemoryChunk(
-            cocoon_id=context.cocoon.id,
+            cocoon_id=context.runtime_event.cocoon_id,
+            chat_group_id=context.runtime_event.chat_group_id,
+            owner_user_id=context.memory_owner_user_id,
+            character_id=context.character.id,
             source_message_id=message.id,
             scope=memory_scope,
-            content=generation.full_text,
-            summary=generation.full_text[:200],
+            content=generation.reply_text,
+            summary=generation.reply_text[:200],
             tags_json=context.session_state.active_tags_json,
-            meta_json={"action_id": action.id, "event_type": event_type},
+            meta_json={
+                "action_id": action.id,
+                "event_type": event_type,
+                "target_type": context.target_type,
+                "target_id": context.target_id,
+            },
         )
         session.add(memory)
         session.flush()
@@ -96,7 +105,12 @@ class SideEffects:
             session,
             memory,
             source_text=memory.summary or memory.content,
-            meta_json={"action_id": action.id, "event_type": event_type},
+            meta_json={
+                "action_id": action.id,
+                "event_type": event_type,
+                "target_type": context.target_type,
+                "target_id": context.target_id,
+            },
         )
         session.flush()
         return message, memory
@@ -116,6 +130,8 @@ class SideEffects:
         snapshot = self.build_state_snapshot(state) | {
             "action_id": action.id,
             "event_type": action.event_type,
+            "target_type": "chat_group" if action.chat_group_id else "cocoon",
+            "target_id": action.chat_group_id or action.cocoon_id,
             "final_message_id": message.id if message else None,
             "memory_chunk_id": memory.id if memory else None,
             "scheduler_result": scheduler_result or {},

@@ -3,7 +3,7 @@ import { Activity, BrainCircuit, Database, TimerReset } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { getInsightsOverview, getMemoryInsights, getRuntimeInsights, getTokenUsage } from "@/api/insights";
-import type { InsightsOverview, MemoryInsights, NamedMetric, RuntimeInsights, TokenUsageSeries } from "@/api/types";
+import type { InsightsOverview, MemoryInsights, NamedMetric, RuntimeInsights, TokenUsageSeries } from "@/api/types/insights";
 import AccessCard from "@/components/AccessCard";
 import EChart from "@/components/charts/EChart";
 import PageFrame from "@/components/PageFrame";

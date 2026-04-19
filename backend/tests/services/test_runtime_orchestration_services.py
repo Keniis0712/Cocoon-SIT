@@ -25,10 +25,11 @@ def _build_context(session, cocoon_id: str) -> ContextPackage:
         runtime_event=RuntimeEvent(
             event_type="message",
             cocoon_id=cocoon_id,
+            chat_group_id=None,
             action_id="runtime-action-1",
             payload={},
         ),
-        cocoon=cocoon,
+        conversation=cocoon,
         character=character,
         session_state=state,
         visible_messages=[],
@@ -82,7 +83,8 @@ def test_state_patch_service_updates_session_state_and_broadcasts(client, defaul
             persona_patch={"tone": "warm"},
             tag_ops=["+focus"],
             internal_thought="",
-            next_wakeup_hint=None,
+            next_wakeup_hints=[],
+            cancel_wakeup_task_ids=[],
         )
 
         updated_state = service.apply_and_publish(
@@ -98,10 +100,12 @@ def test_state_patch_service_updates_session_state_and_broadcasts(client, defaul
         assert updated_state.active_tags_json == ["focus"]
         assert hub.events == [
             (
-                default_cocoon_id,
+                f"cocoon:{default_cocoon_id}",
                 {
                     "type": "state_patch",
                     "action_id": "action-123",
+                    "cocoon_id": default_cocoon_id,
+                    "chat_group_id": None,
                     "relation_score": 3,
                     "persona_json": {"tone": "warm"},
                     "active_tags": ["focus"],
@@ -131,6 +135,7 @@ def test_reply_delivery_service_persists_reply_and_records_artifact(client, defa
         audit_run = container.audit_service.start_run(
             session=session,
             cocoon_id=default_cocoon_id,
+            chat_group_id=None,
             action=action,
             operation_type="message",
         )
@@ -145,8 +150,9 @@ def test_reply_delivery_service_persists_reply_and_records_artifact(client, defa
             GenerationOutput(
                 rendered_prompt="prompt",
                 chunks=["hello", " world"],
-                full_text="hello world",
+                reply_text="hello world",
                 raw_response={"ok": True},
+                structured_output={"reply_text": "hello world"},
                 usage={"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
                 provider_kind="mock",
                 model_name="mock-model",
