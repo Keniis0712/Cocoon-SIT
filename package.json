@@ -4,12 +4,17 @@
   "version": "0.1.0",
   "packageManager": "pnpm@10.8.0",
   "scripts": {
-    "backend:test": "backend\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider backend\\tests",
+    "backend:test": "python -m pytest -p no:cacheprovider backend/tests",
+    "backend:test:api": "python -m pytest -p no:cacheprovider backend/tests/api",
+    "backend:test:integration": "python -m pytest -p no:cacheprovider backend/tests/integration",
+    "backend:test:unit": "python -m pytest -p no:cacheprovider backend/tests/unit",
+    "backend:test:unit:cov": "python -m pytest -p no:cacheprovider --cov=backend/app --cov-report=term-missing backend/tests/unit",
+    "backend:test:cov": "python -m pytest -p no:cacheprovider --cov=backend/app --cov-report=term-missing backend/tests",
     "frontend:dev": "corepack pnpm --dir frontend dev",
     "frontend:build": "corepack pnpm --dir frontend build",
     "sdk:generate": "corepack pnpm --dir packages/ts-sdk generate",
     "sdk:typecheck": "corepack pnpm --dir packages/ts-sdk typecheck",
-    "sdk:sync": "cd backend && .\\.venv\\Scripts\\python.exe -m app.main --dump-openapi && cd .. && corepack pnpm --dir packages/ts-sdk generate",
+    "sdk:sync": "python -c \"import subprocess, sys; subprocess.check_call([sys.executable, '-m', 'app.main', '--dump-openapi'], cwd='backend'); subprocess.check_call(['corepack', 'pnpm', '--dir', 'packages/ts-sdk', 'generate'])\"",
     "sdk:verify": "corepack pnpm run sdk:typecheck && corepack pnpm run backend:test",
     "lint": "corepack pnpm --dir frontend lint"
   }

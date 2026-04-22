@@ -1,0 +1,112 @@
+import io
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy import select
+
+from app.models import InviteCode, InviteQuotaGrant, Role, User, UserGroup
+
+
+def test_auth_refresh_me_and_missing_bearer(client):
+    login = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin"})
+    assert login.status_code == 200, login.text
+    refresh_token = login.json()["refresh_token"]
+    access_token = login.json()["access_token"]
+
+    refresh = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    assert refresh.status_code == 200, refresh.text
+    assert refresh.json()["refresh_token"] != refresh_token
+
+    me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"})
+    assert me.status_code == 200, me.text
+    assert me.json()["username"] == "admin"
+
+    missing = client.get("/api/v1/auth/me")
+    assert missing.status_code == 401, missing.text
+    assert missing.json()["detail"] == "Missing bearer token"
+
+
+def test_invites_api_crud_and_summary_routes(client, auth_headers):
+    container = client.app.state.container
+    with container.session_factory() as session:
+        role = Role(name="invite-role", permissions_json={"users:read": True})
+        session.add(role)
+        session.flush()
+        user = User(
+            username="invite-api-user",
+            email="invite-api-user@example.com",
+            password_hash="hash",
+            role_id=role.id,
+        )
+        group = UserGroup(name="invite-api-group", owner_user_id=user.id)
+        session.add_all([user, group])
+        session.commit()
+        user_id = user.id
+        group_id = group.id
+
+    invite = client.post(
+        "/api/v1/invites",
+        headers=auth_headers,
+        json={
+            "code": "APIINV1",
+            "quota_total": 3,
+            "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
+        },
+    )
+    assert invite.status_code == 200, invite.text
+
+    invites = client.get("/api/v1/invites", headers=auth_headers)
+    assert invites.status_code == 200, invites.text
+    assert any(item["code"] == "APIINV1" for item in invites.json())
+
+    grant = client.post(
+        "/api/v1/invites/grants",
+        headers=auth_headers,
+        json={"target_type": "USER", "target_id": user_id, "amount": 2, "is_unlimited": False, "note": "api"},
+    )
+    assert grant.status_code == 200, grant.text
+
+    group_grant = client.post(
+        "/api/v1/invites/grants",
+        headers=auth_headers,
+        json={"target_type": "GROUP", "target_id": group_id, "amount": 5, "is_unlimited": False},
+    )
+    assert group_grant.status_code == 200, group_grant.text
+
+    grants = client.get("/api/v1/invites/grants", headers=auth_headers)
+    assert grants.status_code == 200, grants.text
+    assert any(item["target_id"] == user_id for item in grants.json())
+
+    my_summary = client.get("/api/v1/invites/summary/me", headers=auth_headers)
+    assert my_summary.status_code == 200, my_summary.text
+    assert my_summary.json()["target_type"] == "USER"
+
+    group_summary = client.get(f"/api/v1/invites/summary/groups/{group_id}", headers=auth_headers)
+    assert group_summary.status_code == 200, group_summary.text
+    assert group_summary.json()["target_id"] == group_id
+
+    redeem = client.post(
+        "/api/v1/invites/APIINV1/redeem",
+        headers=auth_headers,
+        json={"user_id": user_id, "quota": 1},
+    )
+    assert redeem.status_code == 200, redeem.text
+    assert redeem.json()["quota_used"] == 1
+
+    used_revoke = client.delete("/api/v1/invites/APIINV1", headers=auth_headers)
+    assert used_revoke.status_code == 400, used_revoke.text
+    assert used_revoke.json()["detail"] == "Used invites cannot be revoked"
+
+    unused_invite = client.post(
+        "/api/v1/invites",
+        headers=auth_headers,
+        json={"code": "APIINV2", "quota_total": 1},
+    )
+    assert unused_invite.status_code == 200, unused_invite.text
+
+    revoke = client.delete("/api/v1/invites/APIINV2", headers=auth_headers)
+    assert revoke.status_code == 200, revoke.text
+    assert revoke.json()["code"] == "APIINV2"
+
+    with container.session_factory() as session:
+        assert session.scalar(select(InviteCode).where(InviteCode.code == "APIINV1")) is not None
+        assert session.scalar(select(InviteQuotaGrant).where(InviteQuotaGrant.target_id == user_id)) is not None

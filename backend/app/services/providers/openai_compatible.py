@@ -80,12 +80,9 @@ class OpenAICompatibleProvider(ChatProvider, EmbeddingProvider):
         model_name: str,
         provider_config: dict[str, Any],
         *,
-        schema: dict[str, Any],
-        schema_model: type[BaseModel] | None = None,
+        schema_model: type[BaseModel],
         output_name: str,
     ) -> ProviderStructuredResponse:
-        if schema_model is None:
-            raise ValueError("schema_model is required for native structured output")
         result = invoke_with_structured_output(
             prompt=prompt,
             messages=messages,

@@ -76,7 +76,6 @@ class MetaNode:
             messages=[self._provider_message_payload(message, context) for message in context.visible_messages],
             model_name=model.model_name,
             provider_config=runtime_provider_config,
-            schema=MetaStructuredOutputModel.model_json_schema(),
             schema_model=MetaStructuredOutputModel,
             output_name="cocoon_meta_output",
         )
