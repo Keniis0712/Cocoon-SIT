@@ -8,8 +8,12 @@ from sqlalchemy.orm import Session
 
 from app.services.audit.service import AuditService
 from app.services.prompts.service import PromptTemplateService
-from app.services.runtime.prompting import build_runtime_prompt_variables, record_prompt_render_artifacts
-from app.services.runtime.structured_models import MetaStructuredOutputModel
+from app.services.runtime.prompting import (
+    build_provider_message_payload,
+    build_runtime_prompt_variables,
+    record_prompt_render_artifacts,
+)
+from app.services.runtime.structured_models import MetaStructuredOutputModel, ScheduledWakeupModel
 from app.services.runtime.types import ContextPackage, MemoryCandidate, MetaDecision, TagOperation, TagReference
 from app.services.providers.registry import ProviderRegistry
 
@@ -38,16 +42,12 @@ class MetaNode:
             session,
             context.cocoon.selected_model_id,
         )
-        provider_capabilities = provider_record.capabilities_json | {
-            "provider_kind": provider_record.kind,
-            "model_name": model.model_name,
-        }
         template, revision, snapshot, rendered_prompt = self.prompt_service.render(
             session=session,
             template_type="meta",
             variables=build_runtime_prompt_variables(
                 context,
-                provider_capabilities=provider_capabilities,
+                provider_capabilities=provider_record.capabilities_json,
             ),
         )
         record_prompt_render_artifacts(
@@ -73,7 +73,7 @@ class MetaNode:
         provider_prompt = self._build_structured_prompt(context, rendered_prompt, snapshot)
         response = provider.generate_structured(
             prompt=provider_prompt,
-            messages=[self._provider_message_payload(message, context) for message in context.visible_messages],
+            messages=[build_provider_message_payload(message, context) for message in context.visible_messages],
             model_name=model.model_name,
             provider_config=runtime_provider_config,
             schema_model=MetaStructuredOutputModel,
@@ -112,7 +112,7 @@ class MetaNode:
                 if item.tag.strip()
             ],
             internal_thought=internal_thought,
-            next_wakeup_hints=[item for item in parsed.schedule_wakeups if isinstance(item, dict)],
+            next_wakeup_hints=self._normalize_wakeup_hints(parsed.schedule_wakeups),
             cancel_wakeup_task_ids=[str(item) for item in parsed.cancel_wakeup_task_ids if str(item).strip()],
             generation_brief=parsed.generation_brief,
             memory_candidates=[
@@ -129,6 +129,22 @@ class MetaNode:
             ],
         )
 
+    def _normalize_wakeup_hints(
+        self,
+        items: list[ScheduledWakeupModel | dict[str, object]],
+    ) -> list[dict[str, object]]:
+        normalized: list[dict[str, object]] = []
+        for item in items:
+            if isinstance(item, ScheduledWakeupModel):
+                normalized.append(item.model_dump(exclude_none=True))
+                continue
+            try:
+                parsed = ScheduledWakeupModel.model_validate(item)
+            except Exception:
+                continue
+            normalized.append(parsed.model_dump(exclude_none=True))
+        return normalized
+
     def _build_structured_prompt(
         self,
         context: ContextPackage,
@@ -137,15 +153,10 @@ class MetaNode:
     ) -> str:
         context_json = json.dumps(
             {
-                "runtime_event": {
-                    "event_type": context.runtime_event.event_type,
-                    "target_type": context.runtime_event.target_type,
-                    "target_id": context.runtime_event.target_id,
-                    **context.runtime_event.payload,
-                },
+                "runtime_event": snapshot.get("runtime_event"),
                 "session_state": snapshot.get("session_state"),
-                "pending_wakeups": context.external_context.get("pending_wakeups", []),
-                "wakeup_context": context.external_context.get("wakeup_context"),
+                "pending_wakeups": snapshot.get("pending_wakeups", []),
+                "wakeup_context": snapshot.get("wakeup_context"),
                 "now_utc": context.external_context.get("now_utc"),
             },
             ensure_ascii=False,
@@ -165,14 +176,6 @@ class MetaNode:
             f"{rendered_prompt}\n"
             "PROMPT_TEXT_END"
         )
-
-    def _provider_message_payload(self, message, context: ContextPackage) -> dict[str, str]:
-        content = message.content
-        if context.target_type == "chat_group" and message.role == "user" and message.sender_user_id:
-            content = f"[sender:{message.sender_user_id}] {content}"
-        if message.is_retracted:
-            content = f"{content}\n\n[system note: this message was later retracted]"
-        return {"role": message.role, "content": content}
 
     def _fallback_decision(self, context: ContextPackage, latest_content: str) -> MetaDecision:
         event_type = context.runtime_event.event_type

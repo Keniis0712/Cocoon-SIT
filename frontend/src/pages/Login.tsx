@@ -3,6 +3,7 @@ import { Languages, Loader2, Moon, ShieldCheck, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
+import { getErrorMessage } from "@/api/client";
 import { changeAppLanguage } from "@/i18n";
 import { getPublicFeatures, login, register } from "@/api/user";
 import { Button } from "@/components/ui/button";
@@ -83,8 +84,9 @@ export default function LoginPage() {
             });
       setLogin(data);
       navigate("/cocoons", { replace: true });
-    } catch {
-      setError(mode === "login" ? t("login.error") : t("login.registerError"));
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setError(message && !message.startsWith("Request failed with status") ? message : mode === "login" ? t("login.error") : t("login.registerError"));
     } finally {
       setIsLoading(false);
     }

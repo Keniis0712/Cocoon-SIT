@@ -101,11 +101,17 @@ def test_cocoon_create_rejects_duplicate_root_and_state_returns_404_when_missing
         },
     )
     assert duplicate_root.status_code == 400, duplicate_root.text
-    assert duplicate_root.json()["detail"] == "A root cocoon already exists for this user and character"
+    duplicate_root_payload = duplicate_root.json()
+    assert duplicate_root_payload["code"] == "A_ROOT_COCOON_ALREADY_EXISTS_FOR_THIS_USER_AND_CHARACTER"
+    assert duplicate_root_payload["msg"] == "A root cocoon already exists for this user and character"
+    assert duplicate_root_payload["data"] is None
 
     state_response = client.get(f"/api/v1/cocoons/{default_cocoon_id}/state", headers=auth_headers)
     assert state_response.status_code == 404, state_response.text
-    assert state_response.json()["detail"] == "Session state not found"
+    state_payload = state_response.json()
+    assert state_payload["code"] == "SESSION_STATE_NOT_FOUND"
+    assert state_payload["msg"] == "Session state not found"
+    assert state_payload["data"] is None
 
 
 def test_delete_cocoon_cleans_subtree_and_related_records(

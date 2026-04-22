@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { isAxiosError } from "axios";
 import { Gift, Plus, Ticket, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { listAdminUsers } from "@/api/admin-users";
+import { showErrorToast } from "@/api/client";
 import { listGroups } from "@/api/groups";
 import {
   createInviteCode,
@@ -147,8 +147,7 @@ export default function InvitesPage() {
         await refreshGroupSummary(defaultGroupId);
       }
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(t("invites.loadFailed"));
+      showErrorToast(error, t("invites.loadFailed"));
     }
   }
 
@@ -157,8 +156,7 @@ export default function InvitesPage() {
       const summary = await getGroupInviteSummary(gid);
       setGroupSummary(summary);
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(t("invites.groupSummaryFailed"));
+      showErrorToast(error, t("invites.groupSummaryFailed"));
     }
   }
 
@@ -183,8 +181,7 @@ export default function InvitesPage() {
       setCodeDialogOpen(false);
       await bootstrap();
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(t("invites.codeCreateFailed"));
+      showErrorToast(error, t("invites.codeCreateFailed"));
     } finally {
       setIsSavingCode(false);
     }
@@ -196,8 +193,7 @@ export default function InvitesPage() {
       toast.success(t("invites.codeDeleted"));
       await bootstrap();
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(t("invites.codeDeleteFailed"));
+      showErrorToast(error, t("invites.codeDeleteFailed"));
     }
   }
 
@@ -216,8 +212,7 @@ export default function InvitesPage() {
       setGrantDialogOpen(false);
       await bootstrap();
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(t("invites.grantCreateFailed"));
+      showErrorToast(error, t("invites.grantCreateFailed"));
     } finally {
       setIsSavingGrant(false);
     }

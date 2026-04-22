@@ -148,8 +148,13 @@ class SchedulerNode:
             result["cancelled_wakeup_task_ids"] = [task.id for task in cancelled]
         for hint_payload in meta.next_wakeup_hints:
             hint = dict(hint_payload)
-            run_at = self._resolve_run_at(hint)
             reason = str(hint.get("reason") or "").strip()
+            if not reason:
+                continue
+            try:
+                run_at = self._resolve_run_at(hint)
+            except (TypeError, ValueError):
+                continue
             payload_json = dict(hint.get("payload_json") or hint.get("payload") or {})
             payload_json.setdefault("scheduled_by", "meta_node")
             payload_json.setdefault("source_action_id", context.runtime_event.action_id)
@@ -161,7 +166,7 @@ class SchedulerNode:
                 run_at,
                 cocoon_id=context.runtime_event.cocoon_id,
                 chat_group_id=context.runtime_event.chat_group_id,
-                reason=reason or "Scheduled by meta node",
+                reason=reason,
                 payload_json=payload_json,
             )
             if result["wakeup_task_id"] is None:

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
+import { showErrorToast } from "@/api/client";
 import { deleteCocoonMemory, getCocoon, getCocoonMemories } from "@/api/cocoons";
 import type { CocoonRead, MemoryChunkRead } from "@/api/types/cocoons";
 import PageFrame from "@/components/PageFrame";
@@ -44,7 +45,7 @@ export default function CocoonMemoryPage() {
       setItems(memoryResp.items);
     } catch (error) {
       console.error(error);
-      toast.error(t("memoryLoadFailed"));
+      showErrorToast(error, t("memoryLoadFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -60,7 +61,7 @@ export default function CocoonMemoryPage() {
       toast.success(t("memoryDeleted"));
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : t("memoryDeleteFailed"));
+      showErrorToast(error, t("memoryDeleteFailed"));
     }
   }
 

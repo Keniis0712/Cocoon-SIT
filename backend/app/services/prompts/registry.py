@@ -5,7 +5,7 @@ PROMPT_VARIABLES_BY_TYPE: dict[str, dict[str, str]] = {
     PromptTemplateType.system: {
         "character_settings": "Structured character settings and prompt summary.",
         "session_state": "Current dynamic session state.",
-        "provider_capabilities": "Resolved provider/model capabilities.",
+        "provider_capabilities": "Sanitized runtime hints that are safe to expose to the model.",
     },
     PromptTemplateType.meta: {
         "character_settings": "Structured character settings and prompt summary.",
@@ -16,7 +16,7 @@ PROMPT_VARIABLES_BY_TYPE: dict[str, dict[str, str]] = {
         "wakeup_context": "Wakeup-specific runtime context when the current event is a wakeup.",
         "pending_wakeups": "Pending wakeup tasks for the current target, including ids and reasons.",
         "merge_context": "Merge-specific context when the current event is a merge.",
-        "provider_capabilities": "Resolved provider/model capabilities.",
+        "provider_capabilities": "Sanitized runtime hints that are safe to expose to the model.",
     },
     PromptTemplateType.generator: {
         "character_settings": "Structured character settings and prompt summary.",
@@ -27,7 +27,7 @@ PROMPT_VARIABLES_BY_TYPE: dict[str, dict[str, str]] = {
         "wakeup_context": "Wakeup-specific runtime context when the current event is a wakeup.",
         "pending_wakeups": "Pending wakeup tasks for the current target, including ids and reasons.",
         "merge_context": "Merge-specific context when the current event is a merge.",
-        "provider_capabilities": "Resolved provider/model capabilities.",
+        "provider_capabilities": "Sanitized runtime hints that are safe to expose to the model.",
     },
     PromptTemplateType.memory_summary: {
         "visible_messages": "Recent visible dialogue messages.",

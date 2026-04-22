@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import { showErrorToast } from "@/api/client";
 import { getCharacters } from "@/api/characters";
 import { createChatGroup, deleteChatGroup, listChatGroups, updateChatGroup } from "@/api/chatGroups";
 import { listModelProviders } from "@/api/providers";
@@ -104,7 +105,7 @@ export default function ChatGroupsPage() {
       setSelectedRoomId((prev) => (prev && nextRooms.some((item) => item.id === prev) ? prev : nextRooms[0]?.id ?? null));
     } catch (error) {
       console.error(error);
-      toast.error(t("chatGroups:loadFailed"));
+      showErrorToast(error, t("chatGroups:loadFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -174,7 +175,7 @@ export default function ChatGroupsPage() {
       }
     } catch (error) {
       console.error(error);
-      toast.error(dialogMode === "create" ? t("chatGroups:createFailed") : t("chatGroups:updateFailed"));
+      showErrorToast(error, dialogMode === "create" ? t("chatGroups:createFailed") : t("chatGroups:updateFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -193,7 +194,7 @@ export default function ChatGroupsPage() {
       await loadPage();
     } catch (error) {
       console.error(error);
-      toast.error(t("chatGroups:deleteFailed"));
+      showErrorToast(error, t("chatGroups:deleteFailed"));
     }
   }
 

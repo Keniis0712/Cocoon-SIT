@@ -51,8 +51,8 @@ def test_external_context_service_builds_merge_context_and_filters_isolated_cont
     session_factory = _session_factory()
     message_calls = []
     memory_calls = []
-    isolated_message = Message(id="m1", cocoon_id="source-1", role="user", content="hidden", tags_json=["isolated-id"])
-    visible_message = Message(id="m2", cocoon_id="source-1", role="assistant", content="visible", tags_json=["shared-id"])
+    isolated_message = Message(id="m1", cocoon_id="source-1", role="user", content="hidden", tags_json=["isolated"])
+    visible_message = Message(id="m2", cocoon_id="source-1", role="assistant", content="visible", tags_json=["shared"])
     isolated_memory = MemoryChunk(
         id="mem1",
         cocoon_id="source-1",
@@ -61,7 +61,7 @@ def test_external_context_service_builds_merge_context_and_filters_isolated_cont
         scope="session",
         content="hidden-memory",
         summary="hidden",
-        tags_json=["isolated-id"],
+        tags_json=["isolated"],
     )
     visible_memory = MemoryChunk(
         id="mem2",
@@ -71,7 +71,7 @@ def test_external_context_service_builds_merge_context_and_filters_isolated_cont
         scope="session",
         content="visible-memory",
         summary="visible",
-        tags_json=["shared-id"],
+        tags_json=["shared"],
     )
     service = ExternalContextService(
         memory_service=SimpleNamespace(
@@ -102,10 +102,10 @@ def test_external_context_service_builds_merge_context_and_filters_isolated_cont
             [
                 source,
                 target,
-                SessionState(cocoon_id=source.id, relation_score=5, persona_json={"mood": "calm"}, active_tags_json=["shared-id"]),
-                TagRegistry(id="isolated-id", tag_id="isolated", brief="iso", visibility="private", is_isolated=True, meta_json={}),
-                TagRegistry(id="shared-id", tag_id="shared", brief="shared", visibility="shared", is_isolated=False, meta_json={}),
-                CocoonTagBinding(cocoon_id=target.id, tag_id="shared-id"),
+                    SessionState(cocoon_id=source.id, relation_score=5, persona_json={"mood": "calm"}, active_tags_json=["shared"]),
+                    TagRegistry(id="isolated-id", tag_id="isolated", brief="iso", visibility="private", is_isolated=True, meta_json={}),
+                    TagRegistry(id="shared-id", tag_id="shared", brief="shared", visibility="shared", is_isolated=False, meta_json={}),
+                    CocoonTagBinding(cocoon_id=target.id, tag_id="shared"),
             ]
         )
         session.commit()
@@ -129,13 +129,13 @@ def test_external_context_service_builds_merge_context_and_filters_isolated_cont
         assert result["merge_context"]["source_state"] == {
             "relation_score": 5,
             "persona_json": {"mood": "calm"},
-            "active_tags_json": ["shared-id"],
+            "active_tags_json": ["shared"],
         }
         assert result["merge_context"]["source_messages"] == [{"role": "assistant", "content": "visible"}]
         assert result["merge_context"]["source_memories"] == [
             {"scope": "session", "summary": "visible", "content": "visible-memory"}
         ]
-        assert message_calls[0][0][1:] == (7, ["shared-id"])
+        assert message_calls[0][0][1:] == (7, ["shared"])
         assert message_calls[0][1] == {"cocoon_id": source.id}
         assert memory_calls[0]["cocoon_id"] == source.id
         assert memory_calls[0]["query_text"] == source.id

@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_permission
+from app.api.wakeup_serialization import serialize_wakeup_task
 from app.models import (
     ActionDispatch,
     AuditArtifact,
@@ -27,6 +28,7 @@ from app.models import (
     User,
     WakeupTask,
 )
+from app.schemas.observability.wakeups import WakeupTaskOut
 from app.schemas.workspace.cocoons import (
     CocoonCreate,
     CocoonOut,
@@ -34,6 +36,7 @@ from app.schemas.workspace.cocoons import (
     CocoonUpdate,
     SessionStateOut,
 )
+from app.services.runtime.wakeup_tasks import list_wakeup_tasks
 from app.services.workspace.targets import ensure_session_state, get_session_state as load_session_state
 
 
@@ -245,6 +248,27 @@ def get_cocoon_session_state(
     if not state:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session state not found")
     return state
+
+
+@router.get("/{cocoon_id}/wakeups", response_model=list[WakeupTaskOut])
+def list_cocoon_wakeups(
+    cocoon_id: str,
+    status: str | None = None,
+    only_ai: bool = False,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _=Depends(require_permission("cocoons:read")),
+) -> list[WakeupTaskOut]:
+    db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=False)
+    tasks = list_wakeup_tasks(
+        db,
+        cocoon_id=cocoon_id,
+        status=status,
+        only_ai=only_ai,
+        limit=limit,
+    )
+    return [serialize_wakeup_task(db, task) for task in tasks]
 
 
 @router.delete("/{cocoon_id}", response_model=CocoonOut)

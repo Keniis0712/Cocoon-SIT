@@ -34,10 +34,19 @@ def test_create_app_binds_container_lifespan_and_optional_cors(monkeypatch, tmp_
         frontend_dist_path=tmp_path / "frontend-dist",
     )
     app = create_app(settings)
+    openapi = app.openapi()
 
     assert app.state.container.settings is settings
     assert any(m.cls.__name__ == "CORSMiddleware" for m in app.user_middleware)
     assert ("mount_frontend", settings.frontend_dist_path) in calls
+    health_schema = (
+        openapi["paths"][f"{settings.api_v1_prefix}/health"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    )
+    assert {"code", "msg", "data"} <= set(health_schema["properties"].keys())
+    validation_schema = (
+        openapi["paths"][f"{settings.api_v1_prefix}/auth/login"]["post"]["responses"]["422"]["content"]["application/json"]["schema"]
+    )
+    assert validation_schema["$ref"] == "#/components/schemas/ApiValidationEnvelope"
 
     with TestClient(app):
         pass

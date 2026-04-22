@@ -43,10 +43,7 @@ def _build_context(*, event_type="chat", target_type="chat_group", include_sourc
 def test_build_assembles_chat_prompt_and_formats_messages(monkeypatch):
     monkeypatch.setattr(
         "app.services.runtime.generation.prompt_assembly_service.build_runtime_prompt_variables",
-        lambda context, provider_capabilities: {
-            "provider_kind": provider_capabilities["provider_kind"],
-            "model_name": provider_capabilities["model_name"],
-        },
+        lambda context, provider_capabilities: {"provider_capabilities": provider_capabilities},
     )
     calls = []
     prompt_service = SimpleNamespace(
@@ -62,14 +59,14 @@ def test_build_assembles_chat_prompt_and_formats_messages(monkeypatch):
     result = PromptAssemblyService(prompt_service).build(
         session=object(),
         context=_build_context(include_source_messages=False),
-        provider_capabilities={"provider_kind": "mock", "model_name": "gpt-test"},
+        provider_capabilities={"streaming": True},
     )
 
     assert [call["template_type"] for call in calls] == ["system", "generator"]
     assert result.combined_prompt == "system prompt\n\ngenerator prompt"
     assert result.system.summary_prefix == "system"
     assert result.event.summary_prefix == "generator"
-    assert result.messages[0] == {"role": "user", "content": "[sender:user-1] hello"}
+    assert result.messages[0] == {"role": "user", "content": "[speaker:participant_1] hello"}
     assert "[system note: this message was later retracted]" in result.messages[1]["content"]
 
 
@@ -92,7 +89,7 @@ def test_build_uses_pull_sources_and_memory_context(monkeypatch):
     result = PromptAssemblyService(prompt_service).build(
         session=object(),
         context=_build_context(event_type="pull", target_type="cocoon"),
-        provider_capabilities={"provider_kind": "mock", "model_name": "gpt-pull"},
+        provider_capabilities={"streaming": True},
     )
 
     assert calls[1]["template_type"] == "pull"
@@ -122,7 +119,7 @@ def test_build_uses_merge_context_for_merge_rounds(monkeypatch):
     result = PromptAssemblyService(prompt_service).build(
         session=object(),
         context=_build_context(event_type="merge"),
-        provider_capabilities={"provider_kind": "mock", "model_name": "gpt-merge"},
+        provider_capabilities={"streaming": True},
     )
 
     assert calls[1]["template_type"] == "merge"

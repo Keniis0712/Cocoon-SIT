@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 import hashlib
+import logging
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -21,6 +22,8 @@ class MessageDispatchService:
     """Creates message-related action dispatches and publishes queue events."""
 
     DEFAULT_DEBOUNCE_SECONDS = 2
+
+    logger = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -97,6 +100,15 @@ class MessageDispatchService:
             chat_group_id=chat_group_id,
             payload=payload,
         )
+        self.logger.info(
+            "Enqueued chat dispatch action_id=%s event_type=%s cocoon_id=%s chat_group_id=%s queue_length=%s payload_keys=%s",
+            action.id,
+            event_type,
+            cocoon_id,
+            chat_group_id,
+            queue_length,
+            sorted(payload.keys()),
+        )
         channel_key = target_channel_key(cocoon_id=cocoon_id, chat_group_id=chat_group_id)
         self.realtime_hub.publish(
             channel_key,
@@ -123,6 +135,12 @@ class MessageDispatchService:
             select(ActionDispatch).where(ActionDispatch.client_request_id == client_request_id)
         )
         if existing:
+            self.logger.info(
+                "Reusing existing chat action_id=%s for client_request_id=%s cocoon_id=%s",
+                existing.id,
+                client_request_id,
+                cocoon_id,
+            )
             return existing
         debounce_key = self._build_debounce_key("chat", content)
         if existing_debounced := self._find_debounced_action(
@@ -131,6 +149,12 @@ class MessageDispatchService:
             event_type="chat",
             debounce_key=debounce_key,
         ):
+            self.logger.info(
+                "Reusing debounced chat action_id=%s cocoon_id=%s debounce_key=%s",
+                existing_debounced.id,
+                cocoon_id,
+                debounce_key,
+            )
             return existing_debounced
 
         cocoon = session.get(Cocoon, cocoon_id)
@@ -217,6 +241,12 @@ class MessageDispatchService:
             select(ActionDispatch).where(ActionDispatch.client_request_id == client_request_id)
         )
         if existing:
+            self.logger.info(
+                "Reusing existing chat-group action_id=%s for client_request_id=%s chat_group_id=%s",
+                existing.id,
+                client_request_id,
+                chat_group_id,
+            )
             return existing
         debounce_key = self._build_debounce_key("chat_group", chat_group_id, sender_user_id, content)
         if existing_debounced := self._find_debounced_action(
@@ -225,6 +255,12 @@ class MessageDispatchService:
             event_type="chat",
             debounce_key=debounce_key,
         ):
+            self.logger.info(
+                "Reusing debounced chat-group action_id=%s chat_group_id=%s debounce_key=%s",
+                existing_debounced.id,
+                chat_group_id,
+                debounce_key,
+            )
             return existing_debounced
 
         room = session.get(ChatGroupRoom, chat_group_id)

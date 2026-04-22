@@ -6,6 +6,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.models import SessionState
+from app.models.workspace import DEFAULT_RELATION_SCORE
 
 
 def resolve_target_type(*, cocoon_id: str | None = None, chat_group_id: str | None = None) -> tuple[str, str]:
@@ -53,6 +54,7 @@ def ensure_session_state(
     state = SessionState(
         cocoon_id=cocoon_id,
         chat_group_id=chat_group_id,
+        relation_score=DEFAULT_RELATION_SCORE,
         persona_json={},
         active_tags_json=[],
     )

@@ -2,17 +2,20 @@ import { Shield, ShieldPlus, UserPlus, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { ChatGroupMemberRead } from "@/api/types/chat-groups";
+import type { WakeupTaskRead } from "@/api/types/wakeups";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatWorkspaceTime } from "@/features/workspace/utils";
+
+const DEFAULT_RELATION_SCORE = 50;
 
 type ChatGroupSidebarProps = {
   characterName: string;
   modelLabel: string;
   dispatchState: string | null | undefined;
   relationScore: number | null | undefined;
-  currentWakeupTaskId: string | null | undefined;
+  currentAiWakeup: WakeupTaskRead | null;
   debounceUntil: string | null | undefined;
   lastError: string | null | undefined;
   members: ChatGroupMemberRead[];
@@ -29,7 +32,7 @@ export function ChatGroupSidebar({
   modelLabel,
   dispatchState,
   relationScore,
-  currentWakeupTaskId,
+  currentAiWakeup,
   debounceUntil,
   lastError,
   members,
@@ -40,7 +43,7 @@ export function ChatGroupSidebar({
   onToggleMemberRole,
   onRemoveMember,
 }: ChatGroupSidebarProps) {
-  const { t } = useTranslation("chatGroups");
+  const { t } = useTranslation(["chatGroups", "wakeups"]);
 
   return (
     <div className="space-y-4">
@@ -54,11 +57,20 @@ export function ChatGroupSidebar({
             <Badge variant="outline">{t("characterLabel", { value: characterName })}</Badge>
             <Badge variant="outline">{t("modelLabel", { value: modelLabel })}</Badge>
             <Badge variant="outline">{t("dispatchLabel", { value: dispatchState || "idle" })}</Badge>
-            <Badge variant="outline">{t("relationLabel", { value: relationScore ?? "-" })}</Badge>
+            <Badge variant="outline">{t("relationLabel", { value: relationScore ?? DEFAULT_RELATION_SCORE })}</Badge>
           </div>
           <div className="rounded-[22px] border border-border/70 bg-background/60 p-4 text-sm">
             <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">{t("wakeupPanelTitle")}</div>
-            <div>{currentWakeupTaskId ? t("currentWakeupTask", { id: currentWakeupTaskId }) : t("noActiveWakeupTask")}</div>
+            {currentAiWakeup ? (
+              <div className="space-y-1">
+                <div>{t("wakeups:aiWakeupAt", { value: formatWorkspaceTime(currentAiWakeup.run_at) })}</div>
+                <div className="text-xs text-muted-foreground">
+                  {t("wakeups:aiWakeupReason", { value: currentAiWakeup.reason || t("wakeups:unknownWakeupReason") })}
+                </div>
+              </div>
+            ) : (
+              <div>{t("noActiveWakeupTask")}</div>
+            )}
             {debounceUntil ? (
               <div className="mt-2 text-xs text-muted-foreground">{t("debouncedUntil", { value: formatWorkspaceTime(debounceUntil) })}</div>
             ) : null}

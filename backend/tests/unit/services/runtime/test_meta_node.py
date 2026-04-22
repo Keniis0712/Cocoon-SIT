@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 from app.services.providers.base import ProviderStructuredResponse, ProviderUsage
 from app.services.runtime.meta_node import MetaNode
+from app.services.runtime.prompting import build_provider_message_payload
 from app.services.runtime.types import ContextPackage, RuntimeEvent
 
 
@@ -41,10 +42,10 @@ def test_meta_node_provider_message_payload_formats_chat_group_and_retractions()
     )
     context = _build_context()
 
-    user_payload = node._provider_message_payload(context.visible_messages[0], context)
-    assistant_payload = node._provider_message_payload(context.visible_messages[1], context)
+    user_payload = build_provider_message_payload(context.visible_messages[0], context)
+    assistant_payload = build_provider_message_payload(context.visible_messages[1], context)
 
-    assert user_payload == {"role": "user", "content": "[sender:user-1] hello"}
+    assert user_payload == {"role": "user", "content": "[speaker:participant_1] hello"}
     assert "[system note: this message was later retracted]" in assistant_payload["content"]
 
 
@@ -98,7 +99,10 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
                         {"action": "remove", "tag": " "},
                     ],
                     "internal_thought": "",
-                    "schedule_wakeups": [{"delay_minutes": 5}, {"reason": "follow up"}],
+                    "schedule_wakeups": [
+                        {"delay_minutes": 5, "reason": "follow up in a few minutes"},
+                        {"delay_minutes": 10},
+                    ],
                     "cancel_wakeup_task_ids": ["wake-1", " ", "wake-2"],
                     "generation_brief": "brief",
                     "memory_candidates": [
@@ -152,11 +156,11 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
     )
 
     assert len(record_calls) == 1
-    assert prompt_var_calls[0][1] == {"json_mode": True, "provider_kind": "mock", "model_name": "gpt-meta"}
+    assert prompt_var_calls[0][1] == {"json_mode": True}
     assert provider.calls[0]["model_name"] == "gpt-meta"
     assert provider.calls[0]["provider_config"] == {"temperature": 0.2}
     assert provider.calls[0]["output_name"] == "cocoon_meta_output"
-    assert provider.calls[0]["messages"][0] == {"role": "user", "content": "[sender:user-1] hello"}
+    assert provider.calls[0]["messages"][0] == {"role": "user", "content": "[speaker:participant_1] hello"}
     assert "[system note: this message was later retracted]" in provider.calls[0]["messages"][1]["content"]
     assert '"session_state": {"mood": "calm"}' in provider.calls[0]["prompt"]
     assert result.decision == "reply"
@@ -164,7 +168,7 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
     assert result.persona_patch == {"last_seen_intent": "hello"}
     assert [(item.action, item.tag) for item in result.tag_ops] == [("add", "focus")]
     assert result.internal_thought == "Structured meta decision completed."
-    assert result.next_wakeup_hints == [{"delay_minutes": 5}, {"reason": "follow up"}]
+    assert result.next_wakeup_hints == [{"delay_minutes": 5, "reason": "follow up in a few minutes", "payload_json": {}}]
     assert result.cancel_wakeup_task_ids == ["wake-1", "wake-2"]
     assert result.generation_brief == "brief"
     assert len(result.memory_candidates) == 1

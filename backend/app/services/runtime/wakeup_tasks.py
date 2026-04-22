@@ -24,6 +24,38 @@ def list_pending_wakeup_tasks(
     return list(session.scalars(query.order_by(WakeupTask.run_at.asc(), WakeupTask.created_at.asc())).all())
 
 
+def is_ai_scheduled_wakeup(task: WakeupTask) -> bool:
+    return str(task.payload_json.get("scheduled_by") or "") == "meta_node"
+
+
+def list_wakeup_tasks(
+    session: Session,
+    *,
+    cocoon_id: str | None = None,
+    chat_group_id: str | None = None,
+    status: str | None = None,
+    only_ai: bool = False,
+    limit: int = 200,
+) -> list[WakeupTask]:
+    query = select(WakeupTask)
+    if cocoon_id:
+        query = query.where(WakeupTask.cocoon_id == cocoon_id, WakeupTask.chat_group_id.is_(None))
+    if chat_group_id:
+        query = query.where(WakeupTask.chat_group_id == chat_group_id, WakeupTask.cocoon_id.is_(None))
+    if status:
+        query = query.where(WakeupTask.status == status)
+
+    if status == DurableJobStatus.queued:
+        query = query.order_by(WakeupTask.run_at.asc(), WakeupTask.created_at.asc())
+    else:
+        query = query.order_by(WakeupTask.created_at.desc(), WakeupTask.run_at.desc())
+
+    items = list(session.scalars(query).all())
+    if only_ai:
+        items = [item for item in items if is_ai_scheduled_wakeup(item)]
+    return items[:limit]
+
+
 def sync_current_wakeup_task_id(
     session: Session,
     *,

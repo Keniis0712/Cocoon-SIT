@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import re
+import secrets
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
@@ -24,6 +26,9 @@ class InviteSummary:
 class InviteService:
     """Creates invite codes, manages grants, and resolves quota summaries."""
 
+    _CODE_SUFFIX_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    _CODE_SUFFIX_LENGTH = 8
+
     def list_invites(self, session: Session) -> list[InviteCode]:
         """Return invites ordered by newest first."""
         return list(session.scalars(select(InviteCode).order_by(InviteCode.created_at.desc())).all())
@@ -37,6 +42,7 @@ class InviteService:
         source_type = (payload.source_type or "ADMIN_OVERRIDE").upper()
         source_id = payload.source_id
         created_for_user_id = payload.created_for_user_id or user.id
+        invite_code = payload.code or self._generate_invite_code(session, payload.prefix)
 
         if source_type == "USER":
             source_id = source_id or user.id
@@ -55,7 +61,7 @@ class InviteService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported invite source")
 
         invite = InviteCode(
-            code=payload.code,
+            code=invite_code,
             quota_total=payload.quota_total,
             expires_at=payload.expires_at,
             created_by_user_id=user.id,
@@ -187,3 +193,27 @@ class InviteService:
     def _ensure_group_exists(self, session: Session, group_id: str) -> None:
         if not session.get(UserGroup, group_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+
+    def _generate_invite_code(self, session: Session, prefix: str | None) -> str:
+        normalized_prefix = self._normalize_prefix(prefix)
+        for _ in range(20):
+            suffix = "".join(
+                secrets.choice(self._CODE_SUFFIX_ALPHABET)
+                for _ in range(self._CODE_SUFFIX_LENGTH)
+            )
+            code = f"{normalized_prefix}-{suffix}"
+            if session.scalar(select(InviteCode.id).where(InviteCode.code == code)) is None:
+                return code
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate unique invite code",
+        )
+
+    def _normalize_prefix(self, prefix: str | None) -> str:
+        raw_prefix = (prefix or "INVITE").strip().upper()
+        normalized = re.sub(r"[^A-Z0-9]+", "-", raw_prefix).strip("-")
+        if not normalized:
+            normalized = "INVITE"
+        max_prefix_length = 64 - self._CODE_SUFFIX_LENGTH - 1
+        return normalized[:max_prefix_length]

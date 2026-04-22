@@ -69,12 +69,13 @@ def test_resource_crud_and_tag_binding_flow(client, auth_headers):
     invite = client.post(
         "/api/v1/invites",
         headers=auth_headers,
-        json={"code": "INVITE-001", "quota_total": 2},
+        json={"prefix": "invite", "quota_total": 2},
     )
     assert invite.status_code == 200, invite.text
+    invite_code = invite.json()["code"]
 
     redeem = client.post(
-        "/api/v1/invites/INVITE-001/redeem",
+        f"/api/v1/invites/{invite_code}/redeem",
         headers=auth_headers,
         json={"user_id": user.json()["id"], "quota": 1},
     )
@@ -101,7 +102,7 @@ def test_resource_crud_and_tag_binding_flow(client, auth_headers):
         "/api/v1/invites",
         headers=auth_headers,
         json={
-            "code": "GROUP-001",
+            "prefix": "group",
             "quota_total": 1,
             "source_type": "GROUP",
             "source_id": group.json()["id"],
@@ -109,7 +110,8 @@ def test_resource_crud_and_tag_binding_flow(client, auth_headers):
         },
     )
     assert scoped_invite.status_code == 200, scoped_invite.text
-    revoked = client.delete("/api/v1/invites/GROUP-001", headers=auth_headers)
+    scoped_invite_code = scoped_invite.json()["code"]
+    revoked = client.delete(f"/api/v1/invites/{scoped_invite_code}", headers=auth_headers)
     assert revoked.status_code == 200, revoked.text
     grants = client.get("/api/v1/invites/grants", headers=auth_headers)
     assert grants.status_code == 200, grants.text

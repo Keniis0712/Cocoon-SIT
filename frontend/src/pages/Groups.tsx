@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { isAxiosError } from "axios";
 import { FolderTree, Pencil, Plus, Trash2, UserPlus, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { listAdminUsers } from "@/api/admin-users";
+import { showErrorToast } from "@/api/client";
 import {
   addGroupMember,
   createGroup,
@@ -84,8 +84,7 @@ export default function GroupsPage() {
       setUsers(userResponse.items);
       setSelectedGroupId((prev) => prev || groupResponse.items[0]?.gid || "");
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(t("groups.loadFailed"));
+      showErrorToast(error, t("groups.loadFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -98,8 +97,7 @@ export default function GroupsPage() {
       const firstCandidate = users.find((item) => !memberResponse.items.some((member) => member.user_uid === item.uid));
       setSelectedMemberUid(firstCandidate?.uid || "");
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(t("groups.detailLoadFailed"));
+      showErrorToast(error, t("groups.detailLoadFailed"));
     }
   }
 
@@ -121,8 +119,7 @@ export default function GroupsPage() {
       setDialogOpen(false);
       await bootstrap();
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(t("groups.saveFailed"));
+      showErrorToast(error, t("groups.saveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -137,8 +134,7 @@ export default function GroupsPage() {
       toast.success(t("groups.memberAdded"));
       await loadGroupDetail(selectedGroup.gid);
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(t("groups.memberAddFailed"));
+      showErrorToast(error, t("groups.memberAddFailed"));
     }
   }
 
@@ -156,8 +152,7 @@ export default function GroupsPage() {
       await bootstrap();
       await loadGroupDetail(selectedGroup.gid);
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(error instanceof Error ? error.message : t("groups.saveFailed"));
+      showErrorToast(error, t("groups.saveFailed"));
     }
   }
 
@@ -175,8 +170,7 @@ export default function GroupsPage() {
       setMembers([]);
       await bootstrap();
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(error instanceof Error ? error.message : t("groups.deleteFailed"));
+      showErrorToast(error, t("groups.deleteFailed"));
     }
   }
 
@@ -189,8 +183,7 @@ export default function GroupsPage() {
       toast.success(t("groups.memberRemoved"));
       await loadGroupDetail(selectedGroup.gid);
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(error instanceof Error ? error.message : t("groups.memberRemoveFailed"));
+      showErrorToast(error, t("groups.memberRemoveFailed"));
     }
   }
 

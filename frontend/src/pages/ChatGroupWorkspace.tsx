@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
+import { showErrorToast } from "@/api/client";
 import { getCharacters } from "@/api/characters";
 import {
   addChatGroupMember,
@@ -34,6 +35,8 @@ import type { CharacterRead } from "@/api/types/catalog";
 import type { MessageRead } from "@/api/types/chat";
 import type { ChatGroupMemberRead, ChatGroupRead } from "@/api/types/chat-groups";
 import type { ModelProviderRead } from "@/api/types/providers";
+import type { WakeupTaskRead } from "@/api/types/wakeups";
+import { listChatGroupWakeups } from "@/api/wakeups";
 import PageFrame from "@/components/PageFrame";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,6 +84,7 @@ export default function ChatGroupWorkspacePage() {
   const [members, setMembers] = useState<ChatGroupMemberRead[]>([]);
   const [userDirectory, setUserDirectory] = useState<AdminUserRead[]>([]);
   const [messageInput, setMessageInput] = useState("");
+  const [currentAiWakeup, setCurrentAiWakeup] = useState<WakeupTaskRead | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [memberDialog, setMemberDialog] = useState<MemberDialogState>({ open: false, userId: "", role: "member" });
@@ -144,6 +148,9 @@ export default function ChatGroupWorkspacePage() {
     reloadWorkspace: () => {
       void loadWorkspace(false);
     },
+    reloadWakeups: () => {
+      void loadCurrentAiWakeup();
+    },
     scrollToBottom: () => {
       if (viewportRef.current) {
         viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
@@ -179,7 +186,7 @@ export default function ChatGroupWorkspacePage() {
       setIsLoading(true);
     }
     try {
-      const [nextRoom, state, nextMembers, nextMessages, characterResponse, providerResponse] =
+      const [nextRoom, state, nextMembers, nextMessages, characterResponse, providerResponse, wakeups] =
         await Promise.all([
           getChatGroup(roomId),
           getChatGroupState(roomId),
@@ -187,12 +194,14 @@ export default function ChatGroupWorkspacePage() {
           listChatGroupMessages(roomId),
           getCharacters(1, 100, "all"),
           listModelProviders(1, 100),
+          listChatGroupWakeups(roomId, { status: "queued", only_ai: true, limit: 1 }),
         ]);
 
       setRoom(nextRoom);
       setMembers(nextMembers);
       setCharacters(characterResponse.items);
       setProviders(providerResponse.items);
+      setCurrentAiWakeup(wakeups[0] || null);
       setMessages(sessionKey, nextMessages);
       applyStatePatch(sessionKey, {
         relationScore: state.relation_score,
@@ -214,7 +223,7 @@ export default function ChatGroupWorkspacePage() {
       }
     } catch (error) {
       console.error(error);
-      toast.error(t("workspaceLoadFailed"));
+      showErrorToast(error, t("workspaceLoadFailed"));
       navigate("/chat-groups", { replace: true });
     } finally {
       setIsLoading(false);
@@ -261,7 +270,7 @@ export default function ChatGroupWorkspacePage() {
       typingStartedAtRef.current = null;
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : t("messageSendFailed"));
+      showErrorToast(error, t("messageSendFailed"));
     } finally {
       setIsSending(false);
     }
@@ -274,7 +283,16 @@ export default function ChatGroupWorkspacePage() {
       toast.success(t("messageRetracted"));
     } catch (error) {
       console.error(error);
-      toast.error(t("messageRetractFailed"));
+      showErrorToast(error, t("messageRetractFailed"));
+    }
+  }
+
+  async function loadCurrentAiWakeup() {
+    try {
+      const wakeups = await listChatGroupWakeups(roomId, { status: "queued", only_ai: true, limit: 1 });
+      setCurrentAiWakeup(wakeups[0] || null);
+    } catch (error) {
+      console.error(error);
     }
   }
 
@@ -289,7 +307,7 @@ export default function ChatGroupWorkspacePage() {
       toast.success(t("memberAdded"));
     } catch (error) {
       console.error(error);
-      toast.error(t("memberAddFailed"));
+      showErrorToast(error, t("memberAddFailed"));
     }
   }
 
@@ -300,7 +318,7 @@ export default function ChatGroupWorkspacePage() {
       toast.success(t("memberUpdated"));
     } catch (error) {
       console.error(error);
-      toast.error(t("memberUpdateFailed"));
+      showErrorToast(error, t("memberUpdateFailed"));
     }
   }
 
@@ -314,7 +332,7 @@ export default function ChatGroupWorkspacePage() {
       toast.success(t("memberRemoved"));
     } catch (error) {
       console.error(error);
-      toast.error(t("memberRemoveFailed"));
+      showErrorToast(error, t("memberRemoveFailed"));
     }
   }
 
@@ -400,7 +418,7 @@ export default function ChatGroupWorkspacePage() {
           modelLabel={modelLabel}
           dispatchState={session?.dispatchState}
           relationScore={session?.relationScore}
-          currentWakeupTaskId={session?.currentWakeupTaskId}
+          currentAiWakeup={currentAiWakeup}
           debounceUntil={session?.debounceUntil}
           lastError={session?.lastError}
           members={members}

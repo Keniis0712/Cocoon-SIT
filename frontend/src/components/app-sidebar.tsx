@@ -12,6 +12,7 @@ import {
   FolderTree,
   GitMerge,
   KeyRound,
+  BellRing,
   Tags,
   Settings2,
   ShieldCheck,
@@ -36,7 +37,7 @@ import { hasAnyPermission } from "@/lib/permissions";
 import { useUserStore } from "@/store/useUserStore";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { t } = useTranslation();
+  const { t } = useTranslation(["nav", "wakeups"]);
   const userInfo = useUserStore((state) => state.userInfo);
 
   const workspaceItems = [
@@ -81,6 +82,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       : null,
     hasAnyPermission(userInfo, ["audits:read"])
       ? { title: t("nav.audits"), url: "/audits", icon: <FileSearch /> }
+      : null,
+    hasAnyPermission(userInfo, ["audits:read"])
+      ? { title: t("wakeups:title"), url: "/wakeups", icon: <BellRing /> }
       : null,
     hasAnyPermission(userInfo, ["insights:read"])
       ? { title: t("nav.insights"), url: "/insights", icon: <BarChart3 /> }

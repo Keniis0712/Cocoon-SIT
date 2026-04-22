@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from app.api.responses import register_api_response_handlers
 from app.api.router import api_router
 from app.core.config import Settings, get_settings
 from app.core.container import AppContainer
@@ -49,6 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+    register_api_response_handlers(app, resolved_settings.api_v1_prefix)
     app.include_router(api_router, prefix=resolved_settings.api_v1_prefix)
     mount_frontend(app, Path(resolved_settings.frontend_dist_path))
 

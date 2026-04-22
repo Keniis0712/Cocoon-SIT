@@ -49,7 +49,10 @@ def test_create_cocoon_rejects_second_root_for_same_character(client, auth_heade
     )
 
     assert response.status_code == 400, response.text
-    assert response.json()["detail"] == "A root cocoon already exists for this user and character"
+    payload = response.json()
+    assert payload["code"] == "A_ROOT_COCOON_ALREADY_EXISTS_FOR_THIS_USER_AND_CHARACTER"
+    assert payload["msg"] == "A root cocoon already exists for this user and character"
+    assert payload["data"] is None
 
 
 def test_message_dispatch_service_enqueues_chat_round(client, default_cocoon_id):

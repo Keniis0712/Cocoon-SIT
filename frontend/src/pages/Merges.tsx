@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
+import { showErrorToast } from "@/api/client";
 import { getCocoons } from "@/api/cocoons";
 import { createMergeJob, getMergeJobDetail, listMergeJobs } from "@/api/merges";
 import type { CocoonRead } from "@/api/types/cocoons";
@@ -100,8 +101,8 @@ export default function MergesPage() {
         currentPage += 1;
       } while (currentPage <= total);
       setCocoons(items);
-    } catch {
-      toast.error(t("merges.loadCocoonsFailed"));
+    } catch (error) {
+      showErrorToast(error, t("merges.loadCocoonsFailed"));
     }
   }
 
@@ -116,8 +117,8 @@ export default function MergesPage() {
       });
       setJobs(response.items);
       setTotalPages(response.total_pages || 1);
-    } catch {
-      toast.error(t("merges.loadJobsFailed"));
+    } catch (error) {
+      showErrorToast(error, t("merges.loadJobsFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -128,8 +129,8 @@ export default function MergesPage() {
     try {
       const detail = await getMergeJobDetail(job.merge_uid);
       setSelectedJob(detail);
-    } catch {
-      toast.error(t("merges.loadDetailFailed"));
+    } catch (error) {
+      showErrorToast(error, t("merges.loadDetailFailed"));
     } finally {
       setIsDetailLoading(false);
     }
@@ -178,8 +179,8 @@ export default function MergesPage() {
       toast.success(t("merges.created"));
       await loadJobs();
       await openJob(job);
-    } catch {
-      toast.error(t("merges.createFailed"));
+    } catch (error) {
+      showErrorToast(error, t("merges.createFailed"));
     } finally {
       setIsSaving(false);
     }

@@ -20,6 +20,7 @@ type RuntimeWsHandlerDeps = {
   ) => void;
   setError: (sessionKey: string | number, error: string | null) => void;
   reloadWorkspace: () => void;
+  reloadWakeups?: () => void;
   scrollToBottom?: () => void;
   onRoundFailed?: (detail: string) => void;
 };
@@ -32,6 +33,7 @@ export function createRuntimeWsEventHandler({
   applyStatePatch,
   setError,
   reloadWorkspace,
+  reloadWakeups,
   scrollToBottom,
   onRoundFailed,
 }: RuntimeWsHandlerDeps) {
@@ -54,6 +56,7 @@ export function createRuntimeWsEventHandler({
       } else {
         reloadWorkspace();
       }
+      reloadWakeups?.();
       setStreamingAssistant(sessionKey, "");
       applyStatePatch(sessionKey, { dispatchState: "idle", dispatchReason: null });
       if (scrollToBottom) {
@@ -71,6 +74,7 @@ export function createRuntimeWsEventHandler({
         dispatchState: "idle",
         dispatchReason: null,
       });
+      reloadWakeups?.();
       return;
     }
     if (event.type === "dispatch_queued") {
@@ -85,6 +89,7 @@ export function createRuntimeWsEventHandler({
       setStreamingAssistant(sessionKey, "");
       setError(sessionKey, event.error_detail);
       applyStatePatch(sessionKey, { dispatchState: "error" });
+      reloadWakeups?.();
       onRoundFailed?.(event.error_detail);
     }
   };

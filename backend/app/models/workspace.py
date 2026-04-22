@@ -9,6 +9,10 @@ from app.models.base import Base, JsonDefaultMixin, TimestampMixin
 from app.models.identity import new_id
 from app.models.vector import EmbeddingVector
 
+DEFAULT_RELATION_SCORE = 50
+MIN_RELATION_SCORE = 0
+MAX_RELATION_SCORE = 100
+
 
 class Cocoon(Base, TimestampMixin):
     __tablename__ = "cocoons"
@@ -78,7 +82,7 @@ class SessionState(Base, TimestampMixin, JsonDefaultMixin):
         nullable=True,
         unique=True,
     )
-    relation_score: Mapped[int] = mapped_column(Integer, default=0)
+    relation_score: Mapped[int] = mapped_column(Integer, default=DEFAULT_RELATION_SCORE)
     persona_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
     active_tags_json: Mapped[list] = mapped_column(JSON, default=JsonDefaultMixin.json_list)
     current_wakeup_task_id: Mapped[str | None] = mapped_column(ForeignKey("wakeup_tasks.id"), nullable=True)

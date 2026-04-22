@@ -2,6 +2,8 @@ import { create } from "zustand";
 
 import type { MessageRead } from "@/api/types/chat";
 
+const DEFAULT_RELATION_SCORE = 50;
+
 type SessionState = {
   messages: MessageRead[];
   streamingAssistant: string;
@@ -48,7 +50,7 @@ type ChatSessionStore = {
 const EMPTY_SESSION: SessionState = {
   messages: [],
   streamingAssistant: "",
-  relationScore: null,
+  relationScore: DEFAULT_RELATION_SCORE,
   personaJson: {},
   activeTags: [],
   currentModelId: null,
@@ -149,7 +151,8 @@ export const useChatSessionStore = create<ChatSessionStore>((set, get) => ({
         ...state.sessions,
         [keyOf(sessionKey)]: {
           ...(state.sessions[keyOf(sessionKey)] || EMPTY_SESSION),
-          relationScore: patch.relationScore ?? state.sessions[keyOf(sessionKey)]?.relationScore ?? null,
+          relationScore:
+            patch.relationScore ?? state.sessions[keyOf(sessionKey)]?.relationScore ?? DEFAULT_RELATION_SCORE,
           personaJson: patch.personaJson ?? state.sessions[keyOf(sessionKey)]?.personaJson ?? {},
           activeTags: patch.activeTags ?? state.sessions[keyOf(sessionKey)]?.activeTags ?? [],
           currentModelId: patch.currentModelId ?? state.sessions[keyOf(sessionKey)]?.currentModelId ?? null,

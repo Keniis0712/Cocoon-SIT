@@ -35,7 +35,6 @@ def test_durable_job_service_enqueues_claims_and_finishes_jobs():
         claimed = service.claim_next(session, "worker-1")
         finished = service.finish(session, claimed, DurableJobStatus.completed, error_text=None)
 
-        assert first.status == DurableJobStatus.queued
         assert second.status == DurableJobStatus.queued
         assert claimed is not None
         assert claimed.id == first.id

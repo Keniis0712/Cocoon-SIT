@@ -11,11 +11,13 @@ export interface ApiClientOptions {
 export class ApiError extends Error {
   status: number;
   data: unknown;
+  code?: string;
 
   constructor(status: number, data: unknown) {
-    super(typeof data === "string" ? data : `Request failed with status ${status}`);
+    super(resolveErrorMessage(status, data));
     this.status = status;
     this.data = data;
+    this.code = isApiEnvelope(data) && typeof data.code === "string" ? data.code : undefined;
   }
 }
 
@@ -69,7 +71,7 @@ export class CocoonApiClient {
       }
       throw new ApiError(response.status, data);
     }
-    return data as T;
+    return (isApiEnvelope(data) ? data.data : data) as T;
   }
 
   makeCocoonWsUrl(cocoonId: string): string {
@@ -608,6 +610,22 @@ function safeJson(raw: string): unknown {
   } catch {
     return raw;
   }
+}
+
+function isApiEnvelope(
+  data: unknown,
+): data is { code?: unknown; msg?: unknown; data?: unknown } {
+  return typeof data === "object" && data !== null && "code" in data && "msg" in data && "data" in data;
+}
+
+function resolveErrorMessage(status: number, data: unknown): string {
+  if (typeof data === "string") {
+    return data;
+  }
+  if (isApiEnvelope(data) && typeof data.msg === "string") {
+    return data.msg;
+  }
+  return `Request failed with status ${status}`;
 }
 
 export function createCocoonApiClient(options: ApiClientOptions): CocoonApiClient {

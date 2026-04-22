@@ -3,6 +3,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { showErrorToast } from "@/api/client";
 import { createTag, deleteTag, listTags, updateTag } from "@/api/tags";
 import type { TagPayload, TagRead } from "@/api/types/catalog";
 import PageFrame from "@/components/PageFrame";
@@ -42,7 +43,7 @@ export default function TagsPage() {
       setItems(await listTags());
     } catch (error) {
       console.error(error);
-      toast.error(t("tags.loadFailed"));
+      showErrorToast(error, t("tags.loadFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +89,7 @@ export default function TagsPage() {
       await fetchTags();
     } catch (error) {
       console.error(error);
-      toast.error(t("tags.saveFailed"));
+      showErrorToast(error, t("tags.saveFailed"));
     }
   }
 
@@ -103,7 +104,7 @@ export default function TagsPage() {
       await fetchTags();
     } catch (error) {
       console.error(error);
-      toast.error(t("tags.deleteFailed"));
+      showErrorToast(error, t("tags.deleteFailed"));
     }
   }
 

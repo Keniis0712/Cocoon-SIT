@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
+import { showErrorToast } from "@/api/client";
 import { cleanupExpiredArtifacts } from "@/api/adminArtifacts";
 import { listModelProviders } from "@/api/providers";
 import { listPromptTemplates } from "@/api/prompts";
@@ -72,7 +73,7 @@ export default function SettingsPage() {
       const result = await cleanupExpiredArtifacts();
       toast.success(t("settings.cleanupQueued", { status: result.status }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t("settings.cleanupQueueFailed"));
+      showErrorToast(error, t("settings.cleanupQueueFailed"));
     } finally {
       setIsCleaning(false);
     }
@@ -99,7 +100,7 @@ export default function SettingsPage() {
       setForm(updated);
       toast.success(t("settings.saved"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t("settings.saveFailed"));
+      showErrorToast(error, t("settings.saveFailed"));
     } finally {
       setIsSaving(false);
     }

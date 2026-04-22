@@ -74,4 +74,7 @@ def test_audit_artifact_and_insight_routes_cover_summary_and_manual_cleanup(clie
 def test_audit_detail_returns_404_for_unknown_run(client, auth_headers):
     response = client.get("/api/v1/audits/missing-run-id", headers=auth_headers)
     assert response.status_code == 404, response.text
-    assert response.json()["detail"] == "Audit run not found"
+    payload = response.json()
+    assert payload["code"] == "AUDIT_RUN_NOT_FOUND"
+    assert payload["msg"] == "Audit run not found"
+    assert payload["data"] is None

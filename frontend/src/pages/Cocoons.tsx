@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { isAxiosError } from "axios";
 import { BrainCircuit, ChevronRight, Edit3, Loader2, Plus, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import { getErrorMessage, showErrorToast } from "@/api/client";
 import { getCharacters } from "@/api/characters";
 import { createCocoon, deleteCocoon, getCocoon, getCocoonTree, updateCocoon } from "@/api/cocoons";
 import { listModelProviders } from "@/api/providers";
@@ -141,8 +141,8 @@ export default function CocoonsPage() {
       ]);
       setCharacters(characterResponse.items);
       setProviders(providerResponse.items);
-    } catch {
-      toast.error(t("cocoons.loadReferenceFailed"));
+    } catch (error) {
+      showErrorToast(error, t("cocoons.loadReferenceFailed"));
     }
   }
 
@@ -197,7 +197,7 @@ export default function CocoonsPage() {
       }
     } catch (error) {
       console.error(error);
-      toast.error(t("cocoons.loadTreeFailed"));
+      showErrorToast(error, t("cocoons.loadTreeFailed"));
       if (parentId === null) {
         setRootMeta((prev) => ({ ...prev, isLoading: false }));
       }
@@ -212,7 +212,7 @@ export default function CocoonsPage() {
       setSelectedCocoon(cocoon);
     } catch (error) {
       console.error(error);
-      toast.error(t("cocoons.loadDetailFailed"));
+      showErrorToast(error, t("cocoons.loadDetailFailed"));
     } finally {
       setIsDetailLoading(false);
     }
@@ -311,11 +311,8 @@ export default function CocoonsPage() {
       }
       await loadSelectedCocoon(result.id);
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(friendlyCocoonErrorMessage(String(error.response?.data?.detail || error.message)));
-      } else {
-        toast.error(t("cocoons.saveFailed"));
-      }
+      const message = friendlyCocoonErrorMessage(getErrorMessage(error));
+      toast.error(message && !message.startsWith("Request failed with status") ? message : t("cocoons.saveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -333,8 +330,7 @@ export default function CocoonsPage() {
       setSelectedCocoonId(null);
       await loadTree(null, 1, true);
     } catch (error) {
-      if (isAxiosError(error)) toast.error(String(error.response?.data?.detail || error.message));
-      else toast.error(t("cocoons.deleteFailed"));
+      showErrorToast(error, t("cocoons.deleteFailed"));
     }
   }
 

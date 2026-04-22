@@ -1226,6 +1226,194 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/plugins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Plugins */
+        get: operations["list_plugins_api_v1_admin_plugins_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/shared-libs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Shared Packages */
+        get: operations["list_shared_packages_api_v1_admin_plugins_shared_libs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Plugin */
+        get: operations["get_plugin_api_v1_admin_plugins__plugin_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Plugin */
+        delete: operations["delete_plugin_api_v1_admin_plugins__plugin_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Install Plugin */
+        post: operations["install_plugin_api_v1_admin_plugins_install_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Update Plugin */
+        post: operations["update_plugin_api_v1_admin_plugins__plugin_id__update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enable Plugin */
+        post: operations["enable_plugin_api_v1_admin_plugins__plugin_id__enable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable Plugin */
+        post: operations["disable_plugin_api_v1_admin_plugins__plugin_id__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Plugin Config */
+        patch: operations["update_plugin_config_api_v1_admin_plugins__plugin_id__config_patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Event Config */
+        patch: operations["update_event_config_api_v1_admin_plugins__plugin_id__events__event_name__config_patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enable Event */
+        post: operations["enable_event_api_v1_admin_plugins__plugin_id__events__event_name__enable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable Event */
+        post: operations["disable_event_api_v1_admin_plugins__plugin_id__events__event_name__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1413,6 +1601,16 @@ export interface components {
             config_json?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** Body_install_plugin_api_v1_admin_plugins_install_post */
+        Body_install_plugin_api_v1_admin_plugins_install_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_update_plugin_api_v1_admin_plugins__plugin_id__update_post */
+        Body_update_plugin_api_v1_admin_plugins__plugin_id__update_post: {
+            /** File */
+            file: string;
         };
         /** CharacterAclCreate */
         CharacterAclCreate: {
@@ -1628,6 +1826,16 @@ export interface components {
             client_request_id: string;
             /** Timezone */
             timezone?: string | null;
+            /** Client Sent At */
+            client_sent_at?: string | null;
+            /** Locale */
+            locale?: string | null;
+            /** Idle Seconds */
+            idle_seconds?: number | null;
+            /** Recent Turn Count */
+            recent_turn_count?: number | null;
+            /** Typing Hint Ms */
+            typing_hint_ms?: number | null;
         };
         /** ChatMessageOut */
         ChatMessageOut: {
@@ -1997,7 +2205,9 @@ export interface components {
         /** InviteCreate */
         InviteCreate: {
             /** Code */
-            code: string;
+            code?: string | null;
+            /** Prefix */
+            prefix?: string | null;
             /**
              * Quota Total
              * @default 1
@@ -2273,6 +2483,214 @@ export interface components {
             completion_tokens: number;
             /** Total Tokens */
             total_tokens: number;
+        };
+        /** PluginConfigUpdate */
+        PluginConfigUpdate: {
+            /** Config Json */
+            config_json?: {
+                [key: string]: unknown;
+            };
+        };
+        /** PluginDetailOut */
+        PluginDetailOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Display Name */
+            display_name: string;
+            /** Plugin Type */
+            plugin_type: string;
+            /** Entry Module */
+            entry_module: string;
+            /** Service Function Name */
+            service_function_name: string | null;
+            /** Status */
+            status: string;
+            /** Install Source */
+            install_source: string;
+            /** Data Dir */
+            data_dir: string;
+            /** Config Schema Json */
+            config_schema_json: {
+                [key: string]: unknown;
+            };
+            /** Default Config Json */
+            default_config_json: {
+                [key: string]: unknown;
+            };
+            /** Config Json */
+            config_json: {
+                [key: string]: unknown;
+            };
+            /** Active Version Id */
+            active_version_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            active_version?: components["schemas"]["PluginVersionOut"] | null;
+            /** Versions */
+            versions?: components["schemas"]["PluginVersionOut"][];
+            /** Events */
+            events?: components["schemas"]["PluginEventOut"][];
+            run_state?: components["schemas"]["PluginRunStateOut"] | null;
+        };
+        /** PluginEventConfigUpdate */
+        PluginEventConfigUpdate: {
+            /** Config Json */
+            config_json?: {
+                [key: string]: unknown;
+            };
+        };
+        /** PluginEventOut */
+        PluginEventOut: {
+            /** Name */
+            name: string;
+            /** Mode */
+            mode: string;
+            /** Function Name */
+            function_name: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Config Schema Json */
+            config_schema_json: {
+                [key: string]: unknown;
+            };
+            /** Default Config Json */
+            default_config_json: {
+                [key: string]: unknown;
+            };
+            /** Config Json */
+            config_json: {
+                [key: string]: unknown;
+            };
+            /** Is Enabled */
+            is_enabled: boolean;
+        };
+        /** PluginListItemOut */
+        PluginListItemOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Display Name */
+            display_name: string;
+            /** Plugin Type */
+            plugin_type: string;
+            /** Entry Module */
+            entry_module: string;
+            /** Service Function Name */
+            service_function_name: string | null;
+            /** Status */
+            status: string;
+            /** Install Source */
+            install_source: string;
+            /** Data Dir */
+            data_dir: string;
+            /** Config Schema Json */
+            config_schema_json: {
+                [key: string]: unknown;
+            };
+            /** Default Config Json */
+            default_config_json: {
+                [key: string]: unknown;
+            };
+            /** Config Json */
+            config_json: {
+                [key: string]: unknown;
+            };
+            /** Active Version Id */
+            active_version_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** PluginRunStateOut */
+        PluginRunStateOut: {
+            /** Id */
+            id: string;
+            /** Plugin Id */
+            plugin_id: string;
+            /** Current Version Id */
+            current_version_id: string | null;
+            /** Process Type */
+            process_type: string | null;
+            /** Pid */
+            pid: number | null;
+            /** Status */
+            status: string;
+            /** Heartbeat At */
+            heartbeat_at: string | null;
+            /** Error Text */
+            error_text: string | null;
+            /** Meta Json */
+            meta_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** PluginSharedPackageOut */
+        PluginSharedPackageOut: {
+            /** Name */
+            name: string;
+            /** Normalized Name */
+            normalized_name: string;
+            /** Version */
+            version: string;
+            /** Path */
+            path: string;
+            /** Reference Count */
+            reference_count: number;
+            /** Size Bytes */
+            size_bytes: number;
+        };
+        /** PluginVersionOut */
+        PluginVersionOut: {
+            /** Id */
+            id: string;
+            /** Plugin Id */
+            plugin_id: string;
+            /** Version */
+            version: string;
+            /** Source Zip Path */
+            source_zip_path: string;
+            /** Extracted Path */
+            extracted_path: string;
+            /** Manifest Path */
+            manifest_path: string;
+            /** Install Status */
+            install_status: string;
+            /** Error Text */
+            error_text: string | null;
+            /** Metadata Json */
+            metadata_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** PromptTemplateDetail */
         PromptTemplateDetail: {
@@ -2793,6 +3211,16 @@ export interface components {
              */
             artifact_cleanup_runs: number;
         };
+        ApiValidationErrorData: {
+            errors: components["schemas"]["ValidationError"][];
+        };
+        ApiValidationEnvelope: {
+            /** @example VALIDATION_ERROR */
+            code: string;
+            /** @example Request validation failed */
+            msg: string;
+            data: components["schemas"]["ApiValidationErrorData"];
+        };
     };
     responses: never;
     parameters: never;
@@ -2817,7 +3245,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthResponse"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["HealthResponse"];
+                    };
                 };
             };
         };
@@ -2841,7 +3275,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenPair"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["TokenPair"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -2850,7 +3290,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -2874,7 +3314,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenPair"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["TokenPair"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -2883,7 +3329,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -2907,7 +3353,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenPair"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["TokenPair"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -2916,7 +3368,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -2940,7 +3392,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["MessageResponse"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -2949,7 +3407,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -2969,7 +3427,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["UserOut"];
+                    };
                 };
             };
         };
@@ -2989,7 +3453,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PublicFeaturesOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PublicFeaturesOut"];
+                    };
                 };
             };
         };
@@ -3009,7 +3479,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Users Api V1 Users Get */
+                        data: components["schemas"]["UserOut"][];
+                    };
                 };
             };
         };
@@ -3033,7 +3510,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["UserOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3042,7 +3525,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3068,7 +3551,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["UserOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3077,7 +3566,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3097,7 +3586,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Roles Api V1 Roles Get */
+                        data: components["schemas"]["RoleOut"][];
+                    };
                 };
             };
         };
@@ -3121,7 +3617,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["RoleOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3130,7 +3632,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3156,7 +3658,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["RoleOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3165,7 +3673,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3185,7 +3693,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InviteOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Invites Api V1 Invites Get */
+                        data: components["schemas"]["InviteOut"][];
+                    };
                 };
             };
         };
@@ -3209,7 +3724,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InviteOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["InviteOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3218,7 +3739,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3240,7 +3761,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InviteRevokeResult"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["InviteRevokeResult"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3249,7 +3776,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3269,7 +3796,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InviteGrantOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Invite Grants Api V1 Invites Grants Get */
+                        data: components["schemas"]["InviteGrantOut"][];
+                    };
                 };
             };
         };
@@ -3293,7 +3827,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InviteGrantOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["InviteGrantOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3302,7 +3842,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3322,7 +3862,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InviteSummaryOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["InviteSummaryOut"];
+                    };
                 };
             };
         };
@@ -3344,7 +3890,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InviteSummaryOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["InviteSummaryOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3353,7 +3905,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3379,7 +3931,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InviteRedeemResult"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["InviteRedeemResult"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3388,7 +3946,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3408,7 +3966,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GroupOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Groups Api V1 Groups Get */
+                        data: components["schemas"]["GroupOut"][];
+                    };
                 };
             };
         };
@@ -3432,7 +3997,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GroupOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["GroupOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3441,7 +4012,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3463,7 +4034,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GroupOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["GroupOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3472,7 +4049,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3498,7 +4075,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GroupOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["GroupOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3507,7 +4090,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3529,7 +4112,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GroupMemberOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Group Members Api V1 Groups  Group Id  Members Get */
+                        data: components["schemas"]["GroupMemberOut"][];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3538,7 +4128,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3564,7 +4154,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GroupMemberOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["GroupMemberOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3573,7 +4169,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3596,7 +4192,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GroupMemberOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["GroupMemberOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3605,7 +4207,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3625,7 +4227,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CharacterOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Characters Api V1 Characters Get */
+                        data: components["schemas"]["CharacterOut"][];
+                    };
                 };
             };
         };
@@ -3649,7 +4258,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CharacterOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CharacterOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3658,7 +4273,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3680,7 +4295,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CharacterOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CharacterOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3689,7 +4310,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3715,7 +4336,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CharacterOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CharacterOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3724,7 +4351,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3746,7 +4373,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CharacterAclOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Character Acl Api V1 Characters  Character Id  Acl Get */
+                        data: components["schemas"]["CharacterAclOut"][];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3755,7 +4389,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3781,7 +4415,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CharacterAclOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CharacterAclOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3790,7 +4430,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3813,7 +4453,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CharacterAclOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CharacterAclOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3822,7 +4468,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3842,7 +4488,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ModelProviderOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Providers Api V1 Providers Get */
+                        data: components["schemas"]["ModelProviderOut"][];
+                    };
                 };
             };
         };
@@ -3866,7 +4519,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ModelProviderOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ModelProviderOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3875,7 +4534,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3897,7 +4556,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ModelProviderOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ModelProviderOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3906,7 +4571,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3932,7 +4597,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ModelProviderOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ModelProviderOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3941,7 +4612,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3963,7 +4634,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AvailableModelOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response Sync Provider Models Api V1 Providers  Provider Id  Sync Models Post */
+                        data: components["schemas"]["AvailableModelOut"][];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -3972,7 +4650,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -3998,7 +4676,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProviderTestOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ProviderTestOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4007,7 +4691,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4029,7 +4713,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProviderCredentialOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ProviderCredentialOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4038,7 +4728,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4064,7 +4754,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProviderCredentialOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ProviderCredentialOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4073,7 +4769,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4093,7 +4789,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AvailableModelOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Models Api V1 Providers Models Get */
+                        data: components["schemas"]["AvailableModelOut"][];
+                    };
                 };
             };
         };
@@ -4117,7 +4820,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AvailableModelOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["AvailableModelOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4126,7 +4835,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4152,7 +4861,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AvailableModelOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["AvailableModelOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4161,7 +4876,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4181,7 +4896,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmbeddingProviderOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Embedding Providers Api V1 Providers Embedding Providers Get */
+                        data: components["schemas"]["EmbeddingProviderOut"][];
+                    };
                 };
             };
         };
@@ -4205,7 +4927,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmbeddingProviderOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["EmbeddingProviderOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4214,7 +4942,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4240,7 +4968,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmbeddingProviderOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["EmbeddingProviderOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4249,7 +4983,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4269,7 +5003,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TagOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Tags Api V1 Tags Get */
+                        data: components["schemas"]["TagOut"][];
+                    };
                 };
             };
         };
@@ -4293,7 +5034,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TagOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["TagOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4302,7 +5049,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4324,7 +5071,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TagOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["TagOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4333,7 +5086,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4359,7 +5112,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TagOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["TagOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4368,7 +5127,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4388,7 +5147,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SystemSettingsOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["SystemSettingsOut"];
+                    };
                 };
             };
         };
@@ -4412,7 +5177,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SystemSettingsOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["SystemSettingsOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4421,7 +5192,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4441,7 +5212,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PromptTemplateDetail"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Prompt Templates Api V1 Prompt Templates Get */
+                        data: components["schemas"]["PromptTemplateDetail"][];
+                    };
                 };
             };
         };
@@ -4467,7 +5245,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PromptTemplateOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PromptTemplateOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4476,7 +5260,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4502,7 +5286,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PromptTemplateOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PromptTemplateOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4511,7 +5301,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4533,7 +5323,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PromptTemplateOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PromptTemplateOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4542,7 +5338,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4562,7 +5358,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CocoonOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Cocoons Api V1 Cocoons Get */
+                        data: components["schemas"]["CocoonOut"][];
+                    };
                 };
             };
         };
@@ -4586,7 +5389,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CocoonOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CocoonOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4595,7 +5404,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4617,7 +5426,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CocoonOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CocoonOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4626,7 +5441,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4648,7 +5463,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CocoonOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CocoonOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4657,7 +5478,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4683,7 +5504,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CocoonOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CocoonOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4692,7 +5519,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4712,7 +5539,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CocoonTreeNode"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response Cocoon Tree Api V1 Cocoons Tree Get */
+                        data: components["schemas"]["CocoonTreeNode"][];
+                    };
                 };
             };
         };
@@ -4734,7 +5568,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionStateOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["SessionStateOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4743,7 +5583,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4763,7 +5603,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatGroupRoomOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Chat Groups Api V1 Chat Groups Get */
+                        data: components["schemas"]["ChatGroupRoomOut"][];
+                    };
                 };
             };
         };
@@ -4787,7 +5634,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatGroupRoomOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupRoomOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4796,7 +5649,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4818,7 +5671,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatGroupRoomOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupRoomOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4827,7 +5686,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4849,7 +5708,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatGroupRoomOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupRoomOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4858,7 +5723,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4884,7 +5749,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatGroupRoomOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupRoomOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4893,7 +5764,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4915,7 +5786,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatGroupMemberOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Chat Group Members Api V1 Chat Groups  Room Id  Members Get */
+                        data: components["schemas"]["ChatGroupMemberOut"][];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4924,7 +5802,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4950,7 +5828,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatGroupMemberOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupMemberOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4959,7 +5843,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -4982,7 +5866,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatGroupMemberOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupMemberOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4991,7 +5881,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5018,7 +5908,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatGroupMemberOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupMemberOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5027,7 +5923,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5049,7 +5945,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatMessageOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Chat Group Messages Api V1 Chat Groups  Room Id  Messages Get */
+                        data: components["schemas"]["ChatMessageOut"][];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5058,7 +5961,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5084,7 +5987,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AcceptedResponse"];
+                    "application/json": {
+                        /** @example ACCEPTED */
+                        code: string;
+                        /** @example accepted */
+                        msg: string;
+                        data: components["schemas"]["AcceptedResponse"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5093,7 +6002,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5116,7 +6025,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageRetractResult"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["MessageRetractResult"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5125,7 +6040,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5147,7 +6062,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatGroupStateOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupStateOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5156,7 +6077,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5178,7 +6099,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatMessageOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Messages Api V1 Cocoons  Cocoon Id  Messages Get */
+                        data: components["schemas"]["ChatMessageOut"][];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5187,7 +6115,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5213,7 +6141,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AcceptedResponse"];
+                    "application/json": {
+                        /** @example ACCEPTED */
+                        code: string;
+                        /** @example accepted */
+                        msg: string;
+                        data: components["schemas"]["AcceptedResponse"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5222,7 +6156,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5248,7 +6182,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AcceptedResponse"];
+                    "application/json": {
+                        /** @example ACCEPTED */
+                        code: string;
+                        /** @example accepted */
+                        msg: string;
+                        data: components["schemas"]["AcceptedResponse"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5257,7 +6197,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5283,7 +6223,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AcceptedResponse"];
+                    "application/json": {
+                        /** @example ACCEPTED */
+                        code: string;
+                        /** @example accepted */
+                        msg: string;
+                        data: components["schemas"]["AcceptedResponse"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5292,7 +6238,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5314,7 +6260,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CocoonTagBindingOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Cocoon Tags Api V1 Cocoons  Cocoon Id  Tags Get */
+                        data: components["schemas"]["CocoonTagBindingOut"][];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5323,7 +6276,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5349,7 +6302,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CocoonTagBindResult"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CocoonTagBindResult"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5358,7 +6317,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5381,7 +6340,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CocoonTagBindResult"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CocoonTagBindResult"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5390,7 +6355,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5416,7 +6381,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DurableJobOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["DurableJobOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5425,7 +6396,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5447,7 +6418,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MemoryChunkOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Memory Api V1 Memory  Cocoon Id  Get */
+                        data: components["schemas"]["MemoryChunkOut"][];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5456,7 +6434,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5482,7 +6460,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DurableJobOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["DurableJobOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5491,7 +6475,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5514,7 +6498,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MemoryChunkOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["MemoryChunkOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5523,7 +6513,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5543,7 +6533,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PullJobOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Pulls Api V1 Pulls Get */
+                        data: components["schemas"]["PullJobOut"][];
+                    };
                 };
             };
         };
@@ -5567,7 +6564,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PullEnqueueResult"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PullEnqueueResult"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5576,7 +6579,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5596,7 +6599,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MergeJobOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Merges Api V1 Merges Get */
+                        data: components["schemas"]["MergeJobOut"][];
+                    };
                 };
             };
         };
@@ -5620,7 +6630,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MergeEnqueueResult"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["MergeEnqueueResult"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5629,7 +6645,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5651,7 +6667,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CheckpointOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Checkpoints Api V1 Checkpoints  Cocoon Id  Get */
+                        data: components["schemas"]["CheckpointOut"][];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5660,7 +6683,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5684,7 +6707,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CheckpointOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CheckpointOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5693,7 +6722,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5713,7 +6742,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuditRunOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Audits Api V1 Audits Get */
+                        data: components["schemas"]["AuditRunOut"][];
+                    };
                 };
             };
         };
@@ -5735,7 +6771,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuditRunDetail"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["AuditRunDetail"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5744,7 +6786,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -5764,7 +6806,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InsightsSummary"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["InsightsSummary"];
+                    };
                 };
             };
         };
@@ -5784,7 +6832,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuditArtifactOut"][];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Artifacts Api V1 Admin Artifacts Get */
+                        data: components["schemas"]["AuditArtifactOut"][];
+                    };
                 };
             };
         };
@@ -5804,7 +6859,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DurableJobOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["DurableJobOut"];
+                    };
                 };
             };
         };
@@ -5828,7 +6889,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DurableJobOut"];
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["DurableJobOut"];
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5837,7 +6904,451 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    list_plugins_api_v1_admin_plugins_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Plugins Api V1 Admin Plugins Get */
+                        data: components["schemas"]["PluginListItemOut"][];
+                    };
+                };
+            };
+        };
+    };
+    list_shared_packages_api_v1_admin_plugins_shared_libs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Shared Packages Api V1 Admin Plugins Shared Libs Get */
+                        data: components["schemas"]["PluginSharedPackageOut"][];
+                    };
+                };
+            };
+        };
+    };
+    get_plugin_api_v1_admin_plugins__plugin_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    delete_plugin_api_v1_admin_plugins__plugin_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response Delete Plugin Api V1 Admin Plugins  Plugin Id  Delete */
+                        data: {
+                            [key: string]: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    install_plugin_api_v1_admin_plugins_install_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_install_plugin_api_v1_admin_plugins_install_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    update_plugin_api_v1_admin_plugins__plugin_id__update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_update_plugin_api_v1_admin_plugins__plugin_id__update_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    enable_plugin_api_v1_admin_plugins__plugin_id__enable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    disable_plugin_api_v1_admin_plugins__plugin_id__disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    update_plugin_config_api_v1_admin_plugins__plugin_id__config_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    update_event_config_api_v1_admin_plugins__plugin_id__events__event_name__config_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                event_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginEventConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    enable_event_api_v1_admin_plugins__plugin_id__events__event_name__enable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                event_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    disable_event_api_v1_admin_plugins__plugin_id__events__event_name__disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                event_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };

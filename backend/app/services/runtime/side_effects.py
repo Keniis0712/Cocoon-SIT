@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models import ActionDispatch, AuditRun, MemoryChunk, MemoryTag, Message, MessageTag, SessionState
 from app.models.entities import ActionStatus
+from app.models.workspace import DEFAULT_RELATION_SCORE, MAX_RELATION_SCORE, MIN_RELATION_SCORE
 from app.services.audit.service import AuditService
 from app.services.memory.service import MemoryService
 from app.services.runtime.types import ContextPackage, GenerationOutput, MemoryCandidate, MetaDecision
@@ -20,7 +21,8 @@ class SideEffects:
 
     def apply_state_patch(self, session: Session, context: ContextPackage, meta: MetaDecision) -> SessionState:
         state = context.session_state
-        state.relation_score += meta.relation_delta
+        current_score = state.relation_score if state.relation_score is not None else DEFAULT_RELATION_SCORE
+        state.relation_score = max(MIN_RELATION_SCORE, min(MAX_RELATION_SCORE, current_score + meta.relation_delta))
         state.persona_json = state.persona_json | meta.persona_patch
         for op in meta.tag_ops:
             if op.action == "add":
@@ -35,7 +37,8 @@ class SideEffects:
             merged_persona = dict(source_state.persona_json)
             merged_persona.update(state.persona_json)
             state.persona_json = merged_persona
-            state.relation_score = int((state.relation_score + source_state.relation_score) / 2)
+            merged_score = int((state.relation_score + source_state.relation_score) / 2)
+            state.relation_score = max(MIN_RELATION_SCORE, min(MAX_RELATION_SCORE, merged_score))
             for tag in source_state.active_tags_json:
                 if tag not in state.active_tags_json:
                     state.active_tags_json = [*state.active_tags_json, tag]

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { isAxiosError } from "axios";
 import { Pencil, Plus, RefreshCcw, Server, Trash2, Wifi } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { showErrorToast } from "@/api/client";
 import {
   createModelProvider,
   deleteModelProvider,
@@ -31,6 +32,7 @@ const EMPTY_FORM: ModelProviderPayload = {
 };
 
 export default function ProvidersPage() {
+  const { t } = useTranslation(["providers", "common"]);
   const userInfo = useUserStore((state) => state.userInfo);
   const [items, setItems] = useState<ModelProviderRead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,7 +91,7 @@ export default function ProvidersPage() {
 
       if (editing) {
         await updateModelProvider(editing.id, payload);
-        toast.success("Provider updated");
+        toast.success(t("providers:providerUpdated"));
       } else {
         await createModelProvider({
           name: payload.name || "",
@@ -97,7 +99,7 @@ export default function ProvidersPage() {
           api_key: payload.api_key || "",
           is_enabled: payload.is_enabled ?? true,
         });
-        toast.success("Provider created");
+        toast.success(t("providers:providerCreated"));
       }
 
       setDialogOpen(false);
@@ -105,11 +107,7 @@ export default function ProvidersPage() {
       setForm(EMPTY_FORM);
       await fetchProviders();
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(error instanceof Error ? error.message : "Failed to save provider");
-      }
+      showErrorToast(error, t("providers:saveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -118,20 +116,16 @@ export default function ProvidersPage() {
   async function handleSyncProvider(item: ModelProviderRead) {
     try {
       await syncModelProvider(item.id);
-      toast.success("Provider models synced");
+      toast.success(t("providers:modelsSynced"));
       await fetchProviders();
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(error instanceof Error ? error.message : "Failed to sync provider models");
-      }
+      showErrorToast(error, t("providers:syncFailed"));
     }
   }
 
   async function handleTestProvider(item: ModelProviderRead) {
     if (!item.available_models.length) {
-      toast.error("No model is registered for this provider yet");
+      toast.error(t("providers:noModels"));
       return;
     }
     try {
@@ -139,45 +133,37 @@ export default function ProvidersPage() {
         selected_model_id: item.available_models[0].id,
         prompt: "ping",
       });
-      toast.success(`Reply: ${result.reply}`);
+      toast.success(t("providers:testReply", { value: result.reply }));
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(error instanceof Error ? error.message : "Failed to test provider");
-      }
+      showErrorToast(error, t("providers:testFailed"));
     }
   }
 
   async function handleDeleteProvider(item: ModelProviderRead) {
-    if (!window.confirm(`Delete provider "${item.name}"?`)) {
+    if (!window.confirm(t("providers:deleteConfirm", { name: item.name }))) {
       return;
     }
     try {
       await deleteModelProvider(item.id);
-      toast.success("Provider deleted");
+      toast.success(t("providers:providerDeleted"));
       await fetchProviders();
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(error instanceof Error ? error.message : "Failed to delete provider");
-      }
+      showErrorToast(error, t("providers:deleteFailed"));
     }
   }
 
   if (!canManage) {
-    return <AccessCard description="This account cannot manage model providers." />;
+    return <AccessCard description={t("providers:noPermission")} />;
   }
 
   return (
     <PageFrame
-      title="Model Providers"
-      description="Manage OpenAI-compatible providers, sync their models, test connectivity, and clean up unused entries."
+      title={t("providers:title")}
+      description={t("providers:description")}
       actions={
         <Button onClick={openCreateDialog}>
           <Plus className="mr-2 size-4" />
-          New provider
+          {t("providers:newProvider")}
         </Button>
       }
     >
@@ -198,14 +184,14 @@ export default function ProvidersPage() {
                     <div className="flex flex-col gap-2">
                       <Badge variant="outline">#{item.id}</Badge>
                       <Badge variant={item.is_enabled ? "default" : "secondary"}>
-                        {item.is_enabled ? "Enabled" : "Disabled"}
+                        {item.is_enabled ? t("providers:enabled") : t("providers:disabled")}
                       </Badge>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
                   <div>
-                    <div className="mb-2 text-muted-foreground">Available models</div>
+                    <div className="mb-2 text-muted-foreground">{t("providers:availableModels")}</div>
                     <div className="flex flex-wrap gap-2">
                       {item.available_models.length > 0 ? (
                         item.available_models.map((model) => (
@@ -214,26 +200,26 @@ export default function ProvidersPage() {
                           </Badge>
                         ))
                       ) : (
-                        <span className="text-muted-foreground">No models registered yet.</span>
+                        <span className="text-muted-foreground">{t("providers:noModelsRegistered")}</span>
                       )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={() => void handleSyncProvider(item)}>
                       <RefreshCcw className="mr-2 size-4" />
-                      Sync models
+                      {t("providers:syncModels")}
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => void handleTestProvider(item)}>
                       <Wifi className="mr-2 size-4" />
-                      Test
+                      {t("providers:test")}
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => openEditDialog(item)}>
                       <Pencil className="mr-2 size-4" />
-                      Edit
+                      {t("common:edit")}
                     </Button>
                     <Button variant="destructive" size="sm" onClick={() => void handleDeleteProvider(item)}>
                       <Trash2 className="mr-2 size-4" />
-                      Delete
+                      {t("common:delete")}
                     </Button>
                   </div>
                 </CardContent>
@@ -244,12 +230,12 @@ export default function ProvidersPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit provider" : "Create provider"}</DialogTitle>
-            <DialogDescription>Enter the OpenAI-compatible base URL and API key.</DialogDescription>
+            <DialogTitle>{editing ? t("providers:editProvider") : t("providers:createProvider")}</DialogTitle>
+            <DialogDescription>{t("providers:dialogDescription")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
-              <Label htmlFor="provider-name">Name</Label>
+              <Label htmlFor="provider-name">{t("common:name")}</Label>
               <Input
                 id="provider-name"
                 value={form.name}
@@ -257,7 +243,7 @@ export default function ProvidersPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="provider-base-url">Base URL</Label>
+              <Label htmlFor="provider-base-url">{t("providers:baseUrl")}</Label>
               <Input
                 id="provider-base-url"
                 value={form.base_url}
@@ -265,7 +251,9 @@ export default function ProvidersPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="provider-api-key">API key{editing ? " (leave empty to keep current value)" : ""}</Label>
+              <Label htmlFor="provider-api-key">
+                {editing ? t("providers:apiKeyKeepCurrent") : t("providers:apiKey")}
+              </Label>
               <Input
                 id="provider-api-key"
                 type="password"
@@ -278,18 +266,18 @@ export default function ProvidersPage() {
                 checked={form.is_enabled}
                 onCheckedChange={(checked) => setForm((prev) => ({ ...prev, is_enabled: Boolean(checked) }))}
               />
-              <span>Enable this provider</span>
+              <span>{t("providers:enableProvider")}</span>
             </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button
               disabled={isSaving || !form.name.trim() || !form.base_url.trim() || (!editing && !form.api_key.trim())}
               onClick={saveProvider}
             >
-              {isSaving ? "Saving..." : editing ? "Save changes" : "Create provider"}
+              {isSaving ? t("providers:saving") : editing ? t("common:saveChanges") : t("providers:createProvider")}
             </Button>
           </DialogFooter>
         </DialogContent>

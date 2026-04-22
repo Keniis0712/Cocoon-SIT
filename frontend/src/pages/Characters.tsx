@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { isAxiosError } from "axios";
 import { Globe2, LockKeyhole, Pencil, Plus, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { listAdminUsers } from "@/api/admin-users";
+import { showErrorToast } from "@/api/client";
 import {
   appendCharacterAclEntries,
   deleteCharacter,
@@ -188,11 +188,7 @@ export default function CharactersPage() {
       setForm(EMPTY_FORM);
       await fetchData();
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(t("characters.saveFailed"));
-      }
+      showErrorToast(error, t("characters.saveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -217,11 +213,7 @@ export default function CharactersPage() {
       setAclGroups(groupsResponse.items.filter((group) => canManageSystem || group.owner_uid === userInfo?.uid));
     } catch (error) {
       setAclOpen(false);
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(t("characters.aclLoadFailed"));
-      }
+      showErrorToast(error, t("characters.aclLoadFailed"));
     }
   }
 
@@ -268,11 +260,7 @@ export default function CharactersPage() {
       toast.success("ACL entries appended");
       await fetchData();
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(t("characters.aclSaveFailed"));
-      }
+      showErrorToast(error, t("characters.aclSaveFailed"));
     }
   }
 
@@ -288,11 +276,7 @@ export default function CharactersPage() {
       );
       setEffectiveItems(response);
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(t("characters.effectiveLoadFailed"));
-      }
+      showErrorToast(error, t("characters.effectiveLoadFailed"));
     } finally {
       setEffectiveLoading(false);
     }
@@ -307,11 +291,7 @@ export default function CharactersPage() {
       toast.success("Character deleted");
       await fetchData();
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(error instanceof Error ? error.message : "Failed to delete character");
-      }
+      showErrorToast(error, "Failed to delete character");
     }
   }
 
@@ -324,11 +304,7 @@ export default function CharactersPage() {
       setExistingAclEntries((prev) => prev.filter((item) => item.id !== entry.id));
       toast.success("ACL entry deleted");
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(error instanceof Error ? error.message : "Failed to delete ACL entry");
-      }
+      showErrorToast(error, "Failed to delete ACL entry");
     }
   }
 

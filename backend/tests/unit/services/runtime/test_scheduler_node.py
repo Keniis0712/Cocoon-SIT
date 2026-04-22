@@ -232,6 +232,32 @@ def test_scheduler_node_idle_wakeup_logic_and_delay_resolution():
         assert scheduler._resolve_idle_wakeup_delay_seconds(bursty) == scheduler.FREQUENT_COCOON_IDLE_WAKEUP_DELAY_SECONDS
 
 
+def test_scheduler_node_skips_invalid_meta_wakeup_hints_without_crashing():
+    session_factory = _session_factory()
+    scheduler = SchedulerNode(DurableJobService())
+
+    with session_factory() as session:
+        session.add(SessionState(cocoon_id="cocoon-1", persona_json={}, active_tags_json=[]))
+        session.commit()
+
+        result = scheduler.schedule(
+            session,
+            _context(),
+            _meta(
+                hints=[
+                    {"delay_minutes": 5},
+                    {"reason": "   ", "delay_minutes": 5},
+                    {"reason": "missing delay"},
+                ]
+            ),
+        )
+
+        assert result["wakeup_task_ids"] == []
+        current_state = session.get(SessionState, "cocoon-1")
+        assert current_state is not None
+        assert current_state.current_wakeup_task_id is None
+
+
 def test_scheduler_node_helpers_cover_job_lookup_and_invalid_idle_payloads():
     session_factory = _session_factory()
     scheduler = SchedulerNode(DurableJobService())

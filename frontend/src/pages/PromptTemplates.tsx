@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { isAxiosError } from "axios";
 import { FileCode2, Pencil, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
+import { showErrorToast } from "@/api/client";
 import { listPromptTemplates, resetPromptTemplate, savePromptTemplate } from "@/api/prompts";
 import type { PromptTemplatePayload, PromptTemplateRead } from "@/api/types/prompts";
 import AccessCard from "@/components/AccessCard";
@@ -142,11 +142,7 @@ export default function PromptTemplatesPage() {
       setDialogOpen(false);
       await fetchTemplates();
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(error instanceof Error ? error.message : t("prompts.saveFailed"));
-      }
+      showErrorToast(error, t("prompts.saveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -167,11 +163,7 @@ export default function PromptTemplatesPage() {
       }
       await fetchTemplates();
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(error instanceof Error ? error.message : t("prompts.resetFailed"));
-      }
+      showErrorToast(error, t("prompts.resetFailed"));
     } finally {
       setResettingType(null);
     }

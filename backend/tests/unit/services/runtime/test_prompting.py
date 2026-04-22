@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 from app.services.runtime.prompting import (
     _mentionable_for_target,
+    _pending_wakeup_payload,
     _resolve_tag_name,
     _runtime_memory_payload,
     _runtime_message_payload,
@@ -21,7 +22,12 @@ def _build_context(*, target_type: str = "chat_group") -> ContextPackage:
         cocoon_id="cocoon-1" if target_type == "cocoon" else None,
         chat_group_id="group-1" if target_type == "chat_group" else None,
         action_id="action-1",
-        payload={"source": "user"},
+        payload={
+            "source": "user",
+            "message_id": "3d12bf20-37c7-43c7-85b6-941ad74eb22f",
+            "client_request_id": "2ac72c91-27db-4cfd-b3f7-04ca0f4f8950",
+            "timezone": "Asia/Shanghai",
+        },
     )
     return ContextPackage(
         runtime_event=runtime_event,
@@ -111,10 +117,13 @@ def test_prompting_serializes_tags_messages_and_memory():
     assert serialized_tag["mentionable_in_current_target"] is True
     assert serialized_tags[1]["name"] == "group-id"
     assert "[system note: this message was later retracted]" in message_payload["content"]
+    assert message_payload["speaker"] == "you"
+    assert "sender_user_id" not in message_payload
     assert message_payload["mentionable_in_current_target"] is True
-    assert memory_payload["source_target_type"] == "cocoon"
+    assert memory_payload["source"] == "cocoon"
     assert memory_payload["mentionable_in_current_target"] is False
     assert memory_payload["tags"][0]["is_isolated"] is True
+    assert "owner_user_id" not in memory_payload
 
 
 def test_build_runtime_prompt_variables_builds_full_payload():
@@ -141,14 +150,24 @@ def test_build_runtime_prompt_variables_builds_full_payload():
         )
     ]
 
-    payload = build_runtime_prompt_variables(context, provider_capabilities={"streaming": True})
+    payload = build_runtime_prompt_variables(
+        context,
+        provider_capabilities={
+            "streaming": True,
+            "provider_kind": "mock",
+            "model_name": "gpt-test",
+        },
+    )
 
     assert payload["character_settings"]["prompt_summary"] == "friendly companion"
-    assert payload["conversation_target"] == {"type": "cocoon", "id": "cocoon-1", "name": "Demo Cocoon"}
-    assert payload["session_state"]["pending_wakeups"] == [{"id": "wake-1"}]
+    assert payload["conversation_target"] == {"type": "cocoon", "name": "Demo Cocoon"}
     assert payload["visible_messages"][0]["tags"][0]["name"] == "Public Tag"
-    assert payload["memory_context"][0]["source_target_type"] == "chat_group"
+    assert payload["visible_messages"][0]["speaker"] == "you"
+    assert payload["memory_context"][0]["source"] == "chat_group"
     assert payload["runtime_event"]["source"] == "user"
+    assert payload["runtime_event"]["timezone"] == "Asia/Shanghai"
+    assert "message_id" not in payload["runtime_event"]
+    assert payload["pending_wakeups"] == [{"run_at": None, "reason": None, "status": None, "has_payload": False}]
     assert payload["merge_context"]["source_state"]["active_tags"][0]["name"] == "Public Tag"
     assert payload["provider_capabilities"] == {"streaming": True}
 
@@ -162,6 +181,29 @@ def test_build_runtime_prompt_variables_handles_non_dict_catalog_and_merge_paylo
 
     assert payload["session_state"]["active_tags"][0]["name"] == "tag-public"
     assert payload["merge_context"] == "plain"
+
+
+def test_pending_wakeup_payload_hides_ids_and_payload_details():
+    payload = _pending_wakeup_payload(
+        [
+            {
+                "id": "wake-1",
+                "run_at": "2026-04-22T12:00:00",
+                "reason": "follow up",
+                "status": "queued",
+                "payload_json": {"source_cocoon_id": "abc"},
+            }
+        ]
+    )
+
+    assert payload == [
+        {
+            "run_at": "2026-04-22T12:00:00",
+            "reason": "follow up",
+            "status": "queued",
+            "has_payload": True,
+        }
+    ]
 
 
 def test_record_prompt_render_artifacts_links_variable_and_snapshot_artifacts():

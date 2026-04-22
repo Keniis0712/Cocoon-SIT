@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from app.services.runtime.structured_output import (
     _chat_openai_kwargs,
     _extract_usage,
+    _resolve_langchain_structured_output_method,
+    _resolve_structured_output_method,
     _structured_text,
     invoke_with_structured_output,
 )
@@ -37,6 +39,20 @@ def test_chat_openai_kwargs_separates_direct_and_model_kwargs():
         "max_tokens": 128,
         "model_kwargs": {"custom_flag": True},
     }
+
+
+def test_resolve_structured_output_method_defaults_to_tool_calling_and_validates():
+    assert _resolve_structured_output_method({}) == "tool_calling"
+    assert _resolve_structured_output_method({"structured_output_method": "json_schema"}) == "json_schema"
+    assert _resolve_langchain_structured_output_method("tool_calling") == "function_calling"
+    assert _resolve_langchain_structured_output_method("json_schema") == "json_mode"
+
+    try:
+        _resolve_structured_output_method({"structured_output_method": "xml"})
+    except ValueError as exc:
+        assert "structured_output_method" in str(exc)
+    else:
+        raise AssertionError("Expected structured_output_method validation error")
 
 
 def test_structured_text_prefers_reply_text_and_falls_back_to_raw_content():
@@ -187,7 +203,7 @@ def test_invoke_with_structured_output_uses_langchain_adapter(monkeypatch):
         "model_kwargs": {"custom_flag": True},
     }
     assert calls["schema_model"] is _ReplyModel
-    assert calls["method"] == "json_schema"
+    assert calls["method"] == "function_calling"
     assert calls["include_raw"] is True
     assert [item.role for item in calls["payload"]] == ["system", "user", "assistant", "system"]
     assert [item.content for item in calls["payload"]] == ["System prompt", "hello", "prior", "extra"]
@@ -209,3 +225,67 @@ def test_invoke_with_structured_output_uses_langchain_adapter(monkeypatch):
         "completion_tokens": 3,
         "total_tokens": 5,
     }
+
+
+def test_invoke_with_structured_output_uses_configured_method(monkeypatch):
+    fake_messages = ModuleType("langchain_core.messages")
+
+    class _FakeSystemMessage:
+        def __init__(self, content):
+            self.content = content
+            self.role = "system"
+
+    class _FakeHumanMessage:
+        def __init__(self, content):
+            self.content = content
+            self.role = "user"
+
+    class _FakeAIMessage:
+        def __init__(self, content, **kwargs):
+            self.content = content
+            self.additional_kwargs = kwargs.get("additional_kwargs", {})
+            self.response_metadata = kwargs.get("response_metadata", {})
+            self.usage_metadata = kwargs.get("usage_metadata", {})
+            self.role = "assistant"
+
+    fake_messages.SystemMessage = _FakeSystemMessage
+    fake_messages.HumanMessage = _FakeHumanMessage
+    fake_messages.AIMessage = _FakeAIMessage
+
+    calls = {}
+
+    class _FakeStructuredLLM:
+        def invoke(self, payload):
+            calls["payload"] = payload
+            return {"raw": _FakeAIMessage(content="ok"), "parsing_error": None, "parsed": _ReplyModel(reply_text="ok")}
+
+    class _FakeChatOpenAI:
+        def __init__(self, **kwargs):
+            calls["init_kwargs"] = kwargs
+
+        def with_structured_output(self, schema_model, *, method, include_raw):
+            calls["schema_model"] = schema_model
+            calls["method"] = method
+            calls["include_raw"] = include_raw
+            return _FakeStructuredLLM()
+
+    fake_openai = ModuleType("langchain_openai")
+    fake_openai.ChatOpenAI = _FakeChatOpenAI
+
+    monkeypatch.setitem(sys.modules, "langchain_core.messages", fake_messages)
+    monkeypatch.setitem(sys.modules, "langchain_openai", fake_openai)
+
+    invoke_with_structured_output(
+        prompt="System prompt",
+        messages=[],
+        model_name="gpt-test",
+        provider_config={
+            "base_url": "https://example.com/",
+            "api_key": "secret",
+            "structured_output_method": "json_schema",
+        },
+        schema_model=_ReplyModel,
+        output_name="demo_output",
+    )
+
+    assert calls["method"] == "json_mode"

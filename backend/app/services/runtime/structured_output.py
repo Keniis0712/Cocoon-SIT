@@ -8,6 +8,11 @@ from pydantic import BaseModel
 
 
 SchemaModelT = TypeVar("SchemaModelT", bound=BaseModel)
+ALLOWED_STRUCTURED_OUTPUT_METHODS = {"json_schema", "tool_calling"}
+LANGCHAIN_STRUCTURED_OUTPUT_METHODS = {
+    "tool_calling": "function_calling",
+    "json_schema": "json_mode",
+}
 
 
 @dataclass
@@ -43,9 +48,10 @@ def invoke_with_structured_output(
         timeout=float(provider_config.get("timeout", 60)),
         **_chat_openai_kwargs(provider_config),
     )
+    method = _resolve_structured_output_method(provider_config)
     structured_llm = llm.with_structured_output(
         schema_model,
-        method="json_schema",
+        method=_resolve_langchain_structured_output_method(method),
         include_raw=True,
     )
     response = structured_llm.invoke(_build_langchain_messages(prompt, messages))
@@ -93,11 +99,24 @@ def _chat_openai_kwargs(provider_config: dict[str, Any]) -> dict[str, Any]:
         "presence_penalty",
     )
     kwargs = {key: provider_config[key] for key in direct_keys if key in provider_config}
-    excluded = {"base_url", "api_key", "timeout", *direct_keys}
+    excluded = {"base_url", "api_key", "timeout", "structured_output_method", *direct_keys}
     model_kwargs = {key: value for key, value in provider_config.items() if key not in excluded}
     if model_kwargs:
         kwargs["model_kwargs"] = model_kwargs
     return kwargs
+
+
+def _resolve_structured_output_method(provider_config: dict[str, Any]) -> str:
+    raw_method = provider_config.get("structured_output_method") or "tool_calling"
+    method = str(raw_method).strip()
+    if method not in ALLOWED_STRUCTURED_OUTPUT_METHODS:
+        allowed = ", ".join(sorted(ALLOWED_STRUCTURED_OUTPUT_METHODS))
+        raise ValueError(f"structured_output_method must be one of: {allowed}")
+    return method
+
+
+def _resolve_langchain_structured_output_method(method: str) -> str:
+    return LANGCHAIN_STRUCTURED_OUTPUT_METHODS[method]
 
 
 def _dump_parsed_model(parsed_model: Any) -> dict[str, Any]:

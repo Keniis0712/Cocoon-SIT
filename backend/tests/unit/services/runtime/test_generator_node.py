@@ -139,9 +139,19 @@ def test_generator_node_build_structured_prompt_includes_runtime_context():
         generation_brief="brief",
     )
 
-    prompt = node._build_structured_prompt(context, "rendered prompt", meta)
+    prompt = node._build_structured_prompt(
+        context,
+        "rendered prompt",
+        meta,
+        prompt_snapshot={
+            "runtime_event": {"event_type": "chat", "target_type": "cocoon"},
+            "wakeup_context": {"reason": "scheduled reminder"},
+            "pending_wakeups": [{"reason": "later", "status": "queued", "has_payload": False, "run_at": None}],
+        },
+    )
 
     assert "PROMPT_TEXT_START" in prompt
     assert "rendered prompt" in prompt
     assert '"target_type": "cocoon"' in prompt
-    assert '"pending_wakeups": [{"id": "wake-1"}]' in prompt
+    assert '"pending_wakeups": [{"reason": "later", "status": "queued", "has_payload": false, "run_at": null}]' in prompt
+    assert "target_id" not in prompt

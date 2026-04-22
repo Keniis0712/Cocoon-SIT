@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_permission
+from app.api.wakeup_serialization import serialize_wakeup_task
 from app.models import (
     ActionDispatch,
     AuditArtifact,
@@ -26,6 +27,7 @@ from app.models import (
     WakeupTask,
 )
 from app.schemas.common import AcceptedResponse
+from app.schemas.observability.wakeups import WakeupTaskOut
 from app.schemas.workspace.chat_groups import (
     ChatGroupMemberCreate,
     ChatGroupMemberOut,
@@ -37,6 +39,7 @@ from app.schemas.workspace.chat_groups import (
     MessageRetractResult,
 )
 from app.schemas.workspace.cocoons import ChatMessageCreate, ChatMessageOut
+from app.services.runtime.wakeup_tasks import list_wakeup_tasks
 from app.services.workspace.targets import get_session_state
 
 
@@ -291,6 +294,27 @@ def get_chat_group_state(
     if not state:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session state not found")
     return ChatGroupStateOut.model_validate(state)
+
+
+@router.get("/{room_id}/wakeups", response_model=list[WakeupTaskOut])
+def list_chat_group_wakeups(
+    room_id: str,
+    status: str | None = None,
+    only_ai: bool = False,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _=Depends(require_permission("cocoons:read")),
+) -> list[WakeupTaskOut]:
+    db.info["container"].authorization_service.require_chat_group_access(db, user, room_id)
+    tasks = list_wakeup_tasks(
+        db,
+        chat_group_id=room_id,
+        status=status,
+        only_ai=only_ai,
+        limit=limit,
+    )
+    return [serialize_wakeup_task(db, task) for task in tasks]
 
 
 @router.websocket("/{room_id}/ws")

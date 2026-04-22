@@ -88,6 +88,7 @@ def test_ensure_session_state_creates_and_flushes_missing_state():
 
     assert result.cocoon_id == "c-new"
     assert result.chat_group_id is None
+    assert result.relation_score == 50
     assert result.persona_json == {}
     assert result.active_tags_json == []
     assert session.added == [result]

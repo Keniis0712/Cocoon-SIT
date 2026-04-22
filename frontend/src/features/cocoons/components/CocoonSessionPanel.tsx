@@ -4,10 +4,13 @@ import { useTranslation } from "react-i18next";
 import type { TagRead } from "@/api/types/catalog";
 import type { CocoonRead } from "@/api/types/cocoons";
 import type { AvailableModelRead } from "@/api/types/providers";
+import type { WakeupTaskRead } from "@/api/types/wakeups";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatWorkspaceTime } from "@/features/workspace/utils";
+
+const DEFAULT_RELATION_SCORE = 50;
 
 type CocoonSessionPanelProps = {
   selectedCocoon: CocoonRead | null;
@@ -20,7 +23,7 @@ type CocoonSessionPanelProps = {
   currentModelId: number | null | undefined;
   dispatchState: string | null | undefined;
   relationScore: number | null | undefined;
-  currentWakeupTaskId: string | null | undefined;
+  currentAiWakeup: WakeupTaskRead | null;
   debounceUntil: string | null | undefined;
   dispatchReason: string | null | undefined;
   lastError: string | null | undefined;
@@ -40,7 +43,7 @@ export function CocoonSessionPanel({
   currentModelId,
   dispatchState,
   relationScore,
-  currentWakeupTaskId,
+  currentAiWakeup,
   debounceUntil,
   dispatchReason,
   lastError,
@@ -48,7 +51,7 @@ export function CocoonSessionPanel({
   onAddTag,
   onChangeModel,
 }: CocoonSessionPanelProps) {
-  const { t } = useTranslation(["workspace", "common"]);
+  const { t } = useTranslation(["workspace", "wakeups", "common"]);
 
   return (
     <Card className="border-border/70 bg-card/90">
@@ -127,9 +130,17 @@ export function CocoonSessionPanel({
           <div className="mb-2 text-muted-foreground">{t("workspace:state")}</div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{t("workspace:dispatch", { value: dispatchState || selectedCocoon?.dispatch_status || "idle" })}</Badge>
-            <Badge variant="outline">{t("workspace:relation", { value: relationScore ?? "-" })}</Badge>
-            <Badge variant="outline">{t("workspace:wakeup", { value: currentWakeupTaskId ? `#${currentWakeupTaskId}` : "none" })}</Badge>
+            <Badge variant="outline">{t("workspace:relation", { value: relationScore ?? DEFAULT_RELATION_SCORE })}</Badge>
+            <Badge variant="outline">{t("wakeups:aiWakeupBadge", { value: currentAiWakeup ? t("wakeups:scheduled") : t("wakeups:none") })}</Badge>
           </div>
+          {currentAiWakeup ? (
+            <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+              <div>{t("wakeups:aiWakeupAt", { value: formatWorkspaceTime(currentAiWakeup.run_at) })}</div>
+              <div>{t("wakeups:aiWakeupReason", { value: currentAiWakeup.reason || t("wakeups:unknownWakeupReason") })}</div>
+            </div>
+          ) : (
+            <div className="mt-3 text-xs text-muted-foreground">{t("wakeups:noAiWakeup")}</div>
+          )}
           {debounceUntil ? <div className="mt-3 text-xs text-muted-foreground">{t("workspace:debouncedUntil", { value: formatWorkspaceTime(debounceUntil) })}</div> : null}
           {dispatchReason ? <div className="mt-3 text-xs text-muted-foreground">{dispatchReason}</div> : null}
           {lastError ? <div className="mt-3 text-sm text-destructive">{lastError}</div> : null}

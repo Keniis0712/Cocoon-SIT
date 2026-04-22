@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -36,6 +37,8 @@ class RuntimeGraphState(TypedDict, total=False):
 class ChatRuntime:
     """Top-level orchestrator for one runtime round."""
 
+    logger = logging.getLogger(__name__)
+
     def __init__(
         self,
         context_builder: ContextBuilder,
@@ -60,6 +63,13 @@ class ChatRuntime:
         self.graph = self._build_graph()
 
     def run(self, session: Session, action: ActionDispatch) -> None:
+        self.logger.info(
+            "ChatRuntime starting action_id=%s event_type=%s cocoon_id=%s chat_group_id=%s",
+            action.id,
+            getattr(action, "event_type", None),
+            getattr(action, "cocoon_id", None),
+            getattr(action, "chat_group_id", None),
+        )
         event, audit_run = self.round_preparation_service.prepare(session, action)
         self.graph.invoke(
             {
@@ -70,6 +80,12 @@ class ChatRuntime:
                 "message": None,
                 "memories": [],
             }
+        )
+        self.logger.info(
+            "ChatRuntime finished action_id=%s event_type=%s audit_run_id=%s",
+            action.id,
+            getattr(action, "event_type", None),
+            getattr(audit_run, "id", None),
         )
 
     def _build_graph(self):
@@ -110,6 +126,13 @@ class ChatRuntime:
         event = state["event"]
         context_step = self.audit_service.start_step(session, audit_run, "context_builder")
         context = self.context_builder.build(session, event)
+        self.logger.info(
+            "Context built action_id=%s target_type=%s visible_messages=%s memory_hits=%s",
+            state["action"].id,
+            context.target_type,
+            len(context.visible_messages),
+            len(context.memory_hits),
+        )
         self.audit_service.record_json_artifact(
             session,
             audit_run,
@@ -128,6 +151,15 @@ class ChatRuntime:
         context = state["context"]
         meta_step = self.audit_service.start_step(session, audit_run, "meta_node")
         meta = self.meta_node.evaluate(session, context, audit_run, meta_step)
+        self.logger.info(
+            "Meta decision action_id=%s decision=%s relation_delta=%s wakeups=%s cancelled_wakeups=%s memory_candidates=%s",
+            state["action"].id,
+            meta.decision,
+            meta.relation_delta,
+            len(meta.next_wakeup_hints),
+            len(meta.cancel_wakeup_task_ids),
+            len(meta.memory_candidates),
+        )
         self.audit_service.record_json_artifact(
             session,
             audit_run,
@@ -172,6 +204,11 @@ class ChatRuntime:
         )
         scheduler_step = self.audit_service.start_step(session, audit_run, "scheduler_node")
         scheduler_result = self.scheduler_node.schedule(session, context, meta)
+        self.logger.info(
+            "Scheduler result action_id=%s result=%s",
+            action.id,
+            scheduler_result,
+        )
         self.audit_service.record_json_artifact(
             session,
             audit_run,
@@ -192,6 +229,13 @@ class ChatRuntime:
         meta = state["meta"]
         generator_step = self.audit_service.start_step(session, audit_run, "generator_node")
         generation = self.generator_node.generate(session, context, meta, audit_run, generator_step)
+        self.logger.info(
+            "Generator produced reply action_id=%s reply_length=%s provider_kind=%s model_name=%s",
+            action.id,
+            len(generation.reply_text),
+            generation.provider_kind,
+            generation.model_name,
+        )
         message = self.reply_delivery_service.deliver(
             session,
             context,
@@ -217,6 +261,12 @@ class ChatRuntime:
             action,
             candidates,
             source_message=state.get("message"),
+        )
+        self.logger.info(
+            "Memory persistence action_id=%s candidate_count=%s persisted_count=%s",
+            action.id,
+            len(candidates),
+            len(memories),
         )
         self.audit_service.record_json_artifact(
             session,
@@ -257,12 +307,27 @@ class ChatRuntime:
         )
         self.audit_service.finish_step(session, side_effects_step, ActionStatus.completed)
         self.side_effects.finish_action(session, action, audit_run, ActionStatus.completed)
+        self.logger.info(
+            "Side effects finished action_id=%s final_message_id=%s memories=%s",
+            action.id,
+            getattr(state.get("message"), "id", None),
+            len(state.get("memories") or []),
+        )
         return {}
 
     def _route_after_scheduler(self, state: RuntimeGraphState) -> str:
         meta = state["meta"]
+        action = state.get("action")
+        action_id = getattr(action, "id", None)
         if meta.decision != "silence":
+            self.logger.info("Routing to generator action_id=%s", action_id)
             return "generator_node"
+        self.logger.info(
+            "Skipping generator for action_id=%s because decision=%s memory_candidates=%s",
+            action_id,
+            meta.decision,
+            len(meta.memory_candidates),
+        )
         return "memory_node" if self._has_memory_candidates(meta.memory_candidates) else "side_effects"
 
     def _route_after_generator(self, state: RuntimeGraphState) -> str:

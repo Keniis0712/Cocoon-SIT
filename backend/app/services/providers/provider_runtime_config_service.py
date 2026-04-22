@@ -23,6 +23,11 @@ class ProviderRuntimeConfigService:
     ) -> dict:
         """Merge model config, provider metadata, and decrypted credentials."""
         runtime_config = dict(model.config_json)
+        runtime_config["structured_output_method"] = (
+            runtime_config.get("structured_output_method")
+            or provider.capabilities_json.get("structured_output_method")
+            or "tool_calling"
+        )
         runtime_config["base_url"] = provider.base_url
         credential = session.scalar(
             select(ProviderCredential).where(ProviderCredential.provider_id == provider.id)

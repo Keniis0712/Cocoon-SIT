@@ -307,14 +307,20 @@ def test_chat_group_message_routes_cover_listing_dispatch_and_retraction_permiss
         headers=member_headers,
     )
     assert foreign_user_retract.status_code == 403, foreign_user_retract.text
-    assert foreign_user_retract.json()["detail"] == "Cannot retract this message"
+    foreign_retract_payload = foreign_user_retract.json()
+    assert foreign_retract_payload["code"] == "CANNOT_RETRACT_THIS_MESSAGE"
+    assert foreign_retract_payload["msg"] == "Cannot retract this message"
+    assert foreign_retract_payload["data"] is None
 
     assistant_retract = client.post(
         f"/api/v1/chat-groups/{room_id}/messages/{assistant_message_id}/retract",
         headers=member_headers,
     )
     assert assistant_retract.status_code == 403, assistant_retract.text
-    assert assistant_retract.json()["detail"] == "Cannot retract AI message"
+    assistant_retract_payload = assistant_retract.json()
+    assert assistant_retract_payload["code"] == "CANNOT_RETRACT_AI_MESSAGE"
+    assert assistant_retract_payload["msg"] == "Cannot retract AI message"
+    assert assistant_retract_payload["data"] is None
 
     admin_retract = client.post(
         f"/api/v1/chat-groups/{room_id}/messages/{assistant_message_id}/retract",

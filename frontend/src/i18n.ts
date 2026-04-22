@@ -21,6 +21,8 @@ const namespaces = [
   "audits",
   "insights",
   "chatGroups",
+  "providers",
+  "wakeups",
 ] as const;
 type SupportedLanguage = (typeof supportedLanguages)[number];
 type Namespace = (typeof namespaces)[number];

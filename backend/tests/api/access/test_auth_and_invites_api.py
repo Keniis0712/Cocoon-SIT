@@ -9,6 +9,7 @@ from app.models import InviteCode, InviteQuotaGrant, Role, User, UserGroup
 def test_auth_refresh_me_and_missing_bearer(client):
     login = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin"})
     assert login.status_code == 200, login.text
+    assert login.envelope_json()["code"] == "OK"
     refresh_token = login.json()["refresh_token"]
     access_token = login.json()["access_token"]
 
@@ -22,7 +23,10 @@ def test_auth_refresh_me_and_missing_bearer(client):
 
     missing = client.get("/api/v1/auth/me")
     assert missing.status_code == 401, missing.text
-    assert missing.json()["detail"] == "Missing bearer token"
+    payload = missing.json()
+    assert payload["code"] == "AUTH_MISSING_BEARER"
+    assert payload["msg"] == "Missing bearer token"
+    assert payload["data"] is None
 
 
 def test_invites_api_crud_and_summary_routes(client, auth_headers):
@@ -47,16 +51,18 @@ def test_invites_api_crud_and_summary_routes(client, auth_headers):
         "/api/v1/invites",
         headers=auth_headers,
         json={
-            "code": "APIINV1",
+            "prefix": "apiinv",
             "quota_total": 3,
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
         },
     )
     assert invite.status_code == 200, invite.text
+    invite_code = invite.json()["code"]
+    assert invite_code.startswith("APIINV-")
 
     invites = client.get("/api/v1/invites", headers=auth_headers)
     assert invites.status_code == 200, invites.text
-    assert any(item["code"] == "APIINV1" for item in invites.json())
+    assert any(item["code"] == invite_code for item in invites.json())
 
     grant = client.post(
         "/api/v1/invites/grants",
@@ -85,28 +91,32 @@ def test_invites_api_crud_and_summary_routes(client, auth_headers):
     assert group_summary.json()["target_id"] == group_id
 
     redeem = client.post(
-        "/api/v1/invites/APIINV1/redeem",
+        f"/api/v1/invites/{invite_code}/redeem",
         headers=auth_headers,
         json={"user_id": user_id, "quota": 1},
     )
     assert redeem.status_code == 200, redeem.text
     assert redeem.json()["quota_used"] == 1
 
-    used_revoke = client.delete("/api/v1/invites/APIINV1", headers=auth_headers)
+    used_revoke = client.delete(f"/api/v1/invites/{invite_code}", headers=auth_headers)
     assert used_revoke.status_code == 400, used_revoke.text
-    assert used_revoke.json()["detail"] == "Used invites cannot be revoked"
+    used_revoke_payload = used_revoke.json()
+    assert used_revoke_payload["code"] == "USED_INVITES_CANNOT_BE_REVOKED"
+    assert used_revoke_payload["msg"] == "Used invites cannot be revoked"
+    assert used_revoke_payload["data"] is None
 
     unused_invite = client.post(
         "/api/v1/invites",
         headers=auth_headers,
-        json={"code": "APIINV2", "quota_total": 1},
+        json={"prefix": "apiinv", "quota_total": 1},
     )
     assert unused_invite.status_code == 200, unused_invite.text
+    unused_code = unused_invite.json()["code"]
 
-    revoke = client.delete("/api/v1/invites/APIINV2", headers=auth_headers)
+    revoke = client.delete(f"/api/v1/invites/{unused_code}", headers=auth_headers)
     assert revoke.status_code == 200, revoke.text
-    assert revoke.json()["code"] == "APIINV2"
+    assert revoke.json()["code"] == unused_code
 
     with container.session_factory() as session:
-        assert session.scalar(select(InviteCode).where(InviteCode.code == "APIINV1")) is not None
+        assert session.scalar(select(InviteCode).where(InviteCode.code == invite_code)) is not None
         assert session.scalar(select(InviteQuotaGrant).where(InviteQuotaGrant.target_id == user_id)) is not None

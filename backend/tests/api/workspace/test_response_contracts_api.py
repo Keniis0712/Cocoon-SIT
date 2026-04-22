@@ -4,6 +4,7 @@ def test_access_and_workspace_routes_return_typed_contracts(client, auth_headers
         json={"refresh_token": "missing-token"},
     )
     assert logout.status_code == 200, logout.text
+    assert logout.envelope_json()["code"] == "OK"
     assert logout.json() == {"message": "logged out"}
 
     bind = client.post(
@@ -12,6 +13,7 @@ def test_access_and_workspace_routes_return_typed_contracts(client, auth_headers
         json={"tag_id": "focus"},
     )
     assert bind.status_code == 200, bind.text
+    assert bind.envelope_json()["code"] == "OK"
     assert set(bind.json().keys()) == {"binding_id", "tag_id"}
 
     tags = client.get(f"/api/v1/cocoons/{default_cocoon_id}/tags", headers=auth_headers)
@@ -77,6 +79,7 @@ def test_job_enqueue_routes_return_typed_contracts(client, auth_headers, default
         json={"source_cocoon_id": source_cocoon_id, "target_cocoon_id": default_cocoon_id},
     )
     assert pull.status_code == 200, pull.text
+    assert pull.envelope_json()["code"] == "OK"
     assert set(pull.json().keys()) == {"job_id", "pull_job_id", "status"}
 
     merge = client.post(
@@ -85,6 +88,7 @@ def test_job_enqueue_routes_return_typed_contracts(client, auth_headers, default
         json={"source_cocoon_id": source_cocoon_id, "target_cocoon_id": default_cocoon_id},
     )
     assert merge.status_code == 200, merge.text
+    assert merge.envelope_json()["code"] == "OK"
     assert set(merge.json().keys()) == {"job_id", "merge_job_id", "status"}
 
 
@@ -95,3 +99,5 @@ def test_manual_wakeup_api_is_not_exposed(client, auth_headers, default_cocoon_i
         json={"cocoon_id": default_cocoon_id, "reason": "manual wakeup"},
     )
     assert response.status_code == 404, response.text
+    payload = response.json()
+    assert payload["code"] == "NOT_FOUND"

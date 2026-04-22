@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 from uuid import uuid4
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -11,6 +12,28 @@ from app.main import create_app
 from app.models import AvailableModel, Character, Cocoon, ModelProvider, SessionState, User
 from app.worker.durable_executor import DurableJobExecutor
 from app.worker.runtime import WorkerRuntime
+
+
+_original_response_json = httpx.Response.json
+
+
+def _response_json_with_success_unwrap(self: httpx.Response, *args, **kwargs):
+    payload = _original_response_json(self, *args, **kwargs)
+    if (
+        self.is_success
+        and isinstance(payload, dict)
+        and {"code", "msg", "data"} <= set(payload.keys())
+    ):
+        return payload["data"]
+    return payload
+
+
+def _response_envelope_json(self: httpx.Response, *args, **kwargs):
+    return _original_response_json(self, *args, **kwargs)
+
+
+httpx.Response.json = _response_json_with_success_unwrap
+httpx.Response.envelope_json = _response_envelope_json
 
 
 @pytest.fixture
@@ -101,7 +124,7 @@ def client(test_settings: Settings) -> TestClient:
                 session.add(
                     SessionState(
                         cocoon_id=cocoon.id,
-                        relation_score=0,
+                        relation_score=50,
                         persona_json={},
                         active_tags_json=[],
                     )

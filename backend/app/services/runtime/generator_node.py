@@ -39,14 +39,10 @@ class GeneratorNode:
         provider, model, provider_record, runtime_provider_config = self.provider_registry.resolve_chat_provider(
             session, context.cocoon.selected_model_id
         )
-        provider_capabilities = provider_record.capabilities_json | {
-            "provider_kind": provider_record.kind,
-            "model_name": model.model_name,
-        }
         assembly = self.prompt_assembly_service.build(
             session=session,
             context=context,
-            provider_capabilities=provider_capabilities,
+            provider_capabilities=provider_record.capabilities_json,
         )
         for segment in (assembly.system, assembly.event):
             record_prompt_render_artifacts(
@@ -61,7 +57,12 @@ class GeneratorNode:
                 summary_prefix=segment.summary_prefix,
             )
         response = provider.generate_structured(
-            prompt=self._build_structured_prompt(context, assembly.combined_prompt, meta),
+            prompt=self._build_structured_prompt(
+                context,
+                assembly.combined_prompt,
+                meta,
+                prompt_snapshot=assembly.event.snapshot,
+            ),
             messages=assembly.messages,
             model_name=model.model_name,
             provider_config=runtime_provider_config,
@@ -100,17 +101,19 @@ class GeneratorNode:
             model_name=model.model_name,
         )
 
-    def _build_structured_prompt(self, context: ContextPackage, rendered_prompt: str, meta: MetaDecision) -> str:
+    def _build_structured_prompt(
+        self,
+        context: ContextPackage,
+        rendered_prompt: str,
+        meta: MetaDecision,
+        *,
+        prompt_snapshot: dict,
+    ) -> str:
         context_json = json.dumps(
             {
-                "runtime_event": {
-                    "event_type": context.runtime_event.event_type,
-                    "target_type": context.runtime_event.target_type,
-                    "target_id": context.runtime_event.target_id,
-                    **context.runtime_event.payload,
-                },
-                "wakeup_context": context.external_context.get("wakeup_context"),
-                "pending_wakeups": context.external_context.get("pending_wakeups", []),
+                "runtime_event": prompt_snapshot.get("runtime_event"),
+                "wakeup_context": prompt_snapshot.get("wakeup_context"),
+                "pending_wakeups": prompt_snapshot.get("pending_wakeups", []),
                 "now_utc": context.external_context.get("now_utc"),
                 "generation_brief": meta.generation_brief,
             },

@@ -14,7 +14,7 @@ from app.api.routes.catalog import (
     settings,
     tags,
 )
-from app.api.routes.observability import admin_artifacts, audits, health, insights
+from app.api.routes.observability import admin_artifacts, audits, health, insights, wakeups
 from app.api.routes.workspace import (
     chat_groups,
     checkpoints,
@@ -54,6 +54,7 @@ api_router.include_router(memory.router, prefix="/memory", tags=["memory"])
 api_router.include_router(pulls.router, prefix="/pulls", tags=["pulls"])
 api_router.include_router(merges.router, prefix="/merges", tags=["merges"])
 api_router.include_router(checkpoints.router, prefix="/checkpoints", tags=["checkpoints"])
+api_router.include_router(wakeups.router, prefix="/audits/wakeups", tags=["audits"])
 api_router.include_router(audits.router, prefix="/audits", tags=["audits"])
 api_router.include_router(insights.router, prefix="/insights", tags=["insights"])
 api_router.include_router(admin_artifacts.router, prefix="/admin/artifacts", tags=["admin"])

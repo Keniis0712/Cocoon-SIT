@@ -65,7 +65,7 @@ export function createInviteCode(data: InviteCodeCreatePayload): Promise<InviteC
           ? resolveActualId("group", data.source_id)
           : data.source_id ?? null;
     const created = await client.createInvite({
-      code: data.prefix?.trim() || `invite-${Date.now()}`,
+      prefix: data.prefix?.trim() || "invite",
       quota_total: 1,
       expires_at: data.permanent ? null : data.expires_at ?? null,
       created_for_user_id: data.created_for_uid ? resolveActualId("user", data.created_for_uid) : null,

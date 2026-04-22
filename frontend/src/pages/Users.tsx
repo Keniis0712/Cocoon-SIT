@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { isAxiosError } from "axios";
 import { KeyRound, Plus, Search, ShieldCheck, UserRound, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { createAdminUser, listAdminUsers, updateAdminUser } from "@/api/admin-users";
+import { showErrorToast } from "@/api/client";
 import { listRoles } from "@/api/roles";
 import type { AdminUserCreatePayload, AdminUserRead, AdminUserUpdatePayload, RoleRead } from "@/api/types/access";
 import AccessCard from "@/components/AccessCard";
@@ -92,8 +92,8 @@ export default function UsersPage() {
       try {
         const roleResponse = await listRoles(1, 100);
         setRoles(roleResponse.items);
-      } catch {
-        toast.error(t("users.loadRolesFailed"));
+      } catch (error) {
+        showErrorToast(error, t("users.loadRolesFailed"));
       }
     })();
   }, [canManageUsers, t]);
@@ -169,11 +169,7 @@ export default function UsersPage() {
       setForm(EMPTY_FORM);
       await fetchUsers();
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error(t(editing ? "users.updateFailed" : "users.createFailed"));
-      }
+      showErrorToast(error, t(editing ? "users.updateFailed" : "users.createFailed"));
     } finally {
       setIsSaving(false);
     }

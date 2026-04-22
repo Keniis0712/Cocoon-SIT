@@ -3,6 +3,7 @@ import { KeyRound, LogOut, Save, Shield, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { showErrorToast } from "@/api/client";
 import { changePassword, changeUsername, logout, me } from "@/api/user";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
@@ -106,7 +107,7 @@ export default function MePage() {
 
       toast.success(t("me.saveSuccess"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t("me.saveFailed"));
+      showErrorToast(error, t("me.saveFailed"));
     } finally {
       setIsSaving(false);
     }

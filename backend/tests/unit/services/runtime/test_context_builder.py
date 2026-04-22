@@ -132,9 +132,56 @@ def test_context_builder_builds_chat_group_context_with_tags_and_pending_wakeups
     assert window_calls[0][0][1:] == (8, ["focus"])
     assert window_calls[0][1] == {"cocoon_id": None, "chat_group_id": "room-1"}
     assert memory_calls[0]["owner_user_id"] == "42"
+    assert memory_calls[0]["character_id"] == "character-1"
     assert memory_calls[0]["query_text"] == "latest question"
     assert memory_calls[0]["limit"] == 5
     assert external_calls and external_calls[0][1].chat_group_id == "room-1"
+
+
+def test_context_builder_limits_cocoon_memory_lookup_to_current_cocoon(monkeypatch):
+    session_factory = _session_factory()
+    memory_calls = []
+    builder = ContextBuilder(
+        memory_service=SimpleNamespace(
+            retrieve_visible_memories=lambda **kwargs: (memory_calls.append(kwargs) or [])
+        ),
+        message_window_service=SimpleNamespace(
+            list_visible_messages=lambda *args, **kwargs: [
+                SimpleNamespace(role="user", sender_user_id="owner-1", content="hi", is_retracted=False)
+            ]
+        ),
+        external_context_service=SimpleNamespace(build=lambda session, event: {}),
+    )
+    monkeypatch.setattr(
+        "app.services.runtime.context_builder.list_pending_wakeup_tasks",
+        lambda session, cocoon_id=None, chat_group_id=None: [],
+    )
+
+    with session_factory() as session:
+        character = Character(
+            id="character-1",
+            name="Guide",
+            prompt_summary="",
+            settings_json={},
+            created_by_user_id="owner-1",
+        )
+        cocoon = Cocoon(
+            id="cocoon-1",
+            name="Solo",
+            owner_user_id="owner-1",
+            character_id=character.id,
+            selected_model_id="model-1",
+            max_context_messages=6,
+        )
+        session.add_all([character, cocoon])
+        session.commit()
+
+        result = builder.build(session, _event(cocoon_id=cocoon.id))
+
+    assert result.memory_owner_user_id == "owner-1"
+    assert memory_calls[0]["cocoon_id"] == "cocoon-1"
+    assert memory_calls[0]["owner_user_id"] is None
+    assert memory_calls[0]["character_id"] is None
 
 
 def test_context_builder_build_raises_when_character_missing():

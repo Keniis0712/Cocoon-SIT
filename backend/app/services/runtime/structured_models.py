@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_validator
 
 
 class MemoryCandidateModel(BaseModel):
@@ -29,6 +29,25 @@ class TagReferenceModel(BaseModel):
     tag: StrictStr
 
 
+class ScheduledWakeupModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    reason: StrictStr
+    run_at: StrictStr | None = None
+    delay_seconds: StrictInt | None = None
+    delay_minutes: StrictInt | None = None
+    delay_hours: StrictInt | None = None
+    payload_json: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("reason is required")
+        return normalized
+
+
 class MetaStructuredOutputModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -37,7 +56,7 @@ class MetaStructuredOutputModel(BaseModel):
     persona_patch: dict[str, Any] = Field(default_factory=dict)
     tag_ops: list[TagOperationModel] = Field(default_factory=list)
     internal_thought: StrictStr = ""
-    schedule_wakeups: list[dict[str, Any]] = Field(default_factory=list)
+    schedule_wakeups: list[ScheduledWakeupModel | dict[str, Any]] = Field(default_factory=list)
     cancel_wakeup_task_ids: list[StrictStr] = Field(default_factory=list)
     generation_brief: StrictStr | None = None
     memory_candidates: list[MemoryCandidateModel] = Field(default_factory=list)

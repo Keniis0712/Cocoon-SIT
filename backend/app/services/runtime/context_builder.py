@@ -50,12 +50,17 @@ class ContextBuilder:
         )
         memory_owner_user_id = self._resolve_memory_owner_user_id(event, conversation, visible_messages)
         query_text = self._resolve_query_text(event, visible_messages)
+        memory_lookup = self._memory_lookup_scope(
+            event,
+            owner_user_id=memory_owner_user_id,
+            character_id=character.id,
+        )
         memory_hits = self.memory_service.retrieve_visible_memories(
             session=session,
             active_tags=state.active_tags_json,
             cocoon_id=event.cocoon_id,
-            owner_user_id=memory_owner_user_id,
-            character_id=character.id,
+            owner_user_id=memory_lookup["owner_user_id"],
+            character_id=memory_lookup["character_id"],
             query_text=query_text,
             limit=5,
         )
@@ -155,3 +160,14 @@ class ContextBuilder:
         if event.event_type == "wakeup":
             return str(event.payload.get("reason") or "scheduled wakeup")
         return None
+
+    def _memory_lookup_scope(
+        self,
+        event: RuntimeEvent,
+        *,
+        owner_user_id: str | None,
+        character_id: str,
+    ) -> dict[str, str | None]:
+        if event.target_type == "cocoon":
+            return {"owner_user_id": None, "character_id": None}
+        return {"owner_user_id": owner_user_id, "character_id": character_id}

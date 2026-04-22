@@ -1,4 +1,5 @@
 from typing import Any
+import logging
 
 import httpx
 from pydantic import BaseModel
@@ -15,6 +16,8 @@ from app.services.runtime.structured_output import invoke_with_structured_output
 
 
 class OpenAICompatibleProvider(ChatProvider, EmbeddingProvider):
+    logger = logging.getLogger(__name__)
+
     def generate_text(
         self,
         prompt: str,
@@ -83,6 +86,14 @@ class OpenAICompatibleProvider(ChatProvider, EmbeddingProvider):
         schema_model: type[BaseModel],
         output_name: str,
     ) -> ProviderStructuredResponse:
+        self.logger.info(
+            "OpenAI-compatible structured generation start model=%s base_url=%s method=%s message_count=%s output_name=%s",
+            model_name,
+            provider_config.get("base_url"),
+            provider_config.get("structured_output_method", "tool_calling"),
+            len(messages),
+            output_name,
+        )
         result = invoke_with_structured_output(
             prompt=prompt,
             messages=messages,
@@ -90,6 +101,14 @@ class OpenAICompatibleProvider(ChatProvider, EmbeddingProvider):
             provider_config=provider_config,
             schema_model=schema_model,
             output_name=output_name,
+        )
+        self.logger.info(
+            "OpenAI-compatible structured generation complete model=%s output_name=%s parsed_keys=%s prompt_tokens=%s completion_tokens=%s",
+            model_name,
+            output_name,
+            sorted(result.parsed.keys()),
+            result.usage["prompt_tokens"],
+            result.usage["completion_tokens"],
         )
         usage = ProviderUsage(
             prompt_tokens=result.usage["prompt_tokens"],

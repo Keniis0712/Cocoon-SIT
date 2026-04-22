@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { isAxiosError } from "axios";
 import { ArrowLeft, ChevronUp, Loader2, MemoryStick, Plus, RefreshCcw } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
+import { showErrorToast } from "@/api/client";
 import { compactCocoonContext, getCocoon, getCocoonMessages, getCocoonSessionState, retryCocoonReply, sendCocoonMessage, updateCocoon } from "@/api/cocoons";
 import { listModelProviders } from "@/api/providers";
 import { bindCocoonTags, listTags } from "@/api/tags";
@@ -11,6 +11,8 @@ import type { TagRead } from "@/api/types/catalog";
 import type { CocoonRead } from "@/api/types/cocoons";
 import type { MessageRead } from "@/api/types/chat";
 import type { AvailableModelRead } from "@/api/types/providers";
+import type { WakeupTaskRead } from "@/api/types/wakeups";
+import { listCocoonWakeups } from "@/api/wakeups";
 import PageFrame from "@/components/PageFrame";
 import { Button } from "@/components/ui/button";
 import { CocoonConversationPanel } from "@/features/cocoons/components/CocoonConversationPanel";
@@ -36,6 +38,7 @@ export default function CocoonWorkspacePage() {
   const [availableTags, setAvailableTags] = useState<TagRead[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [messageInput, setMessageInput] = useState("");
+  const [currentAiWakeup, setCurrentAiWakeup] = useState<WakeupTaskRead | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -85,6 +88,9 @@ export default function CocoonWorkspacePage() {
     reloadWorkspace: () => {
       void loadWorkspace(false);
     },
+    reloadWakeups: () => {
+      void loadCurrentAiWakeup();
+    },
     scrollToBottom: () => {
       if (viewportRef.current) {
         viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
@@ -121,12 +127,13 @@ export default function CocoonWorkspacePage() {
       setIsLoading(true);
     }
     try {
-      const [cocoon, sessionState, messageResponse, providerResponse, tagItems] = await Promise.all([
+      const [cocoon, sessionState, messageResponse, providerResponse, tagItems, wakeups] = await Promise.all([
         getCocoon(cocoonId),
         getCocoonSessionState(cocoonId),
         getCocoonMessages(cocoonId, null, 50),
         listModelProviders(1, 100),
         listTags(),
+        listCocoonWakeups(cocoonId, { status: "queued", only_ai: true, limit: 1 }),
       ]);
       const provider =
         providerResponse.items.find((item: { id: number }) => item.id === cocoon.provider_id) || null;
@@ -138,6 +145,7 @@ export default function CocoonWorkspacePage() {
       setProviderModels(provider?.available_models || []);
       setAvailableTags(tagItems);
       setSelectedTagIds((cocoon.tags || []).map((item: { id: number }) => item.id));
+      setCurrentAiWakeup(wakeups[0] || null);
       setMessages(cocoonId, sortedMessages);
       applyStatePatch(cocoonId, {
         relationScore: sessionState.relation_score,
@@ -153,7 +161,7 @@ export default function CocoonWorkspacePage() {
       setError(cocoonId, null);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to load workspace");
+      showErrorToast(error, "Failed to load workspace");
     } finally {
       setIsLoading(false);
     }
@@ -170,7 +178,7 @@ export default function CocoonWorkspacePage() {
       setHasMore((session?.messages.length || 0) + sortedMessages.length < response.total);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to load older messages");
+      showErrorToast(error, "Failed to load older messages");
     } finally {
       setIsLoadingMore(false);
     }
@@ -216,7 +224,7 @@ export default function CocoonWorkspacePage() {
       });
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "Failed to send message");
+      showErrorToast(error, "Failed to send message");
     } finally {
       setIsSending(false);
     }
@@ -231,7 +239,16 @@ export default function CocoonWorkspacePage() {
       toast.success("Model updated");
     } catch (error) {
       console.error(error);
-      toast.error("Failed to switch model");
+      showErrorToast(error, "Failed to switch model");
+    }
+  }
+
+  async function loadCurrentAiWakeup() {
+    try {
+      const wakeups = await listCocoonWakeups(cocoonId, { status: "queued", only_ai: true, limit: 1 });
+      setCurrentAiWakeup(wakeups[0] || null);
+    } catch (error) {
+      console.error(error);
     }
   }
 
@@ -252,11 +269,7 @@ export default function CocoonWorkspacePage() {
         }
       });
     } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(String(error.response?.data?.detail || error.message));
-      } else {
-        toast.error("Failed to retry reply");
-      }
+      showErrorToast(error, "Failed to retry reply");
     }
   }
 
@@ -269,7 +282,7 @@ export default function CocoonWorkspacePage() {
       await loadWorkspace(false);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to compact context");
+      showErrorToast(error, "Failed to compact context");
     } finally {
       setIsCompacting(false);
     }
@@ -288,7 +301,7 @@ export default function CocoonWorkspacePage() {
     } catch (error) {
       setSelectedTagIds(previousIds);
       console.error(error);
-      toast.error("Failed to update chat tags");
+      showErrorToast(error, "Failed to update chat tags");
     } finally {
       setIsUpdatingTags(false);
       setAddTagValue("__add");
@@ -364,7 +377,7 @@ export default function CocoonWorkspacePage() {
             currentModelId={session?.currentModelId}
             dispatchState={session?.dispatchState}
             relationScore={session?.relationScore}
-            currentWakeupTaskId={session?.currentWakeupTaskId}
+            currentAiWakeup={currentAiWakeup}
             debounceUntil={session?.debounceUntil}
             dispatchReason={session?.dispatchReason}
             lastError={session?.lastError}

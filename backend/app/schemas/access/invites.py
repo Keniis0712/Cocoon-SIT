@@ -1,17 +1,26 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.common import ORMModel
 
 
 class InviteCreate(BaseModel):
-    code: str = Field(min_length=4)
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    code: str | None = Field(default=None, min_length=4)
+    prefix: str | None = Field(default=None, min_length=1, max_length=24)
     quota_total: int = Field(default=1, ge=1)
     expires_at: datetime | None = None
     created_for_user_id: str | None = None
     source_type: str = Field(default="ADMIN_OVERRIDE", min_length=1)
     source_id: str | None = None
+
+    @model_validator(mode="after")
+    def validate_code_or_prefix(self) -> "InviteCreate":
+        if self.code is None and self.prefix is None:
+            raise ValueError("Either code or prefix is required")
+        return self
 
 
 class InviteRevokeResult(ORMModel):

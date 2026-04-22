@@ -67,7 +67,10 @@ def test_send_message_maps_dispatch_value_errors_to_404(client, auth_headers, de
     )
 
     assert response.status_code == 404, response.text
-    assert response.json()["detail"] == "dispatch target missing"
+    payload = response.json()
+    assert payload["code"] == "DISPATCH_TARGET_MISSING"
+    assert payload["msg"] == "dispatch target missing"
+    assert payload["data"] is None
 
 
 def test_edit_user_message_rejects_missing_or_non_user_messages(client, auth_headers, default_cocoon_id):

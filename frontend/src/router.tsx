@@ -23,6 +23,7 @@ const PromptTemplatesPage = lazy(() => import("@/pages/PromptTemplates"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
 const TagsPage = lazy(() => import("@/pages/TagsPage"));
 const UsersPage = lazy(() => import("@/pages/Users"));
+const WakeupsPage = lazy(() => import("@/pages/Wakeups"));
 
 function RouteFallback() {
   return (
@@ -75,6 +76,7 @@ export const router = createBrowserRouter([
       { path: "/embedding-providers", element: renderLazyPage(EmbeddingProvidersPage) },
       { path: "/users", element: renderLazyPage(UsersPage) },
       { path: "/audits", element: renderLazyPage(AuditsWorkbenchPage) },
+      { path: "/wakeups", element: renderLazyPage(WakeupsPage) },
       { path: "/insights", element: renderLazyPage(InsightsPage) },
       { path: "/settings", element: renderLazyPage(SettingsPage) },
       { path: "/me", element: renderLazyPage(MePage) },

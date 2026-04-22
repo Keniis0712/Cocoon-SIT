@@ -24,6 +24,10 @@ export function getApiBaseUrl() {
   return "http://127.0.0.1:8000";
 }
 
+function normalizeApiPath(path: string) {
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
 function handleUnauthorized() {
   useUserStore.getState().logout();
   if (typeof window !== "undefined" && window.location.pathname !== "/login") {
@@ -34,11 +38,15 @@ function handleUnauthorized() {
 
 export function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
-    const data = error.data as { detail?: string; message?: string } | string | null;
+    const data = error.data as
+      | { code?: string; msg?: string; message?: string; detail?: string; data?: { errors?: Array<{ msg?: string }> } }
+      | string
+      | null;
     if (typeof data === "string") {
       return data;
     }
-    return data?.detail || data?.message || error.message;
+    const validationMessage = data?.data?.errors?.[0]?.msg;
+    return data?.msg || data?.detail || data?.message || validationMessage || error.message;
   }
 
   if (error instanceof Error) {
@@ -79,13 +87,58 @@ export function unsupportedFeature(message: string): never {
   throw new Error(message);
 }
 
+export function showErrorToast(error: unknown, fallback?: string) {
+  const message = getErrorMessage(error);
+  toast.error(message && !message.startsWith("Request failed with status") ? message : fallback || message);
+}
+
 export async function apiCall<T>(callback: (client: CocoonApiClient) => Promise<T>): Promise<T> {
-  try {
-    return await callback(getApiClient());
-  } catch (error) {
-    if (!(error instanceof ApiError && error.status === 401)) {
-      toast.error(`错误: ${getErrorMessage(error)}`);
-    }
-    throw error;
+  return callback(getApiClient());
+}
+
+export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const accessToken = useUserStore.getState().getToken();
+  const headers = new Headers(init?.headers || {});
+  headers.set("Accept", "application/json");
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
   }
+  if (init?.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}/api/v1${normalizeApiPath(path)}`, {
+    ...init,
+    headers,
+  });
+
+  const rawText = await response.text();
+  let payload: unknown = null;
+  if (rawText) {
+    try {
+      payload = JSON.parse(rawText);
+    } catch {
+      payload = rawText;
+    }
+  }
+
+  if (response.status === 401) {
+    handleUnauthorized();
+  }
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(new ApiError(response.status, payload)));
+  }
+
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "data" in payload &&
+    "code" in payload &&
+    "msg" in payload
+  ) {
+    return (payload as { data: T }).data;
+  }
+
+  return payload as T;
 }
