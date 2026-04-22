@@ -2,9 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Loader2,
-  MessageSquareOff,
   RefreshCcw,
-  Send,
   Shield,
   ShieldPlus,
   UserPlus,
@@ -39,7 +37,7 @@ import type { WakeupTaskRead } from "@/api/types/wakeups";
 import { listChatGroupWakeups } from "@/api/wakeups";
 import PageFrame from "@/components/PageFrame";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChatGroupComposer } from "@/features/chat-groups/components/ChatGroupComposer";
 import { ChatGroupMemberDialog } from "@/features/chat-groups/components/ChatGroupDialogs";
 import { ChatGroupSidebar } from "@/features/chat-groups/components/ChatGroupSidebar";
@@ -362,7 +360,6 @@ export default function ChatGroupWorkspacePage() {
   return (
     <PageFrame
       title={room?.name || t("title")}
-      description={t("description")}
       actions={
         <>
           <Button variant="outline" onClick={() => navigate("/chat-groups")}>
@@ -381,7 +378,6 @@ export default function ChatGroupWorkspacePage() {
           <div className="border-b border-border/70 bg-linear-to-r from-cyan-500/12 via-orange-500/8 to-transparent">
             <CardHeader>
               <CardTitle>{t("roomTimelineTitle")}</CardTitle>
-              <CardDescription>{t("roomTimelineDescription", { character: characterName, model: modelLabel })}</CardDescription>
             </CardHeader>
           </div>
           <CardContent className="flex h-[calc(78vh-5rem)] flex-col gap-4 p-4">

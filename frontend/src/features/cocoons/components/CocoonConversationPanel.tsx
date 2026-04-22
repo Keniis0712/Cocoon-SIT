@@ -1,11 +1,11 @@
-import type { RefObject } from "react";
+import type { KeyboardEvent, RefObject } from "react";
 import { ChevronUp, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { MessageRead } from "@/api/types/chat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { formatWorkspaceTime } from "@/features/workspace/utils";
 
@@ -37,12 +37,22 @@ export function CocoonConversationPanel({
   onSendMessage,
 }: CocoonConversationPanelProps) {
   const { t } = useTranslation(["workspace", "common", "chatGroups"]);
+  const canSend = Boolean(messageInput.trim()) && !isSending && !isLoading;
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+      return;
+    }
+    event.preventDefault();
+    if (canSend) {
+      onSendMessage();
+    }
+  }
 
   return (
     <Card className="order-1 min-h-[78vh] border-border/70 bg-card/90">
       <CardHeader>
         <CardTitle>{t("workspace:chatTitle")}</CardTitle>
-        <CardDescription>{t("workspace:chatLoadingDescription")}</CardDescription>
       </CardHeader>
       <CardContent className="flex h-[calc(78vh-5rem)] flex-col gap-4">
         <div ref={viewportRef} className="flex-1 overflow-auto rounded-[28px] border border-border/70 bg-background/60 p-4">
@@ -56,11 +66,6 @@ export function CocoonConversationPanel({
                     {isLoadingMore ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ChevronUp className="mr-2 size-4" />}
                     {t("workspace:loadOlderMessages")}
                   </Button>
-                </div>
-              ) : null}
-              {visibleMessages.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                  {t("workspace:emptyMessages")}
                 </div>
               ) : null}
               {visibleMessages.map((message) => {
@@ -101,10 +106,11 @@ export function CocoonConversationPanel({
             value={messageInput}
             disabled={isSending || isLoading}
             onChange={(event) => onMessageInputChange(event.target.value)}
+            onKeyDown={handleKeyDown}
           />
           <div className="mt-3 flex items-center justify-between gap-2">
             <div />
-            <Button disabled={!messageInput.trim() || isSending || isLoading} onClick={onSendMessage}>
+            <Button disabled={!canSend} onClick={onSendMessage}>
               {isSending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
               {t("workspace:send")}
             </Button>

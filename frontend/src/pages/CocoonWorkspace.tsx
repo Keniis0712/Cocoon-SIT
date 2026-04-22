@@ -322,7 +322,6 @@ export default function CocoonWorkspacePage() {
   return (
     <PageFrame
       title={selectedCocoon?.name || "Chat"}
-      description="Chat only. Long-term memory has moved to its own page."
       actions={
         <>
           <Button variant="outline" onClick={() => navigate("/cocoons")}>

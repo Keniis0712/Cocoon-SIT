@@ -34,10 +34,6 @@ export function ChatGroupTimeline({
     <div ref={viewportRef} className="flex-1 overflow-auto rounded-[32px] border border-border/70 bg-background/60 p-4">
       {isLoading ? (
         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">{t("loadingTimeline")}</div>
-      ) : messages.length === 0 ? (
-        <div className="rounded-[24px] border border-dashed border-border/70 px-5 py-8 text-center text-sm text-muted-foreground">
-          {t("emptyTimeline")}
-        </div>
       ) : (
         <div className="space-y-4">
           {messages.map((message) => {
