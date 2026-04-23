@@ -39,7 +39,9 @@ from app.models.plugins import (
     PluginDispatchRecord,
     PluginEventConfig,
     PluginEventDefinition,
+    PluginGroupVisibility,
     PluginRunState,
+    PluginUserConfig,
     PluginVersion,
 )
 from app.models.system import SystemSettings
@@ -97,7 +99,9 @@ __all__ = [
     "PluginDispatchRecord",
     "PluginEventConfig",
     "PluginEventDefinition",
+    "PluginGroupVisibility",
     "PluginRunState",
+    "PluginUserConfig",
     "PluginVersion",
     "ProviderCredential",
     "Role",

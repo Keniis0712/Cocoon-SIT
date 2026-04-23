@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, WebSocketException, status
@@ -339,6 +340,15 @@ async def chat_group_ws(websocket: WebSocket, room_id: str) -> None:
         return
     try:
         while True:
-            await websocket.receive_text()
+            raw_message = await websocket.receive_text()
+            if raw_message == "ping":
+                await websocket.send_json({"type": "pong"})
+                continue
+            try:
+                payload = json.loads(raw_message)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(payload, dict) and payload.get("type") == "ping":
+                await websocket.send_json({"type": "pong"})
     except WebSocketDisconnect:
         container.workspace_realtime_service.disconnect(room_id, websocket, target_type="chat_group")

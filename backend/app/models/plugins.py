@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import Boolean, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, JsonDefaultMixin, TimestampMixin
@@ -22,6 +24,10 @@ class PluginDefinition(Base, TimestampMixin, JsonDefaultMixin):
     config_schema_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
     default_config_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
     config_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+    user_config_schema_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+    user_default_config_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+    settings_validation_function_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_globally_visible: Mapped[bool] = mapped_column(Boolean, default=True)
     active_version_id: Mapped[str | None] = mapped_column(ForeignKey("plugin_versions.id"), nullable=True)
 
 
@@ -105,3 +111,30 @@ class PluginDispatchRecord(Base, TimestampMixin, JsonDefaultMixin):
     dedupe_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
     wakeup_task_id: Mapped[str | None] = mapped_column(ForeignKey("wakeup_tasks.id"), nullable=True)
     payload_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+
+
+class PluginUserConfig(Base, TimestampMixin, JsonDefaultMixin):
+    __tablename__ = "plugin_user_configs"
+    __table_args__ = (
+        UniqueConstraint("plugin_id", "user_id", name="uq_plugin_user_configs_plugin_id_user_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    plugin_id: Mapped[str] = mapped_column(ForeignKey("plugin_definitions.id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    config_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+    error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+
+
+class PluginGroupVisibility(Base, TimestampMixin):
+    __tablename__ = "plugin_group_visibility"
+    __table_args__ = (
+        UniqueConstraint("plugin_id", "group_id", name="uq_plugin_group_visibility_plugin_id_group_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    plugin_id: Mapped[str] = mapped_column(ForeignKey("plugin_definitions.id"), nullable=False)
+    group_id: Mapped[str] = mapped_column(ForeignKey("user_groups.id"), nullable=False)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True)

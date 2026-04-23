@@ -9,8 +9,11 @@ from app.schemas.admin.plugins import (
     PluginConfigUpdate,
     PluginDetailOut,
     PluginEventConfigUpdate,
+    PluginGroupVisibilityOut,
+    PluginGroupVisibilityUpdate,
     PluginListItemOut,
     PluginSharedPackageOut,
+    PluginVisibilityUpdate,
 )
 
 router = APIRouter()
@@ -139,3 +142,47 @@ def disable_event(
     _=Depends(require_permission("plugins:run")),
 ) -> PluginDetailOut:
     return container.plugin_service.set_event_enabled(db, plugin_id, event_name, False)
+
+
+@router.patch("/{plugin_id}/visibility", response_model=PluginDetailOut)
+def set_global_visibility(
+    plugin_id: str,
+    payload: PluginVisibilityUpdate,
+    db: Session = Depends(get_db),
+    container: AppContainer = Depends(get_container),
+    user=Depends(require_permission("plugins:write")),
+) -> PluginDetailOut:
+    return container.plugin_service.set_global_visibility(
+        db,
+        plugin_id,
+        user,
+        visible=payload.is_globally_visible,
+    )
+
+
+@router.get("/{plugin_id}/groups/visibility", response_model=list[PluginGroupVisibilityOut])
+def list_group_visibility(
+    plugin_id: str,
+    db: Session = Depends(get_db),
+    container: AppContainer = Depends(get_container),
+    _=Depends(require_permission("plugins:read")),
+) -> list[PluginGroupVisibilityOut]:
+    return container.plugin_service.list_group_visibility(db, plugin_id)
+
+
+@router.put("/{plugin_id}/groups/{group_id}/visibility", response_model=PluginGroupVisibilityOut)
+def set_group_visibility(
+    plugin_id: str,
+    group_id: str,
+    payload: PluginGroupVisibilityUpdate,
+    db: Session = Depends(get_db),
+    container: AppContainer = Depends(get_container),
+    user=Depends(require_permission("plugins:write")),
+) -> PluginGroupVisibilityOut:
+    return container.plugin_service.set_group_visibility(
+        db,
+        plugin_id,
+        group_id,
+        user,
+        visible=payload.is_visible,
+    )

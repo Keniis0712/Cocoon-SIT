@@ -1,6 +1,18 @@
 import pytest
 
-from app.models import ChatGroupRoom, Cocoon, PluginDefinition, PluginDispatchRecord, PluginEventConfig, PluginVersion
+from app.models import (
+    ChatGroupRoom,
+    Cocoon,
+    PluginDefinition,
+    PluginDispatchRecord,
+    PluginEventConfig,
+    PluginGroupVisibility,
+    PluginUserConfig,
+    PluginVersion,
+    User,
+    UserGroup,
+    UserGroupMember,
+)
 from app.services.plugins.external_wakeup_service import ExternalWakeupService
 from tests.sqlite_helpers import make_sqlite_session_factory
 
@@ -277,3 +289,112 @@ def test_external_wakeup_service_schedules_and_records_cocoon_and_chat_group_wak
         assert records[0].target_type == "cocoon"
         assert records[0].payload_json["envelope"]["payload"] == {"kind": "cocoon"}
         assert records[1].target_type == "chat_group"
+
+
+def test_external_wakeup_service_honors_user_visibility_enablement_and_errors():
+    session_factory = _session_factory()
+    scheduler = _SchedulerNode()
+    service = ExternalWakeupService(scheduler)
+
+    with session_factory() as session:
+        plugin = PluginDefinition(
+            id="plugin-1",
+            name="plugin",
+            display_name="Plugin",
+            plugin_type="external",
+            entry_module="main",
+            status="enabled",
+            is_globally_visible=False,
+            data_dir="data/plugin",
+        )
+        version = PluginVersion(
+            id="version-1",
+            plugin_id=plugin.id,
+            version="1.0.0",
+            source_zip_path="plugins/plugin/source.zip",
+            extracted_path="plugins/plugin/content",
+            manifest_path="plugins/plugin/manifest.json",
+            metadata_json={},
+        )
+        cocoon = Cocoon(
+            id="cocoon-1",
+            name="Cocoon",
+            owner_user_id="user-1",
+            character_id="character-1",
+            selected_model_id="model-1",
+        )
+        owner = User(id="user-1", username="owner", password_hash="hash", is_active=True)
+        group = UserGroup(id="group-1", name="G1", owner_user_id="user-1")
+        session.add_all([owner, group, plugin, version, cocoon])
+        session.commit()
+
+        hidden_result = service.ingest(
+            session,
+            plugin=plugin,
+            version=version,
+            event_name="tick",
+            envelope={
+                "target_type": "cocoon",
+                "target_id": cocoon.id,
+                "summary": "wake cocoon",
+            },
+        )
+        assert hidden_result is None
+        assert scheduler.calls == []
+
+        session.add(UserGroupMember(group_id="group-1", user_id="user-1", member_role="member"))
+        session.add(PluginGroupVisibility(plugin_id=plugin.id, group_id="group-1", is_visible=True))
+        session.commit()
+        visible_result = service.ingest(
+            session,
+            plugin=plugin,
+            version=version,
+            event_name="tick",
+            envelope={
+                "target_type": "cocoon",
+                "target_id": cocoon.id,
+                "summary": "wake cocoon",
+            },
+        )
+        assert visible_result == "task-1"
+
+        user_config = PluginUserConfig(
+            plugin_id=plugin.id,
+            user_id="user-1",
+            is_enabled=False,
+            config_json={},
+        )
+        session.add(user_config)
+        session.commit()
+        assert (
+            service.ingest(
+                session,
+                plugin=plugin,
+                version=version,
+                event_name="tick",
+                envelope={
+                    "target_type": "cocoon",
+                    "target_id": cocoon.id,
+                    "summary": "wake cocoon",
+                },
+            )
+            is None
+        )
+
+        user_config.is_enabled = True
+        user_config.error_text = "api key invalid"
+        session.commit()
+        assert (
+            service.ingest(
+                session,
+                plugin=plugin,
+                version=version,
+                event_name="tick",
+                envelope={
+                    "target_type": "cocoon",
+                    "target_id": cocoon.id,
+                    "summary": "wake cocoon",
+                },
+            )
+            is None
+        )

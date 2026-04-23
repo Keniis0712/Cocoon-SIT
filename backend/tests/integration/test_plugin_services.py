@@ -9,7 +9,7 @@ from zipfile import ZipFile
 import pytest
 from sqlalchemy import select
 
-from app.models import ChatGroupRoom, Cocoon, PluginDispatchRecord, PluginRunState, SessionState, User, WakeupTask
+from app.models import ChatGroupRoom, Cocoon, PluginDefinition, PluginDispatchRecord, PluginRunState, SessionState, User, WakeupTask
 from app.services.plugins.dependency_builder import DependencyBuilder
 
 pytestmark = pytest.mark.integration
@@ -428,6 +428,58 @@ def test_plugin_install_rejects_invalid_default_config(client, auth_headers):
         sources={"main.py": "def bad(ctx):\n    return None\n"},
     )
     assert response.status_code == 400, response.text
+
+
+def test_plugin_install_rejects_invalid_manifest_as_bad_request(client, auth_headers):
+    response = _install_response(
+        client,
+        auth_headers,
+        manifest={
+            "name": "invalid-manifest",
+            "version": "1.0.0",
+            "display_name": "Invalid Manifest",
+            "plugin_type": "external",
+            "entry_module": "main",
+        },
+        sources={"main.py": "def tick(ctx):\n    return None\n"},
+    )
+
+    assert response.status_code == 400, response.text
+    assert "External plugins must define at least one event" in response.text
+
+
+def test_plugin_install_failure_cleans_partial_version_directory(client, auth_headers):
+    response = _install_response(
+        client,
+        auth_headers,
+        manifest={
+            "name": "missing-function",
+            "version": "1.0.0",
+            "display_name": "Missing Function",
+            "plugin_type": "external",
+            "entry_module": "main",
+            "events": [
+                {
+                    "name": "tick",
+                    "mode": "short_lived",
+                    "function_name": "tick",
+                    "title": "Tick",
+                    "description": "Missing function event",
+                    "config_schema": {"type": "object"},
+                }
+            ],
+        },
+        sources={"main.py": "def other(ctx):\n    return None\n"},
+    )
+
+    assert response.status_code == 400, response.text
+    assert "Plugin validation failed" in response.text
+    container = client.app.state.container
+    assert not (container.settings.plugin_root / "missing-function" / "versions" / "1.0.0").exists()
+    assert not (container.settings.plugin_data_root / "missing-function").exists()
+    with container.session_factory() as session:
+        plugin = session.scalar(select(PluginDefinition).where(PluginDefinition.name == "missing-function"))
+        assert plugin is None
 
 
 def test_dependency_builder_archives_packages_with_package_level_dedup(tmp_path):

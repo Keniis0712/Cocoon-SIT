@@ -5,7 +5,17 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import ChatGroupRoom, Cocoon, PluginDefinition, PluginDispatchRecord, PluginEventConfig, PluginVersion
+from app.models import (
+    ChatGroupRoom,
+    Cocoon,
+    PluginDefinition,
+    PluginDispatchRecord,
+    PluginEventConfig,
+    PluginGroupVisibility,
+    PluginUserConfig,
+    PluginVersion,
+    UserGroupMember,
+)
 from app.services.runtime.scheduler_node import SchedulerNode
 
 
@@ -44,12 +54,20 @@ class ExternalWakeupService:
             raise ValueError("External plugin event target_id is required")
         if not summary:
             raise ValueError("External plugin event summary is required")
+        target_user_id: str | None = None
         if target_type == "cocoon":
-            if not session.get(Cocoon, target_id):
+            cocoon = session.get(Cocoon, target_id)
+            if not cocoon:
                 raise ValueError(f"Unknown cocoon target: {target_id}")
+            target_user_id = cocoon.owner_user_id
         else:
-            if not session.get(ChatGroupRoom, target_id):
+            room = session.get(ChatGroupRoom, target_id)
+            if not room:
                 raise ValueError(f"Unknown chat_group target: {target_id}")
+            target_user_id = room.owner_user_id
+
+        if target_user_id and not self._can_deliver_to_user(session, plugin, target_user_id):
+            return None
 
         if dedupe_key:
             existing = session.scalar(
@@ -92,3 +110,34 @@ class ExternalWakeupService:
         session.add(record)
         session.flush()
         return task.id
+
+    def _can_deliver_to_user(self, session: Session, plugin: PluginDefinition, user_id: str) -> bool:
+        user_config = session.scalar(
+            select(PluginUserConfig).where(
+                PluginUserConfig.plugin_id == plugin.id,
+                PluginUserConfig.user_id == user_id,
+            )
+        )
+        if user_config and not user_config.is_enabled:
+            return False
+        if user_config and user_config.error_text:
+            return False
+
+        group_ids = [
+            item.group_id
+            for item in session.scalars(
+                select(UserGroupMember).where(UserGroupMember.user_id == user_id)
+            ).all()
+        ]
+        if group_ids:
+            overrides = list(
+                session.scalars(
+                    select(PluginGroupVisibility).where(
+                        PluginGroupVisibility.plugin_id == plugin.id,
+                        PluginGroupVisibility.group_id.in_(group_ids),
+                    )
+                ).all()
+            )
+            if overrides:
+                return any(item.is_visible for item in overrides)
+        return bool(plugin.is_globally_visible)

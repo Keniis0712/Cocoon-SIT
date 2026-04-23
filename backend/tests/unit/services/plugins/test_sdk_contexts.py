@@ -24,6 +24,8 @@ def test_external_event_context_emits_events_and_heartbeats():
 
     context.emit_event({"target_type": "cocoon"})
     context.heartbeat()
+    context.report_user_error("user-1", "bad key")
+    context.clear_user_error("user-1")
 
     assert queue.items[0] == {
         "type": "external_event",
@@ -33,6 +35,10 @@ def test_external_event_context_emits_events_and_heartbeats():
     assert queue.items[1]["type"] == "heartbeat"
     assert queue.items[1]["plugin_event"] == "tick"
     assert "occurred_at" in queue.items[1]
+    assert queue.items[2]["type"] == "user_error"
+    assert queue.items[2]["user_id"] == "user-1"
+    assert queue.items[3]["type"] == "user_error_clear"
+    assert queue.items[3]["user_id"] == "user-1"
 
 
 def test_sdk_contexts_noop_without_outbound_queue():
@@ -69,6 +75,12 @@ def test_im_plugin_context_emits_heartbeat():
     )
 
     context.heartbeat()
+    context.report_user_error("user-2", "invalid location")
+    context.clear_user_error("user-2")
 
     assert queue.items[0]["type"] == "heartbeat"
     assert "occurred_at" in queue.items[0]
+    assert queue.items[1]["type"] == "user_error"
+    assert queue.items[1]["user_id"] == "user-2"
+    assert queue.items[2]["type"] == "user_error_clear"
+    assert queue.items[2]["user_id"] == "user-2"

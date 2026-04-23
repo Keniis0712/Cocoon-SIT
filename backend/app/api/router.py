@@ -22,6 +22,7 @@ from app.api.routes.workspace import (
     memory,
     merges,
     messages,
+    plugins as workspace_plugins,
     pulls,
     realtime,
     rollback,
@@ -51,6 +52,7 @@ api_router.include_router(workspace_tags.router, prefix="/cocoons", tags=["cocoo
 api_router.include_router(rollback.router, prefix="/cocoons", tags=["cocoons"])
 api_router.include_router(realtime.router, prefix="/cocoons", tags=["cocoons"])
 api_router.include_router(memory.router, prefix="/memory", tags=["memory"])
+api_router.include_router(workspace_plugins.router, prefix="/plugins", tags=["plugins"])
 api_router.include_router(pulls.router, prefix="/pulls", tags=["pulls"])
 api_router.include_router(merges.router, prefix="/merges", tags=["merges"])
 api_router.include_router(checkpoints.router, prefix="/checkpoints", tags=["checkpoints"])

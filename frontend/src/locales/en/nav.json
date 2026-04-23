@@ -14,6 +14,8 @@
   "prompts": "Prompts",
   "embeddingProviders": "Embedding",
   "audits": "Audits",
+  "plugins": "Plugins",
+  "pluginsAdmin": "Plugin Admin",
   "wakeups": "Wakeups",
   "insights": "Insights",
   "settings": "Settings",

@@ -25,8 +25,11 @@ class PluginPackageManifest(BaseModel):
     entry_module: str
     config_schema: dict = Field(default_factory=dict)
     default_config: dict = Field(default_factory=dict)
+    user_config_schema: dict = Field(default_factory=dict)
+    user_default_config: dict = Field(default_factory=dict)
     events: list[PluginEventManifest] = Field(default_factory=list)
     service_function: str | None = None
+    settings_validation_function: str | None = None
 
     @classmethod
     def load(cls, path: Path) -> "PluginPackageManifest":

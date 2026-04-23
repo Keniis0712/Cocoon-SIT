@@ -1,0 +1,209 @@
+from __future__ import annotations
+
+import io
+import json
+from zipfile import ZipFile
+
+from sqlalchemy import select
+
+from app.models import Role, User, UserGroup, UserGroupMember
+from app.services.security.encryption import hash_secret
+
+
+def _plugin_zip(*, manifest: dict, sources: dict[str, str]) -> bytes:
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w") as bundle:
+        bundle.writestr("plugin.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+        for path, content in sources.items():
+            bundle.writestr(path, content)
+    return buffer.getvalue()
+
+
+def _login(client, username: str, password: str) -> dict[str, str]:
+    response = client.post("/api/v1/auth/login", json={"username": username, "password": password})
+    assert response.status_code == 200, response.text
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+def _ensure_user_with_role(client, *, username: str, password: str, role_name: str) -> str:
+    container = client.app.state.container
+    with container.session_factory() as session:
+        role = session.scalar(select(Role).where(Role.name == role_name))
+        assert role is not None
+        user = session.scalar(select(User).where(User.username == username))
+        if not user:
+            user = User(
+                username=username,
+                email=f"{username}@example.com",
+                password_hash=hash_secret(password),
+                role_id=role.id,
+                is_active=True,
+            )
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+        return user.id
+
+
+def test_user_can_manage_own_plugin_settings_with_group_visibility_override(client, auth_headers):
+    install_payload = _plugin_zip(
+        manifest={
+            "name": "user-plugin",
+            "version": "1.0.0",
+            "display_name": "User Plugin",
+            "plugin_type": "external",
+            "entry_module": "main",
+            "user_config_schema": {
+                "type": "object",
+                "required": ["location"],
+                "properties": {"location": {"type": "string"}},
+            },
+            "user_default_config": {"location": "shanghai"},
+            "settings_validation_function": "validate_settings",
+            "events": [
+                {
+                    "name": "tick",
+                    "mode": "short_lived",
+                    "function_name": "tick",
+                    "title": "Tick",
+                    "description": "Tick event",
+                    "config_schema": {"type": "object"},
+                }
+            ],
+        },
+        sources={
+            "main.py": """
+def tick(ctx):
+    return None
+
+def validate_settings(ctx):
+    if (ctx.user_config or {}).get("location") == "mars":
+        return "weather location not found"
+    return None
+""",
+        },
+    )
+    install = client.post(
+        "/api/v1/admin/plugins/install",
+        headers=auth_headers,
+        files={"file": ("plugin.zip", install_payload, "application/zip")},
+    )
+    assert install.status_code == 200, install.text
+    plugin_id = install.json()["id"]
+
+    normal_user_id = _ensure_user_with_role(client, username="plugin-user", password="pass123", role_name="user")
+    user_headers = _login(client, "plugin-user", "pass123")
+
+    container = client.app.state.container
+    with container.session_factory() as session:
+        group = UserGroup(name="plugin-test-group", owner_user_id=normal_user_id)
+        session.add(group)
+        session.flush()
+        session.add(UserGroupMember(group_id=group.id, user_id=normal_user_id, member_role="member"))
+        session.commit()
+        group_id = group.id
+
+    global_hidden = client.patch(
+        f"/api/v1/admin/plugins/{plugin_id}/visibility",
+        headers=auth_headers,
+        json={"is_globally_visible": False},
+    )
+    assert global_hidden.status_code == 200, global_hidden.text
+    assert global_hidden.json()["is_globally_visible"] is False
+
+    group_visible = client.put(
+        f"/api/v1/admin/plugins/{plugin_id}/groups/{group_id}/visibility",
+        headers=auth_headers,
+        json={"is_visible": True},
+    )
+    assert group_visible.status_code == 200, group_visible.text
+
+    listing = client.get("/api/v1/plugins", headers=user_headers)
+    assert listing.status_code == 200, listing.text
+    row = next(item for item in listing.json() if item["id"] == plugin_id)
+    assert row["is_visible"] is True
+    assert row["is_enabled"] is True
+    assert row["user_config_json"] == {"location": "shanghai"}
+
+    bad_config = client.patch(
+        f"/api/v1/plugins/{plugin_id}/config",
+        headers=user_headers,
+        json={"config_json": {"location": "mars"}},
+    )
+    assert bad_config.status_code == 200, bad_config.text
+    assert bad_config.json()["user_error_text"] == "weather location not found"
+
+    cleared = client.post(f"/api/v1/plugins/{plugin_id}/clear-error", headers=user_headers)
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["user_error_text"] is None
+
+    disabled = client.post(f"/api/v1/plugins/{plugin_id}/disable", headers=user_headers)
+    assert disabled.status_code == 200, disabled.text
+    assert disabled.json()["is_enabled"] is False
+
+
+def test_only_bootstrap_admin_can_manage_plugin_visibility(client, auth_headers, test_settings):
+    install_payload = _plugin_zip(
+        manifest={
+            "name": "visibility-guard",
+            "version": "1.0.0",
+            "display_name": "Visibility Guard",
+            "plugin_type": "external",
+            "entry_module": "main",
+            "events": [
+                {
+                    "name": "tick",
+                    "mode": "short_lived",
+                    "function_name": "tick",
+                    "title": "Tick",
+                    "description": "Tick event",
+                    "config_schema": {"type": "object"},
+                }
+            ],
+        },
+        sources={"main.py": "def tick(ctx):\n    return None\n"},
+    )
+    install = client.post(
+        "/api/v1/admin/plugins/install",
+        headers=auth_headers,
+        files={"file": ("plugin.zip", install_payload, "application/zip")},
+    )
+    assert install.status_code == 200, install.text
+    plugin_id = install.json()["id"]
+
+    container = client.app.state.container
+    with container.session_factory() as session:
+        role = Role(
+            name="plugins-admin",
+            permissions_json={"plugins:read": True, "plugins:write": True, "plugins:run": True},
+        )
+        session.add(role)
+        session.flush()
+        session.add(
+            User(
+                username="other-admin",
+                email="other-admin@example.com",
+                password_hash=hash_secret("pass123"),
+                role_id=role.id,
+                is_active=True,
+            )
+        )
+        session.commit()
+
+    other_admin_headers = _login(client, "other-admin", "pass123")
+    blocked = client.patch(
+        f"/api/v1/admin/plugins/{plugin_id}/visibility",
+        headers=other_admin_headers,
+        json={"is_globally_visible": False},
+    )
+    assert blocked.status_code == 403, blocked.text
+    assert "bootstrap admin" in blocked.text
+
+    allowed = client.patch(
+        f"/api/v1/admin/plugins/{plugin_id}/visibility",
+        headers=auth_headers,
+        json={"is_globally_visible": False},
+    )
+    assert allowed.status_code == 200, allowed.text
+    assert allowed.json()["is_globally_visible"] is False
+    assert test_settings.default_admin_username == "admin"

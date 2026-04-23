@@ -4,6 +4,7 @@ import { Navigate, createBrowserRouter } from "react-router-dom";
 import { useUserStore } from "@/store/useUserStore";
 
 const MainLayout = lazy(() => import("@/components/MainLayout"));
+const AdminPluginsPage = lazy(() => import("@/pages/AdminPlugins"));
 const AuditsWorkbenchPage = lazy(() => import("@/pages/AuditsWorkbench"));
 const CharactersPage = lazy(() => import("@/pages/Characters"));
 const ChatGroupsPage = lazy(() => import("@/pages/ChatGroupsPage"));
@@ -20,6 +21,7 @@ const MePage = lazy(() => import("@/pages/Me"));
 const MergesPage = lazy(() => import("@/pages/Merges"));
 const ProvidersPage = lazy(() => import("@/pages/Providers"));
 const PromptTemplatesPage = lazy(() => import("@/pages/PromptTemplates"));
+const PluginsPage = lazy(() => import("@/pages/Plugins"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
 const TagsPage = lazy(() => import("@/pages/TagsPage"));
 const UsersPage = lazy(() => import("@/pages/Users"));
@@ -73,6 +75,8 @@ export const router = createBrowserRouter([
       { path: "/merges", element: renderLazyPage(MergesPage) },
       { path: "/providers", element: renderLazyPage(ProvidersPage) },
       { path: "/prompt-templates", element: renderLazyPage(PromptTemplatesPage) },
+      { path: "/plugins", element: renderLazyPage(PluginsPage) },
+      { path: "/admin/plugins", element: renderLazyPage(AdminPluginsPage) },
       { path: "/embedding-providers", element: renderLazyPage(EmbeddingProvidersPage) },
       { path: "/users", element: renderLazyPage(UsersPage) },
       { path: "/audits", element: renderLazyPage(AuditsWorkbenchPage) },

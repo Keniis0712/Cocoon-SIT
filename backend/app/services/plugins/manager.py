@@ -20,8 +20,10 @@ from app.models import (
     PluginEventConfig,
     PluginEventDefinition,
     PluginRunState,
+    PluginUserConfig,
     PluginVersion,
 )
+from app.services.plugins.errors import PluginUserVisibleError
 from app.services.plugins.external_wakeup_service import ExternalWakeupService
 from app.services.plugins.runtime import run_external_daemon, run_im_plugin, run_short_lived_event
 
@@ -146,6 +148,19 @@ class PluginRuntimeManager:
             elif kind == "error":
                 run_state.status = "failed"
                 run_state.error_text = str(payload.get("error") or "unknown plugin runtime error")
+            elif kind == "user_error":
+                user_id = str(payload.get("user_id") or "").strip()
+                if user_id:
+                    self._record_user_error(
+                        session,
+                        plugin=plugin,
+                        user_id=user_id,
+                        message=str(payload.get("error") or "Plugin runtime error"),
+                    )
+            elif kind == "user_error_clear":
+                user_id = str(payload.get("user_id") or "").strip()
+                if user_id:
+                    self._clear_user_error(session, plugin_id=plugin_id, user_id=user_id)
             session.commit()
 
     def _handle_finished_short_lived(self) -> None:
@@ -158,9 +173,16 @@ class PluginRuntimeManager:
                 result = future.result()
             except Exception as exc:
                 with self.session_factory() as session:
-                    run_state = self._ensure_run_state(session, plugin_id)
-                    run_state.status = "failed"
-                    run_state.error_text = str(exc)
+                    plugin = session.get(PluginDefinition, plugin_id)
+                    if isinstance(exc, PluginUserVisibleError) and plugin and exc.user_id:
+                        self._record_user_error(session, plugin=plugin, user_id=exc.user_id, message=str(exc))
+                        run_state = self._ensure_run_state(session, plugin_id)
+                        run_state.status = "running"
+                        run_state.error_text = None
+                    else:
+                        run_state = self._ensure_run_state(session, plugin_id)
+                        run_state.status = "failed"
+                        run_state.error_text = str(exc)
                     session.commit()
                 continue
             if result is None:
@@ -369,3 +391,41 @@ class PluginRuntimeManager:
         session.add(current)
         session.flush()
         return current
+
+    def _ensure_user_config(self, session: Session, plugin: PluginDefinition, user_id: str) -> PluginUserConfig:
+        current = session.scalar(
+            select(PluginUserConfig).where(
+                PluginUserConfig.plugin_id == plugin.id,
+                PluginUserConfig.user_id == user_id,
+            )
+        )
+        if current:
+            return current
+        current = PluginUserConfig(
+            plugin_id=plugin.id,
+            user_id=user_id,
+            is_enabled=True,
+            config_json=dict(plugin.user_default_config_json or {}),
+        )
+        session.add(current)
+        session.flush()
+        return current
+
+    def _record_user_error(self, session: Session, *, plugin: PluginDefinition, user_id: str, message: str) -> None:
+        row = self._ensure_user_config(session, plugin, user_id)
+        row.error_text = message.strip() or "Plugin runtime error"
+        row.error_at = datetime.now(UTC).replace(tzinfo=None)
+        session.flush()
+
+    def _clear_user_error(self, session: Session, *, plugin_id: str, user_id: str) -> None:
+        current = session.scalar(
+            select(PluginUserConfig).where(
+                PluginUserConfig.plugin_id == plugin_id,
+                PluginUserConfig.user_id == user_id,
+            )
+        )
+        if not current:
+            return
+        current.error_text = None
+        current.error_at = None
+        session.flush()

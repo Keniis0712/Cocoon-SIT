@@ -10,3 +10,4 @@ export * from "./types/operations";
 export * from "./types/audit";
 export * from "./types/insights";
 export * from "./types/access";
+export * from "./types/plugins";

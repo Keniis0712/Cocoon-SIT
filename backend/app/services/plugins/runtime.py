@@ -1,14 +1,26 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 import inspect
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from app.services.plugins.bootstrap import bootstrap_module
+from app.services.plugins.errors import PluginUserVisibleError
 from app.services.plugins.external_sdk import ExternalEventContext
 from app.services.plugins.im_sdk import ImPluginContext
+
+
+@dataclass
+class PluginSettingsValidationContext:
+    plugin_name: str
+    plugin_version: str
+    plugin_config: dict[str, Any]
+    user_config: dict[str, Any]
+    user_id: str | None
+    data_dir: str
 
 
 def _normalize_envelope(value: Any) -> dict[str, Any] | None:
@@ -17,6 +29,25 @@ def _normalize_envelope(value: Any) -> dict[str, Any] | None:
     if isinstance(value, dict):
         return value
     raise TypeError("Plugin event functions must return None or a dict envelope")
+
+
+def _normalize_settings_validation_result(value: Any) -> str | None:
+    if value is None or value is True:
+        return None
+    if value is False:
+        return "Plugin settings validation failed"
+    if isinstance(value, str):
+        text = value.strip()
+        return text or "Plugin settings validation failed"
+    if isinstance(value, dict):
+        if value.get("ok") is True:
+            return None
+        message = value.get("message") or value.get("error")
+        if isinstance(message, str) and message.strip():
+            return message.strip()
+        if value.get("ok") is False:
+            return "Plugin settings validation failed"
+    raise TypeError("Plugin settings validator must return None/bool/str/dict")
 
 
 def run_short_lived_event(
@@ -69,7 +100,21 @@ async def _run_external_daemon_function(
         data_dir=data_dir,
         outbound_queue=outbound_queue,
     )
-    await func(context)
+    try:
+        await func(context)
+    except PluginUserVisibleError as exc:
+        if outbound_queue and exc.user_id:
+            outbound_queue.put(
+                {
+                    "type": "user_error",
+                    "user_id": exc.user_id,
+                    "error": str(exc),
+                    "plugin_event": event_name,
+                    "occurred_at": datetime.now(UTC).isoformat(),
+                }
+            )
+            return
+        raise
 
 
 async def _heartbeat_loop(outbound_queue, interval_seconds: int = 2) -> None:
@@ -141,10 +186,23 @@ def run_im_plugin(
         data_dir=data_dir,
         outbound_queue=outbound_queue,
     )
-    if inspect.iscoroutinefunction(func):
-        asyncio.run(func(context))
-        return
-    func(context)
+    try:
+        if inspect.iscoroutinefunction(func):
+            asyncio.run(func(context))
+            return
+        func(context)
+    except PluginUserVisibleError as exc:
+        if outbound_queue and exc.user_id:
+            outbound_queue.put(
+                {
+                    "type": "user_error",
+                    "user_id": exc.user_id,
+                    "error": str(exc),
+                    "occurred_at": datetime.now(UTC).isoformat(),
+                }
+            )
+            return
+        raise
 
 
 def validate_plugin_functions(
@@ -154,6 +212,7 @@ def validate_plugin_functions(
     *,
     events: list[dict[str, Any]],
     service_function: str | None = None,
+    settings_validation_function: str | None = None,
 ) -> None:
     module = bootstrap_module(manifest_path, entry_module)
     if plugin_type == "external":
@@ -167,3 +226,38 @@ def validate_plugin_functions(
         func = getattr(module, service_function or "", None)
         if not callable(func):
             raise ValueError(f"IM service function not found: {service_function}")
+    if settings_validation_function:
+        validator = getattr(module, settings_validation_function, None)
+        if not callable(validator):
+            raise ValueError(f"Settings validation function not found: {settings_validation_function}")
+
+
+def validate_plugin_settings(
+    manifest_path: str,
+    entry_module: str,
+    validation_function: str,
+    *,
+    plugin_name: str,
+    plugin_version: str,
+    plugin_config: dict[str, Any],
+    user_config: dict[str, Any],
+    user_id: str | None,
+    data_dir: str,
+) -> str | None:
+    module = bootstrap_module(manifest_path, entry_module)
+    func = getattr(module, validation_function, None)
+    if not callable(func):
+        raise ValueError(f"Settings validation function not found: {validation_function}")
+    context = PluginSettingsValidationContext(
+        plugin_name=plugin_name,
+        plugin_version=plugin_version,
+        plugin_config=dict(plugin_config or {}),
+        user_config=dict(user_config or {}),
+        user_id=user_id,
+        data_dir=data_dir,
+    )
+    if inspect.iscoroutinefunction(func):
+        result = asyncio.run(func(context))
+    else:
+        result = func(context)
+    return _normalize_settings_validation_result(result)

@@ -6,6 +6,7 @@ import {
   Binary,
   BarChart3,
   BrainCircuit,
+  Puzzle,
   MessagesSquare,
   FileCode2,
   FileSearch,
@@ -56,6 +57,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     hasAnyPermission(userInfo, ["tags:read", "tags:write"])
       ? { title: t("tags"), url: "/tags", icon: <Tags /> }
       : null,
+    { title: t("plugins"), url: "/plugins", icon: <Puzzle /> },
   ].filter(Boolean) as { title: string; url: string; icon: ReactNode }[];
 
   const collaborationItems = [
@@ -88,6 +90,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       : null,
     hasAnyPermission(userInfo, ["insights:read"])
       ? { title: t("insights"), url: "/insights", icon: <BarChart3 /> }
+      : null,
+    hasAnyPermission(userInfo, ["plugins:read", "plugins:write", "plugins:run"])
+      ? { title: t("pluginsAdmin"), url: "/admin/plugins", icon: <Puzzle /> }
       : null,
     hasAnyPermission(userInfo, ["artifacts:cleanup", "roles:write", "prompt_templates:write"])
       ? { title: t("settings"), url: "/settings", icon: <Settings2 /> }

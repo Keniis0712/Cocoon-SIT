@@ -36,7 +36,8 @@ def test_cocoon_ws_route_connects_and_disconnects(client, default_cocoon_id, mon
     monkeypatch.setattr(container.workspace_realtime_service, "disconnect", fake_disconnect)
 
     with client.websocket_connect(f"/api/v1/cocoons/{default_cocoon_id}/ws") as websocket:
-        websocket.send_text("ping")
+        websocket.send_json({"type": "ping"})
+        assert websocket.receive_json() == {"type": "pong"}
 
     assert calls["connect"] == (default_cocoon_id, "cocoons:read", "cocoon")
     assert calls["disconnect"] == (default_cocoon_id, "cocoon")
@@ -75,7 +76,8 @@ def test_chat_group_ws_route_connects_and_disconnects(client, auth_headers, monk
     monkeypatch.setattr(container.workspace_realtime_service, "disconnect", fake_disconnect)
 
     with client.websocket_connect(f"/api/v1/chat-groups/{room_id}/ws") as websocket:
-        websocket.send_text("ping")
+        websocket.send_json({"type": "ping"})
+        assert websocket.receive_json() == {"type": "pong"}
 
     assert calls["connect"] == (room_id, "cocoons:read", "chat_group")
     assert calls["disconnect"] == (room_id, "chat_group")

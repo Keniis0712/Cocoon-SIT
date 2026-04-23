@@ -37,3 +37,28 @@ class ExternalEventContext:
                 "occurred_at": datetime.now(UTC).isoformat(),
             }
         )
+
+    def report_user_error(self, user_id: str, message: str) -> None:
+        if not self.outbound_queue:
+            return
+        self.outbound_queue.put(
+            {
+                "type": "user_error",
+                "user_id": user_id,
+                "error": message,
+                "plugin_event": self.event_name,
+                "occurred_at": datetime.now(UTC).isoformat(),
+            }
+        )
+
+    def clear_user_error(self, user_id: str) -> None:
+        if not self.outbound_queue:
+            return
+        self.outbound_queue.put(
+            {
+                "type": "user_error_clear",
+                "user_id": user_id,
+                "plugin_event": self.event_name,
+                "occurred_at": datetime.now(UTC).isoformat(),
+            }
+        )

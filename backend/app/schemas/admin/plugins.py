@@ -15,6 +15,14 @@ class PluginEventConfigUpdate(BaseModel):
     config_json: dict = Field(default_factory=dict)
 
 
+class PluginVisibilityUpdate(BaseModel):
+    is_globally_visible: bool
+
+
+class PluginGroupVisibilityUpdate(BaseModel):
+    is_visible: bool
+
+
 class PluginVersionOut(ORMModel):
     id: str
     plugin_id: str
@@ -66,6 +74,10 @@ class PluginListItemOut(ORMModel):
     config_schema_json: dict
     default_config_json: dict
     config_json: dict
+    user_config_schema_json: dict
+    user_default_config_json: dict
+    settings_validation_function_name: str | None
+    is_globally_visible: bool
     active_version_id: str | None
     created_at: datetime
     updated_at: datetime
@@ -89,3 +101,12 @@ class PluginSharedPackageOut(BaseModel):
     path: str
     reference_count: int
     size_bytes: int
+
+
+class PluginGroupVisibilityOut(ORMModel):
+    id: str
+    plugin_id: str
+    group_id: str
+    is_visible: bool
+    created_at: datetime
+    updated_at: datetime

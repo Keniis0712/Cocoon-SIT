@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.plugins import runtime
+from app.services.plugins.errors import PluginUserVisibleError
 
 
 class _Queue:
@@ -156,6 +157,44 @@ def test_run_external_daemon_and_im_plugin(monkeypatch):
     assert any(item["type"] == "heartbeat" for item in queue.items)
 
 
+def test_runtime_reports_user_visible_errors_for_daemon_and_im(monkeypatch):
+    async def daemon_user_error(_context):
+        raise PluginUserVisibleError("api key invalid", user_id="user-1")
+
+    def im_user_error(_context):
+        raise PluginUserVisibleError("location not found", user_id="user-2")
+
+    queue = _Queue()
+    module = SimpleNamespace(daemon_user_error=daemon_user_error, im_user_error=im_user_error)
+    monkeypatch.setattr("app.services.plugins.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
+    monkeypatch.setattr("app.services.plugins.runtime._heartbeat_loop", lambda outbound_queue: asyncio.sleep(0))
+
+    runtime.run_external_daemon(
+        manifest_path="manifest.json",
+        entry_module="plugin",
+        plugin_name="plugin-a",
+        plugin_version="1.0.0",
+        plugin_config={},
+        daemon_events=[{"name": "daemon-user-error", "function_name": "daemon_user_error", "config_json": {}}],
+        data_dir="data",
+        outbound_queue=queue,
+    )
+    runtime.run_im_plugin(
+        manifest_path="manifest.json",
+        entry_module="plugin",
+        service_function="im_user_error",
+        plugin_name="plugin-a",
+        plugin_version="1.0.0",
+        plugin_config={},
+        data_dir="data",
+        outbound_queue=queue,
+    )
+
+    user_errors = [item for item in queue.items if item.get("type") == "user_error"]
+    assert any(item["user_id"] == "user-1" and item["error"] == "api key invalid" for item in user_errors)
+    assert any(item["user_id"] == "user-2" and item["error"] == "location not found" for item in user_errors)
+
+
 def test_validate_plugin_functions_checks_external_and_im_manifests(monkeypatch):
     async def daemon_ok(context):
         return None
@@ -166,7 +205,10 @@ def test_validate_plugin_functions_checks_external_and_im_manifests(monkeypatch)
     def im_ok(context):
         return None
 
-    module = SimpleNamespace(daemon_ok=daemon_ok, short_ok=short_ok, im_ok=im_ok)
+    def validate_settings(context):
+        return None
+
+    module = SimpleNamespace(daemon_ok=daemon_ok, short_ok=short_ok, im_ok=im_ok, validate_settings=validate_settings)
     monkeypatch.setattr("app.services.plugins.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
 
     runtime.validate_plugin_functions(
@@ -177,6 +219,7 @@ def test_validate_plugin_functions_checks_external_and_im_manifests(monkeypatch)
             {"name": "short", "function_name": "short_ok", "mode": "short_lived"},
             {"name": "daemon", "function_name": "daemon_ok", "mode": "daemon"},
         ],
+        settings_validation_function="validate_settings",
     )
     runtime.validate_plugin_functions(
         manifest_path="manifest.json",
@@ -210,3 +253,50 @@ def test_validate_plugin_functions_checks_external_and_im_manifests(monkeypatch)
             events=[],
             service_function="missing_fn",
         )
+
+    with pytest.raises(ValueError):
+        runtime.validate_plugin_functions(
+            manifest_path="manifest.json",
+            entry_module="plugin",
+            plugin_type="external",
+            events=[{"name": "short", "function_name": "short_ok", "mode": "short_lived"}],
+            settings_validation_function="missing_fn",
+        )
+
+
+def test_validate_plugin_settings_supports_sync_and_async(monkeypatch):
+    async def validate_async(context):
+        assert context.user_id == "user-1"
+        return {"ok": False, "message": "invalid key"}
+
+    def validate_sync(context):
+        return None
+
+    module = SimpleNamespace(validate_async=validate_async, validate_sync=validate_sync)
+    monkeypatch.setattr("app.services.plugins.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
+
+    result = runtime.validate_plugin_settings(
+        manifest_path="manifest.json",
+        entry_module="plugin",
+        validation_function="validate_async",
+        plugin_name="plugin-a",
+        plugin_version="1.0.0",
+        plugin_config={"x": 1},
+        user_config={"api_key": "bad"},
+        user_id="user-1",
+        data_dir="data",
+    )
+    ok_result = runtime.validate_plugin_settings(
+        manifest_path="manifest.json",
+        entry_module="plugin",
+        validation_function="validate_sync",
+        plugin_name="plugin-a",
+        plugin_version="1.0.0",
+        plugin_config={},
+        user_config={},
+        user_id="user-1",
+        data_dir="data",
+    )
+
+    assert result == "invalid key"
+    assert ok_result is None
