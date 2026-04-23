@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { KeyRound, LogOut, Save, Shield, User } from "lucide-react";
+import { LogOut, Save, Shield, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -202,10 +202,6 @@ export default function MePage() {
               <Button variant="outline" onClick={handleLogout}>
                 <LogOut className="mr-2 size-4" />
                 {t("nav.logout")}
-              </Button>
-              <Button variant="secondary" disabled>
-                <KeyRound className="mr-2 size-4" />
-                {t("me.currentPort")}
               </Button>
             </div>
           </CardContent>

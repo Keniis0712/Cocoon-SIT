@@ -235,7 +235,7 @@ export default function InvitesPage() {
         </div>
       }
     >
-      <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_320px]">
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <Card className="border-border/70 bg-card/90">
           <CardHeader>
             <CardTitle className="text-base">{t("invites.summaryTitle")}</CardTitle>
@@ -277,21 +277,6 @@ export default function InvitesPage() {
             </div>
             <div className="rounded-2xl border border-dashed border-border/70 p-4 text-sm text-muted-foreground">
               {selectedGroup ? `${selectedGroup.name} · ${renderSummaryValue(t, groupSummary)}` : t("invites.noGroupSelected")}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/70 bg-card/90">
-          <CardHeader>
-            <CardTitle className="text-base">Policy</CardTitle>
-            <CardDescription>Admin console actions are now backed by real invite, revoke, grant, and summary APIs.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <div className="rounded-2xl border border-dashed border-border/70 p-4">
-              Creating a code now checks the selected user or group quota bucket unless you use admin override.
-            </div>
-            <div className="rounded-2xl border border-dashed border-border/70 p-4">
-              Revoking an unused code returns that quota capacity to the same bucket.
             </div>
           </CardContent>
         </Card>

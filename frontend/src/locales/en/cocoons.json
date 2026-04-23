@@ -35,7 +35,6 @@
   "defaultTemperature": "Default Temperature",
   "enabled": "Enabled",
   "disabled": "Disabled",
-  "actualConfigHint": "This page now only shows cocoon settings that the backend really persists and returns.",
   "emptySelection": "Select a cocoon on the left to see structure details and available actions.",
   "usageTitle": "Usage Tips",
   "usageLine1": "Stay on this page if you are organizing structure. Enter the dedicated workspace if you want to chat, inspect memories, or manage the latest round.",

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { KeyRound, Plus, Search, ShieldCheck, UserRound, Users } from "lucide-react";
+import { Plus, Search, ShieldCheck, UserRound, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -365,19 +365,6 @@ export default function UsersPage() {
                   );
                 })
               )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/70 bg-card/90">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <KeyRound className="size-4 text-primary" />
-                {t("users.policy")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <div className="rounded-xl border border-dashed border-border p-4">{t("users.policyLine1")}</div>
-              <div className="rounded-xl border border-dashed border-border p-4">{t("users.policyLine2")}</div>
             </CardContent>
           </Card>
         </div>

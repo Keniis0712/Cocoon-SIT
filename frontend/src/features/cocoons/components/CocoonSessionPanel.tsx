@@ -52,6 +52,15 @@ export function CocoonSessionPanel({
   onChangeModel,
 }: CocoonSessionPanelProps) {
   const { t } = useTranslation(["workspace", "wakeups", "common"]);
+  const tagLabelByKey = new Map<string, string>();
+  for (const tag of selectedCocoon?.tags || []) {
+    tagLabelByKey.set(String(tag.id), tag.name);
+    tagLabelByKey.set(tag.tag_id, tag.name);
+    tagLabelByKey.set(tag.name, tag.name);
+  }
+  const activeTags = sessionActiveTags.length
+    ? sessionActiveTags.map((tag) => ({ key: tag, label: tagLabelByKey.get(tag) || tag }))
+    : selectedCocoon?.tags?.map((item) => ({ key: String(item.id), label: item.name })) || [];
 
   return (
     <Card className="border-border/70 bg-card/90">
@@ -63,9 +72,9 @@ export function CocoonSessionPanel({
         <div>
           <div className="mb-2 text-sm text-muted-foreground">{t("workspace:activeTags")}</div>
           <div className="flex flex-wrap gap-2">
-            {(sessionActiveTags.length ? sessionActiveTags : selectedCocoon?.tags?.map((item) => item.name) || []).map((tag) => (
-              <Badge key={tag} variant="secondary">
-                {tag}
+            {activeTags.map((tag) => (
+              <Badge key={tag.key} variant="secondary">
+                {tag.label}
               </Badge>
             ))}
             {!(sessionActiveTags.length || selectedCocoon?.tags?.length) ? <span className="text-sm text-muted-foreground">{t("workspace:noTags")}</span> : null}

@@ -302,9 +302,6 @@ export default function SettingsPage() {
                 <CardDescription>{t("settings.maintenanceQueueDescription")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="rounded-2xl border border-border/70 p-4 text-sm text-muted-foreground">
-                  {t("settings.artifactCleanupHint")}
-                </div>
                 <Button variant="outline" disabled={isCleaning} onClick={runArtifactCleanup}>
                   <RefreshCcw className="mr-2 size-4" />
                   {isCleaning ? t("settings.queueing") : t("settings.queueExpiredArtifactCleanup")}

@@ -181,11 +181,15 @@ export default function ChatGroupWorkspacePage() {
     if (!viewportRef.current) {
       return;
     }
-    if (!hasAutoScrolledRef.current) {
-      viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+    if (!isLoading && visibleMessages.length > 0 && !hasAutoScrolledRef.current) {
+      requestAnimationFrame(() => {
+        if (viewportRef.current) {
+          viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+        }
+      });
       hasAutoScrolledRef.current = true;
     }
-  }, [visibleMessages.length]);
+  }, [isLoading, visibleMessages.length]);
 
   async function loadWorkspace(initial = false) {
     if (initial) {

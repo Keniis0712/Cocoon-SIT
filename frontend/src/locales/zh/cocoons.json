@@ -58,6 +58,5 @@
   "defaultTemperature": "默认温度",
   "enabled": "已启用",
   "disabled": "已关闭",
-  "actualConfigHint": "这个页面现在只展示后端真正持久化并返回的 cocoon 设置。",
   "confirmDeletePrompt": "确认删除 Cocoon “{{name}}” 及其整棵子树吗？"
 }

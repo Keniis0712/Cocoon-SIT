@@ -216,7 +216,7 @@ export default function ChatGroupsPage() {
     >
       <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <Card className="overflow-hidden border-border/70 bg-card/90">
-          <div className="border-b border-border/70 bg-linear-to-r from-orange-500/12 via-amber-500/8 to-cyan-500/12">
+          <div className="border-b border-border/70">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MessageSquareShare className="size-4 text-orange-500" />

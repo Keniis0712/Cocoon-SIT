@@ -17,7 +17,6 @@
   "oldPassword": "旧密码",
   "newPassword": "新密码",
   "saveSuccess": "账号信息已更新",
-  "currentPort": "当前端口：8088",
   "capabilitySystem": "系统管理",
   "capabilityUsers": "用户管理",
   "capabilityProviders": "提供方管理",

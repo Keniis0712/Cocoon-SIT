@@ -535,9 +535,6 @@ export default function CocoonsPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-border/70 p-4 text-sm text-muted-foreground">
-                    {t("cocoons.actualConfigHint")}
-                  </div>
                 </>
               ) : (
                 <div className="rounded-lg border border-dashed border-border p-6 text-muted-foreground">

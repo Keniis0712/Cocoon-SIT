@@ -151,7 +151,6 @@ export default function LoginPage() {
                 <Input
                   id="username"
                   type="text"
-                  placeholder="admin"
                   required
                   className="h-11 bg-background"
                   value={username}

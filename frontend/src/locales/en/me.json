@@ -17,7 +17,6 @@
   "oldPassword": "Current Password",
   "newPassword": "New Password",
   "saveSuccess": "Account information updated",
-  "currentPort": "Current port: 8088",
   "capabilitySystem": "System Management",
   "capabilityUsers": "User Management",
   "capabilityProviders": "Provider Management",
