@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     ChatGroupRoom,
     Cocoon,
+    PluginChatGroupConfig,
     PluginDefinition,
     PluginDispatchRecord,
     PluginEventConfig,
@@ -32,6 +33,8 @@ class ExternalWakeupService:
         version: PluginVersion,
         event_name: str,
         envelope: dict,
+        scope_type: str | None = None,
+        scope_id: str | None = None,
     ) -> list[str]:
         if plugin.status != "enabled":
             return []
@@ -66,10 +69,16 @@ class ExternalWakeupService:
             ).all()
         )
         for binding in bindings:
-            target_user_id = self._resolve_target_user_id(session, binding)
-            if not target_user_id:
+            if scope_type and binding.scope_type != scope_type:
                 continue
-            if not self._can_deliver_to_user(session, plugin, target_user_id):
+            if scope_id and binding.scope_id != scope_id:
+                continue
+            if binding.scope_type == "chat_group" and not self._can_deliver_to_chat_group(session, plugin, binding.scope_id):
+                continue
+            target_user_id = self._resolve_target_user_id(session, binding)
+            if binding.scope_type == "user" and not target_user_id:
+                continue
+            if binding.scope_type == "user" and not self._can_deliver_to_user(session, plugin, binding.scope_id):
                 continue
             task, _ = self.scheduler_node.schedule_wakeup(
                 session,
@@ -133,3 +142,18 @@ class ExternalWakeupService:
             if overrides:
                 return any(item.is_visible for item in overrides)
         return bool(plugin.is_globally_visible)
+
+    def _can_deliver_to_chat_group(self, session: Session, plugin: PluginDefinition, chat_group_id: str) -> bool:
+        if not session.get(ChatGroupRoom, chat_group_id):
+            return False
+        group_config = session.scalar(
+            select(PluginChatGroupConfig).where(
+                PluginChatGroupConfig.plugin_id == plugin.id,
+                PluginChatGroupConfig.chat_group_id == chat_group_id,
+            )
+        )
+        if group_config and not group_config.is_enabled:
+            return False
+        if group_config and group_config.error_text:
+            return False
+        return True

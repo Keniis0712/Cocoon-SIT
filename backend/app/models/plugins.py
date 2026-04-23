@@ -131,6 +131,21 @@ class PluginUserConfig(Base, TimestampMixin, JsonDefaultMixin):
     error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
 
 
+class PluginChatGroupConfig(Base, TimestampMixin, JsonDefaultMixin):
+    __tablename__ = "plugin_chat_group_configs"
+    __table_args__ = (
+        UniqueConstraint("plugin_id", "chat_group_id", name="uq_plugin_chat_group_configs_plugin_id_chat_group_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    plugin_id: Mapped[str] = mapped_column(ForeignKey("plugin_definitions.id"), nullable=False)
+    chat_group_id: Mapped[str] = mapped_column(ForeignKey("chat_group_rooms.id"), nullable=False)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    config_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+    error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+
+
 class PluginGroupVisibility(Base, TimestampMixin):
     __tablename__ = "plugin_group_visibility"
     __table_args__ = (
@@ -146,10 +161,19 @@ class PluginGroupVisibility(Base, TimestampMixin):
 class PluginTargetBinding(Base, TimestampMixin):
     __tablename__ = "plugin_target_bindings"
     __table_args__ = (
-        UniqueConstraint("plugin_id", "target_type", "target_id", name="uq_plugin_target_bindings_plugin_target"),
+        UniqueConstraint(
+            "plugin_id",
+            "scope_type",
+            "scope_id",
+            "target_type",
+            "target_id",
+            name="uq_plugin_target_bindings_plugin_scope_target",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
     plugin_id: Mapped[str] = mapped_column(ForeignKey("plugin_definitions.id"), nullable=False)
+    scope_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    scope_id: Mapped[str] = mapped_column(String(64), nullable=False)
     target_type: Mapped[str] = mapped_column(String(32), nullable=False)
     target_id: Mapped[str] = mapped_column(String(64), nullable=False)

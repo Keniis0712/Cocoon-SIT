@@ -157,6 +157,8 @@ def test_external_wakeup_service_uses_configured_bindings_and_skips_missing_targ
         session.add(
             PluginTargetBinding(
                 plugin_id=plugin.id,
+                scope_type="user",
+                scope_id="user-1",
                 target_type="cocoon",
                 target_id="missing",
             )
@@ -208,8 +210,20 @@ def test_external_wakeup_service_schedules_and_records_cocoon_and_chat_group_wak
         session.add_all([plugin, version, cocoon, room])
         session.add_all(
             [
-                PluginTargetBinding(plugin_id=plugin.id, target_type="cocoon", target_id=cocoon.id),
-                PluginTargetBinding(plugin_id=plugin.id, target_type="chat_group", target_id=room.id),
+                PluginTargetBinding(
+                    plugin_id=plugin.id,
+                    scope_type="user",
+                    scope_id="user-1",
+                    target_type="cocoon",
+                    target_id=cocoon.id,
+                ),
+                PluginTargetBinding(
+                    plugin_id=plugin.id,
+                    scope_type="chat_group",
+                    scope_id=room.id,
+                    target_type="chat_group",
+                    target_id=room.id,
+                ),
             ]
         )
         session.commit()
@@ -272,7 +286,15 @@ def test_external_wakeup_service_honors_user_visibility_enablement_and_errors():
         owner = User(id="user-1", username="owner", password_hash="hash", is_active=True)
         group = UserGroup(id="group-1", name="G1", owner_user_id="user-1")
         session.add_all([owner, group, plugin, version, cocoon])
-        session.add(PluginTargetBinding(plugin_id=plugin.id, target_type="cocoon", target_id=cocoon.id))
+        session.add(
+            PluginTargetBinding(
+                plugin_id=plugin.id,
+                scope_type="user",
+                scope_id="user-1",
+                target_type="cocoon",
+                target_id=cocoon.id,
+            )
+        )
         session.commit()
 
         hidden_result = service.ingest(

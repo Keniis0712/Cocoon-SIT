@@ -36,6 +36,7 @@ from app.models.jobs import (
 from app.models.prompts import PromptTemplate, PromptTemplateRevision, PromptVariable
 from app.models.plugins import (
     PluginDefinition,
+    PluginChatGroupConfig,
     PluginDispatchRecord,
     PluginEventConfig,
     PluginEventDefinition,
@@ -97,6 +98,7 @@ __all__ = [
     "PromptTemplateType",
     "PromptVariable",
     "PluginDefinition",
+    "PluginChatGroupConfig",
     "PluginDispatchRecord",
     "PluginEventConfig",
     "PluginEventDefinition",

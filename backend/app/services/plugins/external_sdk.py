@@ -14,6 +14,10 @@ class ExternalEventContext:
     plugin_config: dict[str, Any]
     event_config: dict[str, Any]
     data_dir: str
+    user_config: dict[str, Any] | None = None
+    user_id: str | None = None
+    scope_type: str | None = None
+    scope_id: str | None = None
     outbound_queue: Queue | None = None
 
     def emit_event(self, envelope: dict[str, Any]) -> None:

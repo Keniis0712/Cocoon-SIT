@@ -8,16 +8,21 @@ import { showErrorToast } from "@/api/client";
 import { getCocoons } from "@/api/cocoons";
 import {
   addWorkspacePluginTargetBinding,
+  clearChatGroupPluginError,
   clearWorkspacePluginError,
   deleteWorkspacePluginTargetBinding,
+  getChatGroupPluginConfig,
   listWorkspacePluginTargetBindings,
   listWorkspacePlugins,
+  setChatGroupPluginEnabled,
   setWorkspacePluginEnabled,
+  updateChatGroupPluginConfig,
   updateWorkspacePluginConfig,
+  validateChatGroupPluginConfig,
   validateWorkspacePluginConfig,
 } from "@/api/plugins";
 import type { ChatGroupRead, CocoonRead } from "@/api/types";
-import type { PluginTargetBindingRead, UserPluginRead } from "@/api/types/plugins";
+import type { ChatGroupPluginConfigRead, PluginTargetBindingRead, UserPluginRead } from "@/api/types/plugins";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,8 +62,15 @@ export default function PluginsPage() {
   const [isClearingError, setIsClearingError] = useState(false);
   const [isBindingLoading, setIsBindingLoading] = useState(false);
   const [isBindingSaving, setIsBindingSaving] = useState(false);
+  const [isGroupConfigLoading, setIsGroupConfigLoading] = useState(false);
+  const [isGroupConfigSaving, setIsGroupConfigSaving] = useState(false);
+  const [isGroupConfigValidating, setIsGroupConfigValidating] = useState(false);
+  const [isGroupErrorClearing, setIsGroupErrorClearing] = useState(false);
   const [configDraft, setConfigDraft] = useState("{}");
   const [configDraftError, setConfigDraftError] = useState<string | null>(null);
+  const [groupConfig, setGroupConfig] = useState<ChatGroupPluginConfigRead | null>(null);
+  const [groupConfigDraft, setGroupConfigDraft] = useState("{}");
+  const [groupConfigDraftError, setGroupConfigDraftError] = useState<string | null>(null);
   const [targetBindings, setTargetBindings] = useState<PluginTargetBindingRead[]>([]);
   const [cocoons, setCocoons] = useState<CocoonRead[]>([]);
   const [chatGroups, setChatGroups] = useState<ChatGroupRead[]>([]);
@@ -83,6 +95,16 @@ export default function PluginsPage() {
     }
     void loadTargetBindings(selectedPluginId);
   }, [selectedPluginId]);
+
+  useEffect(() => {
+    if (!selectedPluginId || !selectedChatGroupId) {
+      setGroupConfig(null);
+      setGroupConfigDraft("{}");
+      setGroupConfigDraftError(null);
+      return;
+    }
+    void loadGroupConfig(selectedPluginId, selectedChatGroupId);
+  }, [selectedPluginId, selectedChatGroupId]);
 
   useEffect(() => {
     if (!selectedCocoonId && cocoons[0]) {
@@ -145,6 +167,21 @@ export default function PluginsPage() {
       showErrorToast(error, t("plugins:loadFailed"));
     } finally {
       setIsBindingLoading(false);
+    }
+  }
+
+  async function loadGroupConfig(pluginId: string, chatGroupId: string) {
+    setIsGroupConfigLoading(true);
+    try {
+      const item = await getChatGroupPluginConfig(pluginId, chatGroupId);
+      setGroupConfig(item);
+      setGroupConfigDraft(formatJson(item.config_json));
+      setGroupConfigDraftError(null);
+    } catch (error) {
+      setGroupConfig(null);
+      showErrorToast(error, t("plugins:loadFailed"));
+    } finally {
+      setIsGroupConfigLoading(false);
     }
   }
 
@@ -272,6 +309,82 @@ export default function PluginsPage() {
       showErrorToast(error, t("plugins:targetUnbindingFailed"));
     } finally {
       setIsBindingSaving(false);
+    }
+  }
+
+  async function handleToggleGroupEnabled(nextEnabled: boolean) {
+    if (!selectedPlugin || !selectedChatGroupId) {
+      return;
+    }
+    setIsGroupConfigSaving(true);
+    try {
+      const updated = await setChatGroupPluginEnabled(selectedPlugin.id, selectedChatGroupId, nextEnabled);
+      setGroupConfig(updated);
+      toast.success(t("plugins:groupConfigSaveSuccess"));
+    } catch (error) {
+      showErrorToast(error, t("plugins:groupConfigSaveFailed"));
+    } finally {
+      setIsGroupConfigSaving(false);
+    }
+  }
+
+  async function handleSaveGroupConfig() {
+    if (!selectedPlugin || !selectedChatGroupId) {
+      return;
+    }
+    const parsed = parseJson(groupConfigDraft);
+    if (!parsed.value) {
+      setGroupConfigDraftError(t(`plugins:${parsed.errorKey || "jsonInvalid"}`));
+      return;
+    }
+    setGroupConfigDraftError(null);
+    setIsGroupConfigSaving(true);
+    try {
+      const updated = await updateChatGroupPluginConfig(selectedPlugin.id, selectedChatGroupId, parsed.value);
+      setGroupConfig(updated);
+      setGroupConfigDraft(formatJson(updated.config_json));
+      toast.success(t("plugins:groupConfigSaveSuccess"));
+    } catch (error) {
+      showErrorToast(error, t("plugins:groupConfigSaveFailed"));
+    } finally {
+      setIsGroupConfigSaving(false);
+    }
+  }
+
+  async function handleValidateGroupConfig() {
+    if (!selectedPlugin || !selectedChatGroupId) {
+      return;
+    }
+    setIsGroupConfigValidating(true);
+    try {
+      const updated = await validateChatGroupPluginConfig(selectedPlugin.id, selectedChatGroupId);
+      setGroupConfig(updated);
+      setGroupConfigDraft(formatJson(updated.config_json));
+      if (updated.error_text) {
+        toast.error(updated.error_text);
+      } else {
+        toast.success(t("plugins:validateSuccess"));
+      }
+    } catch (error) {
+      showErrorToast(error, t("plugins:validateFailed"));
+    } finally {
+      setIsGroupConfigValidating(false);
+    }
+  }
+
+  async function handleClearGroupError() {
+    if (!selectedPlugin || !selectedChatGroupId) {
+      return;
+    }
+    setIsGroupErrorClearing(true);
+    try {
+      const updated = await clearChatGroupPluginError(selectedPlugin.id, selectedChatGroupId);
+      setGroupConfig(updated);
+      toast.success(t("plugins:clearErrorSuccess"));
+    } catch (error) {
+      showErrorToast(error, t("plugins:clearErrorFailed"));
+    } finally {
+      setIsGroupErrorClearing(false);
     }
   }
 
@@ -498,6 +611,118 @@ export default function PluginsPage() {
                       ))
                     )}
                   </div>
+                </div>
+
+                <div className="rounded-xl border border-border/70 p-4">
+                  <div className="flex items-start gap-3">
+                    <ShieldAlert className="mt-0.5 size-4 text-primary" />
+                    <div>
+                      <div className="font-medium">{t("plugins:groupConfigTitle")}</div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        {t("plugins:groupConfigDescription")}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                    <div className="grid gap-2">
+                      <Label>{t("plugins:targetChatGroup")}</Label>
+                      <Select value={selectedChatGroupId} onValueChange={setSelectedChatGroupId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("plugins:selectChatGroup")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {chatGroups.map((room) => (
+                            <SelectItem key={room.id} value={room.id}>
+                              {room.name} - {room.id}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-lg border border-border/70 px-3 py-2 text-sm">
+                      <Switch
+                        checked={groupConfig?.is_enabled ?? true}
+                        disabled={!selectedChatGroupId || isGroupConfigSaving || isGroupConfigLoading}
+                        onCheckedChange={(checked) => void handleToggleGroupEnabled(checked)}
+                      />
+                      <span>{t("plugins:enabledForGroup")}</span>
+                    </div>
+                  </div>
+
+                  {isGroupConfigLoading ? (
+                    <div className="mt-4 rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      {t("common:loading")}
+                    </div>
+                  ) : chatGroups.length === 0 ? (
+                    <div className="mt-4 rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                      {t("plugins:noChatGroups")}
+                    </div>
+                  ) : (
+                    <div className="mt-4 space-y-3">
+                      {groupConfig?.error_text ? (
+                        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm">
+                          <div className="mb-2 flex items-center gap-2 font-medium text-destructive">
+                            <ShieldAlert className="size-4" />
+                            {t("plugins:groupErrorTitle")}
+                          </div>
+                          <div className="whitespace-pre-wrap break-words text-foreground/90">
+                            {groupConfig.error_text}
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {t("plugins:errorUpdatedAt", { value: formatTime(groupConfig.error_at) })}
+                          </div>
+                          <Button
+                            className="mt-3"
+                            variant="outline"
+                            size="sm"
+                            disabled={isGroupErrorClearing}
+                            onClick={() => void handleClearGroupError()}
+                          >
+                            {isGroupErrorClearing ? t("common:saving") : t("plugins:clearUserError")}
+                          </Button>
+                        </div>
+                      ) : null}
+
+                      <div className="space-y-2">
+                        <Label>{t("plugins:groupConfigLabel")}</Label>
+                        <Textarea
+                          rows={8}
+                          value={groupConfigDraft}
+                          onChange={(event) => {
+                            setGroupConfigDraft(event.target.value);
+                            if (groupConfigDraftError) {
+                              setGroupConfigDraftError(null);
+                            }
+                          }}
+                        />
+                        {groupConfigDraftError ? (
+                          <div className="text-sm text-destructive">{groupConfigDraftError}</div>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button disabled={isGroupConfigSaving} onClick={() => void handleSaveGroupConfig()}>
+                          {isGroupConfigSaving ? t("common:saving") : t("plugins:saveGroupConfig")}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          disabled={isGroupConfigValidating}
+                          onClick={() => void handleValidateGroupConfig()}
+                        >
+                          {isGroupConfigValidating ? t("common:saving") : t("plugins:validateUserConfig")}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setGroupConfigDraft(formatJson(groupConfig?.default_config_json ?? {}));
+                            setGroupConfigDraftError(null);
+                          }}
+                        >
+                          {t("plugins:resetUserConfig")}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

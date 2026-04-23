@@ -107,9 +107,22 @@ export interface PluginGroupVisibilityRead {
 export interface PluginTargetBindingRead {
   id: string;
   plugin_id: string;
+  scope_type: "user" | "chat_group" | string;
+  scope_id: string;
   target_type: "cocoon" | "chat_group";
   target_id: string;
   target_name: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ChatGroupPluginConfigRead {
+  plugin_id: string;
+  chat_group_id: string;
+  is_enabled: boolean;
+  config_schema_json: Record<string, unknown>;
+  default_config_json: Record<string, unknown>;
+  config_json: Record<string, unknown>;
+  error_text: string | null;
+  error_at: string | null;
 }

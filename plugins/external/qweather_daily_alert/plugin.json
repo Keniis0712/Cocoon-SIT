@@ -1,0 +1,117 @@
+{
+  "name": "qweather_daily_alert",
+  "version": "1.0.0",
+  "display_name": "和风天气预报与预警",
+  "plugin_type": "external",
+  "entry_module": "main",
+  "config_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "default_config": {},
+  "user_config_schema": {
+    "type": "object",
+    "required": [
+      "api_host",
+      "project_id",
+      "key_id",
+      "private_key_pem",
+      "weather_location",
+      "alert_latitude",
+      "alert_longitude"
+    ],
+    "properties": {
+      "api_host": {
+        "type": "string",
+        "title": "API Host"
+      },
+      "project_id": {
+        "type": "string",
+        "title": "Project ID"
+      },
+      "key_id": {
+        "type": "string",
+        "title": "Key ID"
+      },
+      "private_key_pem": {
+        "type": "string",
+        "title": "Ed25519 Private Key PEM"
+      },
+      "weather_location": {
+        "type": "string",
+        "title": "天气 LocationID 或经度,纬度"
+      },
+      "alert_latitude": {
+        "type": "string",
+        "title": "预警纬度"
+      },
+      "alert_longitude": {
+        "type": "string",
+        "title": "预警经度"
+      },
+      "lang": {
+        "type": "string",
+        "default": "zh"
+      },
+      "unit": {
+        "type": "string",
+        "enum": ["m", "i"],
+        "default": "m"
+      },
+      "jwt_ttl_seconds": {
+        "type": "integer",
+        "minimum": 60,
+        "maximum": 86400,
+        "default": 900
+      },
+      "local_time": {
+        "type": "boolean",
+        "default": true
+      }
+    },
+    "additionalProperties": false
+  },
+  "user_default_config": {
+    "api_host": "",
+    "project_id": "",
+    "key_id": "",
+    "private_key_pem": "",
+    "weather_location": "",
+    "alert_latitude": "",
+    "alert_longitude": "",
+    "lang": "zh",
+    "unit": "m",
+    "jwt_ttl_seconds": 900,
+    "local_time": true
+  },
+  "settings_validation_function": "validate_settings",
+  "events": [
+    {
+      "name": "daily_forecast",
+      "mode": "short_lived",
+      "function_name": "daily_forecast",
+      "title": "当天天气预报",
+      "description": "读取和风天气实时天气与今日预报，并生成唤醒摘要。",
+      "config_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "default_config": {}
+    },
+    {
+      "name": "weather_alerts",
+      "mode": "short_lived",
+      "function_name": "weather_alerts",
+      "title": "天气预警",
+      "description": "读取和风天气当前天气预警，并生成唤醒摘要。",
+      "config_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "default_config": {}
+    }
+  ]
+}

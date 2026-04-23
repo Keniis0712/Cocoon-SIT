@@ -18,6 +18,7 @@ from app.models import (
     ChatGroupRoom,
     ChatGroupMember,
     Cocoon,
+    PluginChatGroupConfig,
     PluginDefinition,
     PluginDispatchRecord,
     PluginEventConfig,
@@ -40,7 +41,7 @@ from app.schemas.admin.plugins import (
     PluginSharedPackageOut,
     PluginVersionOut,
 )
-from app.schemas.workspace.plugins import UserPluginTargetBindingOut
+from app.schemas.workspace.plugins import ChatGroupPluginConfigOut, UserPluginTargetBindingOut
 from app.services.plugins.dependency_builder import DependencyBuilder
 from app.services.plugins.manifest import PluginPackageManifest
 from app.services.plugins.manager import PluginRuntimeManager, validate_cron_expression
@@ -201,6 +202,7 @@ class PluginService:
         ]
         data_dir = Path(plugin.data_dir)
         session.query(PluginDispatchRecord).filter(PluginDispatchRecord.plugin_id == plugin_id).delete(synchronize_session=False)
+        session.query(PluginChatGroupConfig).filter(PluginChatGroupConfig.plugin_id == plugin_id).delete(synchronize_session=False)
         session.query(PluginGroupVisibility).filter(PluginGroupVisibility.plugin_id == plugin_id).delete(synchronize_session=False)
         session.query(PluginTargetBinding).filter(PluginTargetBinding.plugin_id == plugin_id).delete(synchronize_session=False)
         session.query(PluginUserConfig).filter(PluginUserConfig.plugin_id == plugin_id).delete(synchronize_session=False)
@@ -450,6 +452,88 @@ class PluginService:
         session.refresh(current)
         return self._serialize_user_plugin(plugin, current, visibility_overrides)
 
+    def get_chat_group_plugin_config(
+        self,
+        session: Session,
+        user: User,
+        plugin_id: str,
+        chat_group_id: str,
+    ) -> ChatGroupPluginConfigOut:
+        plugin = self._require_user_visible_plugin(session, user, plugin_id)
+        self._require_user_can_manage_chat_group(session, user, chat_group_id)
+        current = self._ensure_chat_group_config(session, plugin, chat_group_id)
+        return self._serialize_chat_group_plugin_config(plugin, current)
+
+    def set_chat_group_plugin_enabled(
+        self,
+        session: Session,
+        user: User,
+        plugin_id: str,
+        chat_group_id: str,
+        *,
+        enabled: bool,
+    ) -> ChatGroupPluginConfigOut:
+        plugin = self._require_user_visible_plugin(session, user, plugin_id)
+        self._require_user_can_manage_chat_group(session, user, chat_group_id)
+        current = self._ensure_chat_group_config(session, plugin, chat_group_id)
+        current.is_enabled = enabled
+        session.flush()
+        session.commit()
+        session.refresh(current)
+        return self._serialize_chat_group_plugin_config(plugin, current)
+
+    def update_chat_group_plugin_config(
+        self,
+        session: Session,
+        user: User,
+        plugin_id: str,
+        chat_group_id: str,
+        config_json: dict,
+    ) -> ChatGroupPluginConfigOut:
+        plugin = self._require_user_visible_plugin(session, user, plugin_id)
+        self._require_user_can_manage_chat_group(session, user, chat_group_id)
+        self._validate_config_payload(plugin.user_config_schema_json or {}, config_json, location="plugin_chat_group_config")
+        current = self._ensure_chat_group_config(session, plugin, chat_group_id)
+        current.config_json = dict(config_json or {})
+        self._refresh_chat_group_config_validation(session, plugin, current)
+        session.flush()
+        session.commit()
+        session.refresh(current)
+        return self._serialize_chat_group_plugin_config(plugin, current)
+
+    def validate_chat_group_plugin_config(
+        self,
+        session: Session,
+        user: User,
+        plugin_id: str,
+        chat_group_id: str,
+    ) -> ChatGroupPluginConfigOut:
+        plugin = self._require_user_visible_plugin(session, user, plugin_id)
+        self._require_user_can_manage_chat_group(session, user, chat_group_id)
+        current = self._ensure_chat_group_config(session, plugin, chat_group_id)
+        self._refresh_chat_group_config_validation(session, plugin, current)
+        session.flush()
+        session.commit()
+        session.refresh(current)
+        return self._serialize_chat_group_plugin_config(plugin, current)
+
+    def clear_chat_group_plugin_error(
+        self,
+        session: Session,
+        user: User,
+        plugin_id: str,
+        chat_group_id: str,
+    ) -> ChatGroupPluginConfigOut:
+        plugin = self._require_user_visible_plugin(session, user, plugin_id)
+        self._require_user_can_manage_chat_group(session, user, chat_group_id)
+        current = self._ensure_chat_group_config(session, plugin, chat_group_id)
+        current.error_text = None
+        current.error_at = None
+        session.flush()
+        session.commit()
+        session.refresh(current)
+        return self._serialize_chat_group_plugin_config(plugin, current)
+
     def set_global_visibility(self, session: Session, plugin_id: str, user: User, *, visible: bool) -> PluginDetailOut:
         self._require_bootstrap_admin(user)
         plugin = session.get(PluginDefinition, plugin_id)
@@ -543,9 +627,12 @@ class PluginService:
         if target_type not in {"cocoon", "chat_group"}:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="target_type must be 'cocoon' or 'chat_group'")
         self._require_user_can_bind_target(session, user, target_type, target_id)
+        scope_type, scope_id = self._scope_for_binding_target(session, user, target_type, target_id)
         current = session.scalar(
             select(PluginTargetBinding).where(
                 PluginTargetBinding.plugin_id == plugin_id,
+                PluginTargetBinding.scope_type == scope_type,
+                PluginTargetBinding.scope_id == scope_id,
                 PluginTargetBinding.target_type == target_type,
                 PluginTargetBinding.target_id == target_id,
             )
@@ -554,6 +641,8 @@ class PluginService:
             return self._serialize_target_binding(session, current)
         current = PluginTargetBinding(
             plugin_id=plugin_id,
+            scope_type=scope_type,
+            scope_id=scope_id,
             target_type=target_type,
             target_id=target_id,
         )
@@ -636,8 +725,44 @@ class PluginService:
         if not membership or membership.member_role != "admin":
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat group management denied")
 
+    def _require_user_can_manage_chat_group(self, session: Session, user: User, chat_group_id: str) -> ChatGroupRoom:
+        target = session.get(ChatGroupRoom, chat_group_id)
+        if not target:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat group not found")
+        if target.owner_user_id == user.id:
+            return target
+        membership = session.scalar(
+            select(ChatGroupMember).where(
+                ChatGroupMember.room_id == chat_group_id,
+                ChatGroupMember.user_id == user.id,
+            )
+        )
+        if not membership or membership.member_role != "admin":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat group management denied")
+        return target
+
+    def _scope_for_binding_target(
+        self,
+        session: Session,
+        user: User,
+        target_type: str,
+        target_id: str,
+    ) -> tuple[str, str]:
+        if target_type == "cocoon":
+            target = session.get(Cocoon, target_id)
+            if not target:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cocoon not found")
+            return "user", target.owner_user_id
+        self._require_user_can_manage_chat_group(session, user, target_id)
+        return "chat_group", target_id
+
     def _can_user_manage_binding_target(self, session: Session, user: User, binding: PluginTargetBinding) -> bool:
         try:
+            if binding.scope_type == "user" and binding.scope_id != user.id:
+                return False
+            if binding.scope_type == "chat_group":
+                self._require_user_can_manage_chat_group(session, user, binding.scope_id)
+                return True
             self._require_user_can_bind_target(session, user, binding.target_type, binding.target_id)
         except HTTPException:
             return False
@@ -654,6 +779,8 @@ class PluginService:
         return UserPluginTargetBindingOut(
             id=binding.id,
             plugin_id=binding.plugin_id,
+            scope_type=binding.scope_type,
+            scope_id=binding.scope_id,
             target_type=binding.target_type,
             target_id=binding.target_id,
             target_name=target_name,
@@ -715,6 +842,30 @@ class PluginService:
         session.flush()
         return current
 
+    def _ensure_chat_group_config(
+        self,
+        session: Session,
+        plugin: PluginDefinition,
+        chat_group_id: str,
+    ) -> PluginChatGroupConfig:
+        current = session.scalar(
+            select(PluginChatGroupConfig).where(
+                PluginChatGroupConfig.plugin_id == plugin.id,
+                PluginChatGroupConfig.chat_group_id == chat_group_id,
+            )
+        )
+        if current:
+            return current
+        current = PluginChatGroupConfig(
+            plugin_id=plugin.id,
+            chat_group_id=chat_group_id,
+            is_enabled=True,
+            config_json=dict(plugin.user_default_config_json or {}),
+        )
+        session.add(current)
+        session.flush()
+        return current
+
     def _refresh_user_config_validation(
         self,
         session: Session,
@@ -747,6 +898,57 @@ class PluginService:
         if message:
             user_config.error_text = message
             user_config.error_at = datetime.now(UTC).replace(tzinfo=None)
+
+    def _refresh_chat_group_config_validation(
+        self,
+        session: Session,
+        plugin: PluginDefinition,
+        chat_group_config: PluginChatGroupConfig,
+    ) -> None:
+        chat_group_config.error_text = None
+        chat_group_config.error_at = None
+        if not plugin.settings_validation_function_name:
+            return
+        if not plugin.active_version_id:
+            return
+        version = session.get(PluginVersion, plugin.active_version_id)
+        if not version:
+            return
+        try:
+            message = validate_plugin_settings(
+                version.manifest_path,
+                plugin.entry_module,
+                plugin.settings_validation_function_name,
+                plugin_name=plugin.name,
+                plugin_version=version.version,
+                plugin_config=dict(plugin.config_json or {}),
+                user_config=dict(chat_group_config.config_json or {}),
+                user_id=None,
+                scope_type="chat_group",
+                scope_id=chat_group_config.chat_group_id,
+                data_dir=plugin.data_dir,
+            )
+        except Exception as exc:
+            message = str(exc)
+        if message:
+            chat_group_config.error_text = message
+            chat_group_config.error_at = datetime.now(UTC).replace(tzinfo=None)
+
+    def _serialize_chat_group_plugin_config(
+        self,
+        plugin: PluginDefinition,
+        chat_group_config: PluginChatGroupConfig,
+    ) -> ChatGroupPluginConfigOut:
+        return ChatGroupPluginConfigOut(
+            plugin_id=plugin.id,
+            chat_group_id=chat_group_config.chat_group_id,
+            is_enabled=bool(chat_group_config.is_enabled),
+            config_schema_json=dict(plugin.user_config_schema_json or {}),
+            default_config_json=dict(plugin.user_default_config_json or {}),
+            config_json=dict(chat_group_config.config_json or {}),
+            error_text=chat_group_config.error_text,
+            error_at=chat_group_config.error_at,
+        )
 
     def _serialize_user_plugin(
         self,

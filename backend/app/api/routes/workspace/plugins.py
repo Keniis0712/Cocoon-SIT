@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.models import User
 from app.schemas.workspace.plugins import (
+    ChatGroupPluginConfigOut,
+    ChatGroupPluginConfigUpdate,
     UserPluginConfigUpdate,
     UserPluginOut,
     UserPluginTargetBindingCreate,
@@ -100,6 +102,85 @@ def clear_user_plugin_error(
         user,
         plugin_id,
     )
+
+
+@router.get("/{plugin_id}/chat-groups/{chat_group_id}/config", response_model=ChatGroupPluginConfigOut)
+def get_chat_group_plugin_config(
+    plugin_id: str,
+    chat_group_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ChatGroupPluginConfigOut:
+    return db.info["container"].plugin_service.get_chat_group_plugin_config(db, user, plugin_id, chat_group_id)
+
+
+@router.post("/{plugin_id}/chat-groups/{chat_group_id}/enable", response_model=ChatGroupPluginConfigOut)
+def enable_chat_group_plugin(
+    plugin_id: str,
+    chat_group_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ChatGroupPluginConfigOut:
+    return db.info["container"].plugin_service.set_chat_group_plugin_enabled(
+        db,
+        user,
+        plugin_id,
+        chat_group_id,
+        enabled=True,
+    )
+
+
+@router.post("/{plugin_id}/chat-groups/{chat_group_id}/disable", response_model=ChatGroupPluginConfigOut)
+def disable_chat_group_plugin(
+    plugin_id: str,
+    chat_group_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ChatGroupPluginConfigOut:
+    return db.info["container"].plugin_service.set_chat_group_plugin_enabled(
+        db,
+        user,
+        plugin_id,
+        chat_group_id,
+        enabled=False,
+    )
+
+
+@router.patch("/{plugin_id}/chat-groups/{chat_group_id}/config", response_model=ChatGroupPluginConfigOut)
+def update_chat_group_plugin_config(
+    plugin_id: str,
+    chat_group_id: str,
+    payload: ChatGroupPluginConfigUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ChatGroupPluginConfigOut:
+    return db.info["container"].plugin_service.update_chat_group_plugin_config(
+        db,
+        user,
+        plugin_id,
+        chat_group_id,
+        payload.config_json,
+    )
+
+
+@router.post("/{plugin_id}/chat-groups/{chat_group_id}/validate", response_model=ChatGroupPluginConfigOut)
+def validate_chat_group_plugin_config(
+    plugin_id: str,
+    chat_group_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ChatGroupPluginConfigOut:
+    return db.info["container"].plugin_service.validate_chat_group_plugin_config(db, user, plugin_id, chat_group_id)
+
+
+@router.post("/{plugin_id}/chat-groups/{chat_group_id}/clear-error", response_model=ChatGroupPluginConfigOut)
+def clear_chat_group_plugin_error(
+    plugin_id: str,
+    chat_group_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ChatGroupPluginConfigOut:
+    return db.info["container"].plugin_service.clear_chat_group_plugin_error(db, user, plugin_id, chat_group_id)
 
 
 @router.get("/{plugin_id}/targets", response_model=list[UserPluginTargetBindingOut])

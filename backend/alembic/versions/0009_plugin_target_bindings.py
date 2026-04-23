@@ -22,13 +22,22 @@ def upgrade() -> None:
         "plugin_target_bindings",
         sa.Column("id", sa.String(length=64), nullable=False),
         sa.Column("plugin_id", sa.String(length=64), nullable=False),
+        sa.Column("scope_type", sa.String(length=32), nullable=False),
+        sa.Column("scope_id", sa.String(length=64), nullable=False),
         sa.Column("target_type", sa.String(length=32), nullable=False),
         sa.Column("target_id", sa.String(length=64), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.ForeignKeyConstraint(["plugin_id"], ["plugin_definitions.id"]),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("plugin_id", "target_type", "target_id", name="uq_plugin_target_bindings_plugin_target"),
+        sa.UniqueConstraint(
+            "plugin_id",
+            "scope_type",
+            "scope_id",
+            "target_type",
+            "target_id",
+            name="uq_plugin_target_bindings_plugin_scope_target",
+        ),
     )
 
 

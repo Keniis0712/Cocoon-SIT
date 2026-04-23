@@ -337,6 +337,8 @@ def test_user_can_manage_own_plugin_wakeup_target_bindings(client, auth_headers,
     binding = created.json()
     assert binding["target_type"] == "cocoon"
     assert binding["target_id"] == user_cocoon_id
+    assert binding["scope_type"] == "user"
+    assert binding["scope_id"] == user_id
     assert binding["target_name"]
 
     listing = client.get(f"/api/v1/plugins/{plugin_id}/targets", headers=user_headers)
@@ -360,3 +362,28 @@ def test_user_can_manage_own_plugin_wakeup_target_bindings(client, auth_headers,
     assert group_created.status_code == 200, group_created.text
     assert group_created.json()["target_type"] == "chat_group"
     assert group_created.json()["target_id"] == room_id
+    assert group_created.json()["scope_type"] == "chat_group"
+    assert group_created.json()["scope_id"] == room_id
+
+    group_config = client.get(
+        f"/api/v1/plugins/{plugin_id}/chat-groups/{room_id}/config",
+        headers=user_headers,
+    )
+    assert group_config.status_code == 200, group_config.text
+    assert group_config.json()["chat_group_id"] == room_id
+    assert group_config.json()["is_enabled"] is True
+
+    updated_group_config = client.patch(
+        f"/api/v1/plugins/{plugin_id}/chat-groups/{room_id}/config",
+        headers=user_headers,
+        json={"config_json": {"api_key": "group-key"}},
+    )
+    assert updated_group_config.status_code == 200, updated_group_config.text
+    assert updated_group_config.json()["config_json"] == {"api_key": "group-key"}
+
+    disabled_group_config = client.post(
+        f"/api/v1/plugins/{plugin_id}/chat-groups/{room_id}/disable",
+        headers=user_headers,
+    )
+    assert disabled_group_config.status_code == 200, disabled_group_config.text
+    assert disabled_group_config.json()["is_enabled"] is False

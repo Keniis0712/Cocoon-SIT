@@ -20,6 +20,8 @@ class PluginSettingsValidationContext:
     plugin_config: dict[str, Any]
     user_config: dict[str, Any]
     user_id: str | None
+    scope_type: str | None
+    scope_id: str | None
     data_dir: str
 
 
@@ -60,6 +62,10 @@ def run_short_lived_event(
     event_name: str,
     event_config: dict[str, Any],
     data_dir: str,
+    user_config: dict[str, Any] | None = None,
+    user_id: str | None = None,
+    scope_type: str | None = None,
+    scope_id: str | None = None,
 ) -> dict[str, Any] | None:
     module = bootstrap_module(manifest_path, entry_module)
     func = getattr(module, function_name)
@@ -70,6 +76,10 @@ def run_short_lived_event(
         plugin_config=plugin_config,
         event_config=event_config,
         data_dir=data_dir,
+        user_config=dict(user_config or {}),
+        user_id=user_id,
+        scope_type=scope_type,
+        scope_id=scope_id,
     )
     if inspect.iscoroutinefunction(func):
         return _normalize_envelope(asyncio.run(func(context)))
@@ -243,6 +253,8 @@ def validate_plugin_settings(
     user_config: dict[str, Any],
     user_id: str | None,
     data_dir: str,
+    scope_type: str | None = None,
+    scope_id: str | None = None,
 ) -> str | None:
     module = bootstrap_module(manifest_path, entry_module)
     func = getattr(module, validation_function, None)
@@ -254,6 +266,8 @@ def validate_plugin_settings(
         plugin_config=dict(plugin_config or {}),
         user_config=dict(user_config or {}),
         user_id=user_id,
+        scope_type=scope_type,
+        scope_id=scope_id,
         data_dir=data_dir,
     )
     if inspect.iscoroutinefunction(func):

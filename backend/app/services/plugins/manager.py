@@ -16,12 +16,18 @@ from sqlalchemy.exc import ProgrammingError
 
 from app.core.config import Settings
 from app.models import (
+    ChatGroupRoom,
+    Cocoon,
+    PluginChatGroupConfig,
     PluginDefinition,
     PluginEventConfig,
     PluginEventDefinition,
+    PluginGroupVisibility,
     PluginRunState,
+    PluginTargetBinding,
     PluginUserConfig,
     PluginVersion,
+    UserGroupMember,
 )
 from app.services.plugins.errors import PluginUserVisibleError
 from app.services.plugins.external_wakeup_service import ExternalWakeupService
@@ -104,6 +110,14 @@ class DaemonHandle:
     version_id: str
 
 
+@dataclass(frozen=True)
+class ShortLivedScope:
+    scope_type: str
+    scope_id: str
+    user_id: str | None
+    config_json: dict[str, Any]
+
+
 class PluginRuntimeManager:
     def __init__(
         self,
@@ -118,7 +132,7 @@ class PluginRuntimeManager:
         self._ctx = mp.get_context("spawn")
         self._pool: ProcessPoolExecutor | None = None
         self._daemon_handles: dict[str, DaemonHandle] = {}
-        self._short_lived_futures: dict[tuple[str, str], Future] = {}
+        self._short_lived_futures: dict[tuple[str, str, str, str], Future] = {}
         self._short_lived_next_run: dict[tuple[str, str], datetime] = {}
         self._lock = threading.RLock()
         self._stop_event = threading.Event()
@@ -252,9 +266,7 @@ class PluginRuntimeManager:
             session.commit()
 
     def _submit_short_lived_event(self, plugin_id: str, event_name: str) -> bool:
-        key = (plugin_id, event_name)
-        if key in self._short_lived_futures:
-            return False
+        submitted = False
         with self.session_factory() as session:
             plugin = session.get(PluginDefinition, plugin_id)
             if not plugin or plugin.status != "enabled" or not plugin.active_version_id:
@@ -282,26 +294,36 @@ class PluginRuntimeManager:
             config_json = dict(event.default_config_json or {})
             if cfg:
                 config_json.update(cfg.config_json or {})
-            future = self._ensure_pool().submit(
-                run_short_lived_event,
-                active_version.manifest_path,
-                plugin.entry_module,
-                event.function_name,
-                plugin.name,
-                active_version.version,
-                dict(plugin.config_json or {}),
-                event.name,
-                config_json,
-                plugin.data_dir,
-            )
-            self._short_lived_futures[key] = future
-            return True
+            scopes = self._list_short_lived_scopes(session, plugin)
+            for scope in scopes:
+                key = (plugin_id, event_name, scope.scope_type, scope.scope_id)
+                if key in self._short_lived_futures:
+                    continue
+                future = self._ensure_pool().submit(
+                    run_short_lived_event,
+                    active_version.manifest_path,
+                    plugin.entry_module,
+                    event.function_name,
+                    plugin.name,
+                    active_version.version,
+                    dict(plugin.config_json or {}),
+                    event.name,
+                    config_json,
+                    plugin.data_dir,
+                    scope.config_json,
+                    scope.user_id,
+                    scope.scope_type,
+                    scope.scope_id,
+                )
+                self._short_lived_futures[key] = future
+                submitted = True
+            return submitted
 
     def _handle_finished_short_lived(self) -> None:
         for key, future in list(self._short_lived_futures.items()):
             if not future.done():
                 continue
-            plugin_id, event_name = key
+            plugin_id, event_name, scope_type, scope_id = key
             self._short_lived_futures.pop(key, None)
             try:
                 result = future.result()
@@ -310,6 +332,16 @@ class PluginRuntimeManager:
                     plugin = session.get(PluginDefinition, plugin_id)
                     if isinstance(exc, PluginUserVisibleError) and plugin and exc.user_id:
                         self._record_user_error(session, plugin=plugin, user_id=exc.user_id, message=str(exc))
+                        run_state = self._ensure_run_state(session, plugin_id)
+                        run_state.status = "running"
+                        run_state.error_text = None
+                    elif plugin and scope_type == "user":
+                        self._record_user_error(session, plugin=plugin, user_id=scope_id, message=str(exc))
+                        run_state = self._ensure_run_state(session, plugin_id)
+                        run_state.status = "running"
+                        run_state.error_text = None
+                    elif plugin and scope_type == "chat_group":
+                        self._record_chat_group_error(session, plugin=plugin, chat_group_id=scope_id, message=str(exc))
                         run_state = self._ensure_run_state(session, plugin_id)
                         run_state.status = "running"
                         run_state.error_text = None
@@ -333,6 +365,8 @@ class PluginRuntimeManager:
                     version=version,
                     event_name=event_name,
                     envelope=result,
+                    scope_type=scope_type,
+                    scope_id=scope_id,
                 )
                 run_state = self._ensure_run_state(session, plugin_id)
                 run_state.status = "running"
@@ -408,20 +442,8 @@ class PluginRuntimeManager:
                                 after=now,
                             )
                             self._short_lived_next_run[key] = next_run
-                        if key not in self._short_lived_futures and next_run <= now:
-                            future = self._ensure_pool().submit(
-                                run_short_lived_event,
-                                active_version.manifest_path,
-                                plugin.entry_module,
-                                event.function_name,
-                                plugin.name,
-                                active_version.version,
-                                dict(plugin.config_json or {}),
-                                event.name,
-                                config_json,
-                                plugin.data_dir,
-                            )
-                            self._short_lived_futures[key] = future
+                        if next_run <= now:
+                            self._submit_short_lived_event(plugin.id, event.name)
                             self._short_lived_next_run[key] = self._next_run_for_schedule(
                                 schedule_mode,
                                 interval_seconds=interval_seconds,
@@ -571,8 +593,106 @@ class PluginRuntimeManager:
         session.flush()
         return current
 
+    def _ensure_chat_group_config(
+        self,
+        session: Session,
+        plugin: PluginDefinition,
+        chat_group_id: str,
+    ) -> PluginChatGroupConfig:
+        current = session.scalar(
+            select(PluginChatGroupConfig).where(
+                PluginChatGroupConfig.plugin_id == plugin.id,
+                PluginChatGroupConfig.chat_group_id == chat_group_id,
+            )
+        )
+        if current:
+            return current
+        current = PluginChatGroupConfig(
+            plugin_id=plugin.id,
+            chat_group_id=chat_group_id,
+            is_enabled=True,
+            config_json=dict(plugin.user_default_config_json or {}),
+        )
+        session.add(current)
+        session.flush()
+        return current
+
+    def _list_short_lived_scopes(self, session: Session, plugin: PluginDefinition) -> list[ShortLivedScope]:
+        rows = list(
+            session.scalars(
+                select(PluginTargetBinding)
+                .where(PluginTargetBinding.plugin_id == plugin.id)
+                .order_by(PluginTargetBinding.created_at.asc())
+            ).all()
+        )
+        scopes: dict[tuple[str, str], ShortLivedScope] = {}
+        for binding in rows:
+            key = (binding.scope_type, binding.scope_id)
+            if key in scopes:
+                continue
+            if binding.scope_type == "user":
+                if not self._binding_target_exists(session, binding):
+                    continue
+                user_config = self._ensure_user_config(session, plugin, binding.scope_id)
+                if not user_config.is_enabled or user_config.error_text:
+                    continue
+                if not self._can_deliver_to_user(session, plugin, binding.scope_id):
+                    continue
+                scopes[key] = ShortLivedScope(
+                    scope_type="user",
+                    scope_id=binding.scope_id,
+                    user_id=binding.scope_id,
+                    config_json=dict(user_config.config_json or {}),
+                )
+            elif binding.scope_type == "chat_group":
+                if not session.get(ChatGroupRoom, binding.scope_id):
+                    continue
+                group_config = self._ensure_chat_group_config(session, plugin, binding.scope_id)
+                if not group_config.is_enabled or group_config.error_text:
+                    continue
+                scopes[key] = ShortLivedScope(
+                    scope_type="chat_group",
+                    scope_id=binding.scope_id,
+                    user_id=None,
+                    config_json=dict(group_config.config_json or {}),
+                )
+        return list(scopes.values())
+
+    def _binding_target_exists(self, session: Session, binding: PluginTargetBinding) -> bool:
+        if binding.target_type == "cocoon":
+            return session.get(Cocoon, binding.target_id) is not None
+        if binding.target_type == "chat_group":
+            return session.get(ChatGroupRoom, binding.target_id) is not None
+        return False
+
+    def _can_deliver_to_user(self, session: Session, plugin: PluginDefinition, user_id: str) -> bool:
+        group_ids = [
+            item.group_id
+            for item in session.scalars(
+                select(UserGroupMember).where(UserGroupMember.user_id == user_id)
+            ).all()
+        ]
+        if group_ids:
+            overrides = list(
+                session.scalars(
+                    select(PluginGroupVisibility).where(
+                        PluginGroupVisibility.plugin_id == plugin.id,
+                        PluginGroupVisibility.group_id.in_(group_ids),
+                    )
+                ).all()
+            )
+            if overrides:
+                return any(item.is_visible for item in overrides)
+        return bool(plugin.is_globally_visible)
+
     def _record_user_error(self, session: Session, *, plugin: PluginDefinition, user_id: str, message: str) -> None:
         row = self._ensure_user_config(session, plugin, user_id)
+        row.error_text = message.strip() or "Plugin runtime error"
+        row.error_at = datetime.now(UTC).replace(tzinfo=None)
+        session.flush()
+
+    def _record_chat_group_error(self, session: Session, *, plugin: PluginDefinition, chat_group_id: str, message: str) -> None:
+        row = self._ensure_chat_group_config(session, plugin, chat_group_id)
         row.error_text = message.strip() or "Plugin runtime error"
         row.error_at = datetime.now(UTC).replace(tzinfo=None)
         session.flush()

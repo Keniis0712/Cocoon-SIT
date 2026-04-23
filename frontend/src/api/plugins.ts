@@ -1,6 +1,6 @@
 import { apiJson } from "./client";
 import { resolveActualId } from "./id-map";
-import type { PluginTargetBindingRead, UserPluginRead } from "./types/plugins";
+import type { ChatGroupPluginConfigRead, PluginTargetBindingRead, UserPluginRead } from "./types/plugins";
 
 export function listWorkspacePlugins(): Promise<UserPluginRead[]> {
   return apiJson<UserPluginRead[]>("/plugins");
@@ -62,5 +62,52 @@ export function deleteWorkspacePluginTargetBinding(
 ): Promise<{ deleted: boolean }> {
   return apiJson<{ deleted: boolean }>(`/plugins/${pluginId}/targets/${bindingId}`, {
     method: "DELETE",
+  });
+}
+
+export function getChatGroupPluginConfig(
+  pluginId: string,
+  chatGroupId: string,
+): Promise<ChatGroupPluginConfigRead> {
+  return apiJson<ChatGroupPluginConfigRead>(`/plugins/${pluginId}/chat-groups/${chatGroupId}/config`);
+}
+
+export function setChatGroupPluginEnabled(
+  pluginId: string,
+  chatGroupId: string,
+  enabled: boolean,
+): Promise<ChatGroupPluginConfigRead> {
+  return apiJson<ChatGroupPluginConfigRead>(
+    `/plugins/${pluginId}/chat-groups/${chatGroupId}/${enabled ? "enable" : "disable"}`,
+    { method: "POST" },
+  );
+}
+
+export function updateChatGroupPluginConfig(
+  pluginId: string,
+  chatGroupId: string,
+  config_json: Record<string, unknown>,
+): Promise<ChatGroupPluginConfigRead> {
+  return apiJson<ChatGroupPluginConfigRead>(`/plugins/${pluginId}/chat-groups/${chatGroupId}/config`, {
+    method: "PATCH",
+    body: JSON.stringify({ config_json }),
+  });
+}
+
+export function validateChatGroupPluginConfig(
+  pluginId: string,
+  chatGroupId: string,
+): Promise<ChatGroupPluginConfigRead> {
+  return apiJson<ChatGroupPluginConfigRead>(`/plugins/${pluginId}/chat-groups/${chatGroupId}/validate`, {
+    method: "POST",
+  });
+}
+
+export function clearChatGroupPluginError(
+  pluginId: string,
+  chatGroupId: string,
+): Promise<ChatGroupPluginConfigRead> {
+  return apiJson<ChatGroupPluginConfigRead>(`/plugins/${pluginId}/chat-groups/${chatGroupId}/clear-error`, {
+    method: "POST",
   });
 }
