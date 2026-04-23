@@ -2,7 +2,7 @@ import { apiCall, makeChatGroupWsUrl } from "./client";
 import { createPendingUserMessage, mapWorkspaceMessage } from "./adapters/messages";
 import { mapRuntimeWsEvent } from "./adapters/runtimeWs";
 import { rememberLegacyId, rememberLegacyStringId, resolveActualId } from "./id-map";
-import type { ChatEnqueueResponse, ChatRequest, MessageRead, MessageRetractResult, RuntimeWsEvent } from "./types/chat";
+import type { ChatEnqueueResponse, ChatMessagePage, ChatRequest, MessageRetractResult, RuntimeWsEvent } from "./types/chat";
 import type { ChatGroupMemberRead, ChatGroupPayload, ChatGroupRead, ChatGroupStateRead, ChatGroupUpdatePayload } from "./types/chat-groups";
 
 function epochSecondsToIso(value: number | null | undefined) {
@@ -149,8 +149,28 @@ export function removeChatGroupMember(roomId: string, userId: string) {
   });
 }
 
-export function listChatGroupMessages(roomId: string) {
-  return apiCall(async (client) => (await client.listChatGroupMessages(roomId)).map(mapWorkspaceMessage));
+export function listChatGroupMessages(
+  roomId: string,
+  beforeMessageId: string | null = null,
+  pageSize = 50,
+): Promise<ChatMessagePage> {
+  return apiCall(async (client) => {
+    const rawItems = await client.listChatGroupMessages(roomId, {
+      beforeMessageId,
+      limit: pageSize + 1,
+    });
+    const hasMore = rawItems.length > pageSize;
+    const pageItems = hasMore ? rawItems.slice(1) : rawItems;
+    const items = pageItems.map(mapWorkspaceMessage);
+    return {
+      items,
+      total: items.length + (hasMore ? 1 : 0),
+      page: 1,
+      page_size: pageSize,
+      total_pages: 1,
+      has_more: hasMore,
+    };
+  });
 }
 
 export function sendChatGroupMessage(roomId: string, data: ChatRequest): Promise<ChatEnqueueResponse> {

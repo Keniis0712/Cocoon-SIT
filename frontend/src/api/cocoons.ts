@@ -345,18 +345,21 @@ export function getCocoonMessages(
 ): Promise<ChatMessagePage> {
   return apiCall(async (client) => {
     const actualCocoonId = resolveActualId("cocoon", cocoon_id);
-    const all = (await client.listMessages(actualCocoonId)).map(mapWorkspaceMessage);
     const beforeActual = before_message_id ? resolveActualId("message", before_message_id) : null;
-    const beforeIndex = beforeActual ? all.findIndex((item) => item.message_uid === beforeActual) : all.length;
-    const end = beforeIndex >= 0 ? beforeIndex : all.length;
-    const start = Math.max(0, end - page_size);
-    const items = all.slice(start, end);
+    const rawItems = await client.listMessages(actualCocoonId, {
+      beforeMessageId: beforeActual,
+      limit: page_size + 1,
+    });
+    const hasMore = rawItems.length > page_size;
+    const pageItems = hasMore ? rawItems.slice(1) : rawItems;
+    const items = pageItems.map(mapWorkspaceMessage);
     return {
       items,
-      total: all.length,
+      total: items.length + (hasMore ? 1 : 0),
       page: 1,
       page_size,
       total_pages: 1,
+      has_more: hasMore,
     };
   });
 }

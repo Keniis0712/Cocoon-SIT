@@ -774,6 +774,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cocoons/{cocoon_id}/wakeups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Cocoon Wakeups */
+        get: operations["list_cocoon_wakeups_api_v1_cocoons__cocoon_id__wakeups_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chat-groups": {
         parameters: {
             query?: never;
@@ -891,6 +908,23 @@ export interface paths {
         };
         /** Get Chat Group State */
         get: operations["get_chat_group_state_api_v1_chat_groups__room_id__state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat-groups/{room_id}/wakeups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Chat Group Wakeups */
+        get: operations["list_chat_group_wakeups_api_v1_chat_groups__room_id__wakeups_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1118,6 +1152,23 @@ export interface paths {
         put?: never;
         /** Create Checkpoint */
         post: operations["create_checkpoint_api_v1_checkpoints_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audits/wakeups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Wakeups */
+        get: operations["list_wakeups_api_v1_audits_wakeups_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3172,6 +3223,41 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WakeupTaskOut */
+        WakeupTaskOut: {
+            /** Id */
+            id: string;
+            /** Target Type */
+            target_type: string;
+            /** Target Id */
+            target_id: string;
+            /** Target Name */
+            target_name?: string | null;
+            /**
+             * Run At
+             * Format: date-time
+             */
+            run_at: string;
+            /** Reason */
+            reason?: string | null;
+            /** Status */
+            status: string;
+            /** Scheduled By */
+            scheduled_by?: string | null;
+            /** Trigger Kind */
+            trigger_kind?: string | null;
+            /** Is Ai Wakeup */
+            is_ai_wakeup: boolean;
+            /** Cancelled At */
+            cancelled_at?: string | null;
+            /** Cancelled Reason */
+            cancelled_reason?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** WorkflowMetrics */
         WorkflowMetrics: {
@@ -5588,6 +5674,48 @@ export interface operations {
             };
         };
     };
+    list_cocoon_wakeups_api_v1_cocoons__cocoon_id__wakeups_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                only_ai?: boolean;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                cocoon_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Cocoon Wakeups Api V1 Cocoons  Cocoon Id  Wakeups Get */
+                        data: components["schemas"]["WakeupTaskOut"][];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
     list_chat_groups_api_v1_chat_groups_get: {
         parameters: {
             query?: never;
@@ -5930,7 +6058,10 @@ export interface operations {
     };
     list_chat_group_messages_api_v1_chat_groups__room_id__messages_get: {
         parameters: {
-            query?: never;
+            query?: {
+                before_message_id?: string | null;
+                limit?: number | null;
+            };
             header?: never;
             path: {
                 room_id: string;
@@ -6082,9 +6213,54 @@ export interface operations {
             };
         };
     };
+    list_chat_group_wakeups_api_v1_chat_groups__room_id__wakeups_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                only_ai?: boolean;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Chat Group Wakeups Api V1 Chat Groups  Room Id  Wakeups Get */
+                        data: components["schemas"]["WakeupTaskOut"][];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
     list_messages_api_v1_cocoons__cocoon_id__messages_get: {
         parameters: {
-            query?: never;
+            query?: {
+                before_message_id?: string | null;
+                limit?: number | null;
+            };
             header?: never;
             path: {
                 cocoon_id: string;
@@ -6713,6 +6889,48 @@ export interface operations {
                         /** @example ok */
                         msg: string;
                         data: components["schemas"]["CheckpointOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    list_wakeups_api_v1_audits_wakeups_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                target_type?: ("cocoon" | "chat_group") | null;
+                target_id?: string | null;
+                only_ai?: boolean;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Wakeups Api V1 Audits Wakeups Get */
+                        data: components["schemas"]["WakeupTaskOut"][];
                     };
                 };
             };

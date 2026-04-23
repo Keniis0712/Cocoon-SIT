@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import Message
@@ -24,14 +24,36 @@ class MessageService:
         *,
         cocoon_id: str | None = None,
         chat_group_id: str | None = None,
+        before_message_id: str | None = None,
+        limit: int | None = None,
     ) -> list[Message]:
-        return list(
-            session.scalars(
-                select(Message)
-                .where(build_target_filter(Message, cocoon_id=cocoon_id, chat_group_id=chat_group_id))
-                .order_by(Message.created_at.asc())
-            ).all()
-        )
+        target_filter = build_target_filter(Message, cocoon_id=cocoon_id, chat_group_id=chat_group_id)
+        query = select(Message).where(target_filter)
+
+        if before_message_id:
+            anchor = self.require_message_for_target(
+                session,
+                before_message_id,
+                cocoon_id=cocoon_id,
+                chat_group_id=chat_group_id,
+            )
+            query = query.where(
+                or_(
+                    Message.created_at < anchor.created_at,
+                    and_(Message.created_at == anchor.created_at, Message.id < anchor.id),
+                )
+            )
+
+        if limit is not None:
+            messages = list(
+                session.scalars(
+                    query.order_by(Message.created_at.desc(), Message.id.desc()).limit(limit)
+                ).all()
+            )
+            messages.reverse()
+            return messages
+
+        return list(session.scalars(query.order_by(Message.created_at.asc(), Message.id.asc())).all())
 
     def serialize_message(self, message: Message) -> ChatMessageOut:
         content = self.RETRACTED_PLACEHOLDER if message.is_retracted else message.content

@@ -36,11 +36,20 @@ def test_message_service_lists_serializes_and_retracts_messages():
         session.commit()
 
         listed = service.list_messages(session, cocoon_id="cocoon-1")
+        latest = service.list_messages(session, cocoon_id="cocoon-1", limit=1)
+        older_than_second = service.list_messages(
+            session,
+            cocoon_id="cocoon-1",
+            before_message_id="msg-2",
+            limit=1,
+        )
         serialized = service.serialize_message(second)
         retracted = service.retract_message(session, first, acting_user_id="user-1", note=None)
         unchanged = service.retract_message(session, retracted, acting_user_id="user-2", note="ignored")
 
         assert [message.id for message in listed] == ["msg-1", "msg-2"]
+        assert [message.id for message in latest] == ["msg-2"]
+        assert [message.id for message in older_than_second] == ["msg-1"]
         assert serialized.content == MessageService.RETRACTED_PLACEHOLDER
         assert retracted.is_retracted is True
         assert retracted.retraction_note == "Message retracted"

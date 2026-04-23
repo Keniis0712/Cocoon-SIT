@@ -45,6 +45,7 @@ export interface ChatMessagePage {
   page: number;
   page_size: number;
   total_pages: number;
+  has_more?: boolean;
 }
 
 export interface StatePatchEvent {

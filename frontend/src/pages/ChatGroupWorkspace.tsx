@@ -73,6 +73,7 @@ export default function ChatGroupWorkspacePage() {
   const { roomId = "" } = useParams();
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const typingStartedAtRef = useRef<number | null>(null);
+  const hasAutoScrolledRef = useRef(false);
   const sessionKey = `chat-group:${roomId}`;
   const currentUser = useUserStore((state) => state.userInfo);
 
@@ -84,13 +85,16 @@ export default function ChatGroupWorkspacePage() {
   const [messageInput, setMessageInput] = useState("");
   const [currentAiWakeup, setCurrentAiWakeup] = useState<WakeupTaskRead | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [memberDialog, setMemberDialog] = useState<MemberDialogState>({ open: false, userId: "", role: "member" });
 
   const session = useChatSessionStore((state) => state.sessions[sessionKey] ?? null);
   const ensureSession = useChatSessionStore((state) => state.ensureSession);
   const resetSession = useChatSessionStore((state) => state.resetSession);
   const setMessages = useChatSessionStore((state) => state.setMessages);
+  const prependMessages = useChatSessionStore((state) => state.prependMessages);
   const upsertMessage = useChatSessionStore((state) => state.upsertMessage);
   const setStreamingAssistant = useChatSessionStore((state) => state.setStreamingAssistant);
   const appendStreamingAssistant = useChatSessionStore((state) => state.appendStreamingAssistant);
@@ -133,6 +137,7 @@ export default function ChatGroupWorkspacePage() {
     }
     ensureSession(sessionKey);
     resetSession(sessionKey);
+    hasAutoScrolledRef.current = false;
     void loadWorkspace(true);
   }, [roomId]);
 
@@ -176,8 +181,11 @@ export default function ChatGroupWorkspacePage() {
     if (!viewportRef.current) {
       return;
     }
-    viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
-  }, [visibleMessages.length, session?.streamingAssistant]);
+    if (!hasAutoScrolledRef.current) {
+      viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+      hasAutoScrolledRef.current = true;
+    }
+  }, [visibleMessages.length]);
 
   async function loadWorkspace(initial = false) {
     if (initial) {
@@ -189,7 +197,7 @@ export default function ChatGroupWorkspacePage() {
           getChatGroup(roomId),
           getChatGroupState(roomId),
           listChatGroupMembers(roomId),
-          listChatGroupMessages(roomId),
+          listChatGroupMessages(roomId, null, 50),
           getCharacters(1, 100, "all"),
           listModelProviders(1, 100),
           listChatGroupWakeups(roomId, { status: "queued", only_ai: true, limit: 1 }),
@@ -200,7 +208,8 @@ export default function ChatGroupWorkspacePage() {
       setCharacters(characterResponse.items);
       setProviders(providerResponse.items);
       setCurrentAiWakeup(wakeups[0] || null);
-      setMessages(sessionKey, nextMessages);
+      setMessages(sessionKey, nextMessages.items);
+      setHasMore(Boolean(nextMessages.has_more));
       applyStatePatch(sessionKey, {
         relationScore: state.relation_score,
         personaJson: state.persona_json,
@@ -225,6 +234,24 @@ export default function ChatGroupWorkspacePage() {
       navigate("/chat-groups", { replace: true });
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function loadOlderMessages() {
+    if (isLoadingMore || !visibleMessages.length) {
+      return;
+    }
+    setIsLoadingMore(true);
+    try {
+      const oldestId = visibleMessages[0]?.message_uid ?? null;
+      const response = await listChatGroupMessages(roomId, oldestId, 50);
+      prependMessages(sessionKey, response.items);
+      setHasMore(Boolean(response.has_more));
+    } catch (error) {
+      console.error(error);
+      showErrorToast(error, t("workspaceLoadFailed"));
+    } finally {
+      setIsLoadingMore(false);
     }
   }
 
@@ -266,6 +293,11 @@ export default function ChatGroupWorkspacePage() {
       });
       setMessageInput("");
       typingStartedAtRef.current = null;
+      queueMicrotask(() => {
+        if (viewportRef.current) {
+          viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+        }
+      });
     } catch (error) {
       console.error(error);
       showErrorToast(error, t("messageSendFailed"));
@@ -384,11 +416,14 @@ export default function ChatGroupWorkspacePage() {
             <ChatGroupTimeline
               viewportRef={viewportRef}
               isLoading={isLoading}
+              hasMore={hasMore}
+              isLoadingMore={isLoadingMore}
               messages={visibleMessages}
               streamingAssistant={session?.streamingAssistant || ""}
               currentUserId={currentUserId}
               canRetractMessage={canRetractMessage}
               displaySenderName={displaySenderName}
+              onLoadOlderMessages={() => void loadOlderMessages()}
               onRetractMessage={(message) => void handleRetractMessage(message)}
             />
 

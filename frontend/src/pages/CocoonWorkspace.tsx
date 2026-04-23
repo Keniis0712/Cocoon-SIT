@@ -157,7 +157,7 @@ export default function CocoonWorkspacePage() {
         dispatchReason: null,
         debounceUntil: sessionState.debounce_until,
       });
-      setHasMore(sortedMessages.length < messageResponse.total);
+      setHasMore(Boolean(messageResponse.has_more));
       setError(cocoonId, null);
     } catch (error) {
       console.error(error);
@@ -175,7 +175,7 @@ export default function CocoonWorkspacePage() {
       const response = await getCocoonMessages(cocoonId, oldestId, 50);
       const sortedMessages = [...response.items].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime() || a.id - b.id);
       prependMessages(cocoonId, sortedMessages);
-      setHasMore((session?.messages.length || 0) + sortedMessages.length < response.total);
+      setHasMore(Boolean(response.has_more));
     } catch (error) {
       console.error(error);
       showErrorToast(error, "Failed to load older messages");

@@ -114,6 +114,51 @@ def test_list_messages_returns_serialized_messages(client, auth_headers, default
     assert [item["content"] for item in response.json()][-2:] == ["First listed message", "Second listed message"]
 
 
+def test_list_messages_supports_reverse_window_loading(client, auth_headers, default_cocoon_id):
+    container = client.app.state.container
+
+    with container.session_factory() as session:
+        messages = [
+            Message(
+                id="api-window-1",
+                cocoon_id=default_cocoon_id,
+                role="user",
+                content="Window first",
+                created_at=datetime(2030, 1, 1, 10, 0, 0),
+            ),
+            Message(
+                id="api-window-2",
+                cocoon_id=default_cocoon_id,
+                role="assistant",
+                content="Window second",
+                created_at=datetime(2030, 1, 1, 10, 1, 0),
+            ),
+            Message(
+                id="api-window-3",
+                cocoon_id=default_cocoon_id,
+                role="user",
+                content="Window third",
+                created_at=datetime(2030, 1, 1, 10, 2, 0),
+            ),
+        ]
+        session.add_all(messages)
+        session.commit()
+
+    latest_response = client.get(
+        f"/api/v1/cocoons/{default_cocoon_id}/messages?limit=2",
+        headers=auth_headers,
+    )
+    assert latest_response.status_code == 200, latest_response.text
+    assert [item["content"] for item in latest_response.json()] == ["Window second", "Window third"]
+
+    older_response = client.get(
+        f"/api/v1/cocoons/{default_cocoon_id}/messages?before_message_id=api-window-3&limit=1",
+        headers=auth_headers,
+    )
+    assert older_response.status_code == 200, older_response.text
+    assert [item["content"] for item in older_response.json()] == ["Window second"]
+
+
 def test_retry_route_exposes_debounce_timestamp_when_dispatch_sets_one(client, auth_headers, default_cocoon_id, monkeypatch):
     debounce_until = datetime.now(UTC) + timedelta(seconds=30)
     container = client.app.state.container

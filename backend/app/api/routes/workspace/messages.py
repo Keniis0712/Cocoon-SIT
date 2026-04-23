@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -31,12 +31,19 @@ def _accepted_response_for_action(action) -> AcceptedResponse:
 @router.get("/{cocoon_id}/messages", response_model=list[ChatMessageOut])
 def list_messages(
     cocoon_id: str,
+    before_message_id: str | None = Query(default=None),
+    limit: int | None = Query(default=None, ge=1, le=200),
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
     _=Depends(require_permission("cocoons:read")),
 ) -> list[Message]:
     db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=False)
-    messages = db.info["container"].message_service.list_messages(db, cocoon_id=cocoon_id)
+    messages = db.info["container"].message_service.list_messages(
+        db,
+        cocoon_id=cocoon_id,
+        before_message_id=before_message_id,
+        limit=limit,
+    )
     return [db.info["container"].message_service.serialize_message(message) for message in messages]
 
 

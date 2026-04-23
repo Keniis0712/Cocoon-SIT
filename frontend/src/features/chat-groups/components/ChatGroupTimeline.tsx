@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { MessageSquareOff } from "lucide-react";
+import { ChevronUp, Loader2, MessageSquareOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { MessageRead } from "@/api/types/chat";
@@ -9,26 +9,32 @@ import { formatWorkspaceTime } from "@/features/workspace/utils";
 
 type ChatGroupTimelineProps = {
   isLoading: boolean;
+  hasMore: boolean;
+  isLoadingMore: boolean;
   messages: MessageRead[];
   streamingAssistant: string;
   currentUserId: string | null;
   viewportRef?: RefObject<HTMLDivElement | null>;
   canRetractMessage: (message: MessageRead) => boolean;
   displaySenderName: (message: MessageRead) => string;
+  onLoadOlderMessages: () => void;
   onRetractMessage: (message: MessageRead) => void;
 };
 
 export function ChatGroupTimeline({
   isLoading,
+  hasMore,
+  isLoadingMore,
   messages,
   streamingAssistant,
   currentUserId,
   viewportRef,
   canRetractMessage,
   displaySenderName,
+  onLoadOlderMessages,
   onRetractMessage,
 }: ChatGroupTimelineProps) {
-  const { t } = useTranslation("chatGroups");
+  const { t } = useTranslation(["chatGroups", "workspace"]);
 
   return (
     <div ref={viewportRef} className="flex-1 overflow-auto rounded-[32px] border border-border/70 bg-background/60 p-4">
@@ -36,6 +42,14 @@ export function ChatGroupTimeline({
         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">{t("loadingTimeline")}</div>
       ) : (
         <div className="space-y-4">
+          {hasMore ? (
+            <div className="flex justify-center">
+              <Button variant="outline" size="sm" disabled={isLoadingMore} onClick={onLoadOlderMessages}>
+                {isLoadingMore ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ChevronUp className="mr-2 size-4" />}
+                {t("workspace:loadOlderMessages")}
+              </Button>
+            </div>
+          ) : null}
           {messages.map((message) => {
             const isSelf = message.role === "user" && message.sender_user_id === currentUserId;
             const isAssistant = message.role !== "user";

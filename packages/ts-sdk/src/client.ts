@@ -27,8 +27,28 @@ type RequestOptions = {
   headers?: Record<string, string>;
 };
 
+type MessageListQuery = {
+  beforeMessageId?: string | null;
+  limit?: number | null;
+};
+
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
+}
+
+function appendMessageListQuery(path: string, query?: MessageListQuery): string {
+  if (!query) {
+    return path;
+  }
+  const params = new URLSearchParams();
+  if (query.beforeMessageId) {
+    params.set("before_message_id", query.beforeMessageId);
+  }
+  if (typeof query.limit === "number") {
+    params.set("limit", String(query.limit));
+  }
+  const search = params.toString();
+  return search ? `${path}?${search}` : path;
 }
 
 export class CocoonApiClient {
@@ -440,8 +460,10 @@ export class CocoonApiClient {
     });
   }
 
-  listChatGroupMessages(roomId: string) {
-    return this.request<Schemas["ChatMessageOut"][]>(`/api/v1/chat-groups/${roomId}/messages`);
+  listChatGroupMessages(roomId: string, query?: MessageListQuery) {
+    return this.request<Schemas["ChatMessageOut"][]>(
+      appendMessageListQuery(`/api/v1/chat-groups/${roomId}/messages`, query),
+    );
   }
 
   sendChatGroupMessage(roomId: string, body: Schemas["ChatMessageCreate"]) {
@@ -486,8 +508,10 @@ export class CocoonApiClient {
     return this.request<Schemas["SessionStateOut"]>(`/api/v1/cocoons/${cocoonId}/state`);
   }
 
-  listMessages(cocoonId: string) {
-    return this.request<Schemas["ChatMessageOut"][]>(`/api/v1/cocoons/${cocoonId}/messages`);
+  listMessages(cocoonId: string, query?: MessageListQuery) {
+    return this.request<Schemas["ChatMessageOut"][]>(
+      appendMessageListQuery(`/api/v1/cocoons/${cocoonId}/messages`, query),
+    );
   }
 
   listCocoonTags(cocoonId: string) {

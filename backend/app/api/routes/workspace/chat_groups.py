@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, WebSocketException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, WebSocketException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -216,12 +216,19 @@ def remove_chat_group_member(
 @router.get("/{room_id}/messages", response_model=list[ChatMessageOut])
 def list_chat_group_messages(
     room_id: str,
+    before_message_id: str | None = Query(default=None),
+    limit: int | None = Query(default=None, ge=1, le=200),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     _=Depends(require_permission("cocoons:read")),
 ) -> list[ChatMessageOut]:
     db.info["container"].authorization_service.require_chat_group_access(db, user, room_id)
-    messages = db.info["container"].message_service.list_messages(db, chat_group_id=room_id)
+    messages = db.info["container"].message_service.list_messages(
+        db,
+        chat_group_id=room_id,
+        before_message_id=before_message_id,
+        limit=limit,
+    )
     return [db.info["container"].message_service.serialize_message(message) for message in messages]
 
 
