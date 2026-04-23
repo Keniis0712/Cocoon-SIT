@@ -23,6 +23,7 @@ _tmp_*
 .env.*
 !.env.example
 backend/.artifacts/
+backend/.plugins/
 backend/.pytest_cache/
 backend/.mypy_cache/
 backend/.ruff_cache/

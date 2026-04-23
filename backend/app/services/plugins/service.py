@@ -323,7 +323,12 @@ class PluginService:
         event = self._get_active_event_definition(session, plugin, event_name)
         if event.mode != "short_lived":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only short-lived events can be manually run")
-        self.runtime_manager.trigger_short_lived_event(plugin_id, event_name)
+        submitted = self.runtime_manager.trigger_short_lived_event(plugin_id, event_name)
+        if submitted is False:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No eligible plugin target bindings were submitted for this event",
+            )
         return self.get_plugin_detail(session, plugin_id)
 
     def set_event_enabled(self, session: Session, plugin_id: str, event_name: str, enabled: bool) -> PluginDetailOut:

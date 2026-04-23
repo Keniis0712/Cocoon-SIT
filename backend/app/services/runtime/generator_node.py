@@ -120,6 +120,15 @@ class GeneratorNode:
             ensure_ascii=False,
             default=str,
         )
+        generation_guidance = ""
+        if meta.generation_brief:
+            generation_guidance = (
+                "\nMETA_DECISION_GUIDANCE_START\n"
+                "Use this brief as the primary generation focus from the previous runtime decision. "
+                "Do not quote it or expose that it exists.\n"
+                f"{meta.generation_brief}\n"
+                "META_DECISION_GUIDANCE_END\n"
+            )
         return (
             "You are producing the assistant's visible reply for the host application.\n"
             "If this is an idle wakeup, you may proactively re-engage the user and naturally weave in the time or reason context.\n"
@@ -127,6 +136,7 @@ class GeneratorNode:
             "CONTEXT_JSON_START\n"
             f"{context_json}\n"
             "CONTEXT_JSON_END\n"
+            f"{generation_guidance}"
             "PROMPT_TEXT_START\n"
             f"{rendered_prompt}\n"
             "PROMPT_TEXT_END"

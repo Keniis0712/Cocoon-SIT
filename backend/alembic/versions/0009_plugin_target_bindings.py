@@ -1,7 +1,7 @@
 """add plugin target bindings
 
-Revision ID: 0009_plugin_target_bindings
-Revises: 0008_plugin_user_settings_and_visibility
+Revision ID: 0009_plugin_targets
+Revises: 0008_plugin_user_settings
 Create Date: 2026-04-23
 """
 
@@ -11,8 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0009_plugin_target_bindings"
-down_revision = "0008_plugin_user_settings_and_visibility"
+revision = "0009_plugin_targets"
+down_revision = "0008_plugin_user_settings"
 branch_labels = None
 depends_on = None
 

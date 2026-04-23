@@ -1,6 +1,6 @@
 """add plugin user settings and visibility controls
 
-Revision ID: 0008_plugin_user_settings_and_visibility
+Revision ID: 0008_plugin_user_settings
 Revises: 0007_plugin_system
 Create Date: 2026-04-23
 """
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0008_plugin_user_settings_and_visibility"
+revision = "0008_plugin_user_settings"
 down_revision = "0007_plugin_system"
 branch_labels = None
 depends_on = None
@@ -65,4 +65,3 @@ def downgrade() -> None:
         batch_op.drop_column("settings_validation_function_name")
         batch_op.drop_column("user_default_config_json")
         batch_op.drop_column("user_config_schema_json")
-

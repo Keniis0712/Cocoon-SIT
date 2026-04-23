@@ -60,8 +60,18 @@ class DependencyBuilder:
         requirements_text = requirements_path.read_text(encoding="utf-8")
         if not requirements_text.strip():
             return
-        subprocess.run(
-            [
+        command = self._dependency_install_command(requirements_path, staging_root)
+        subprocess.run(command, check=True)
+
+    def _dependency_install_command(self, requirements_path: Path, staging_root: Path) -> list[str]:
+        pip_check = subprocess.run(
+            [sys.executable, "-m", "pip", "--version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if pip_check.returncode == 0:
+            return [
                 sys.executable,
                 "-m",
                 "pip",
@@ -71,9 +81,21 @@ class DependencyBuilder:
                 str(staging_root),
                 "-r",
                 str(requirements_path),
-            ],
-            check=True,
-        )
+            ]
+        uv_executable = shutil.which("uv")
+        if uv_executable:
+            return [
+                uv_executable,
+                "pip",
+                "install",
+                "--python",
+                sys.executable,
+                "--target",
+                str(staging_root),
+                "-r",
+                str(requirements_path),
+            ]
+        raise RuntimeError("Plugin dependency installation requires pip or uv to be available")
 
     def _copy_distribution_files(
         self,

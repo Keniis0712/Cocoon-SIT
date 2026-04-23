@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, Plug, RefreshCcw, Settings2, ShieldAlert, Upload, Zap } from "lucide-react";
+import { ChevronDown, Eye, EyeOff, Plug, RefreshCcw, Settings2, ShieldAlert, Upload, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -30,6 +30,7 @@ import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -99,6 +100,7 @@ export default function AdminPluginsPage() {
   const [isInstalling, setIsInstalling] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isGroupSaving, setIsGroupSaving] = useState(false);
+  const [isSharedLibsOpen, setIsSharedLibsOpen] = useState(false);
 
   const groupNameByActualId = useMemo(() => {
     return new Map(groups.map((group) => [resolveActualId("group", group.gid), group.name] as const));
@@ -585,13 +587,31 @@ export default function AdminPluginsPage() {
                         {t("plugins:actionsTitle")}
                       </div>
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between rounded-lg border border-border/70 px-3 py-2">
-                          <span>{t("plugins:pluginEnabled")}</span>
-                          <Switch
-                            checked={selectedPlugin.status === "enabled"}
-                            disabled={!canRun}
-                            onCheckedChange={(checked) => void handleTogglePluginRuntime(checked)}
-                          />
+                        <div
+                          className={`rounded-xl border p-4 transition ${
+                            selectedPlugin.status === "enabled"
+                              ? "border-primary/60 bg-primary/5"
+                              : "border-destructive/50 bg-destructive/5"
+                          } ${!canRun ? "opacity-70" : ""}`}
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <div className="text-sm font-semibold">{t("plugins:pluginEnabled")}</div>
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {selectedPlugin.status === "enabled" ? t("plugins:enabled") : t("plugins:disabled")}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Badge variant={selectedPlugin.status === "enabled" ? "secondary" : "destructive"}>
+                                {selectedPlugin.status === "enabled" ? t("plugins:enabled") : t("plugins:disabled")}
+                              </Badge>
+                              <Switch
+                                checked={selectedPlugin.status === "enabled"}
+                                disabled={!canRun}
+                                onCheckedChange={(checked) => void handleTogglePluginRuntime(checked)}
+                              />
+                            </div>
+                          </div>
                         </div>
                         <div className="flex items-center justify-between rounded-lg border border-border/70 px-3 py-2">
                           <span>{t("plugins:globalVisibility")}</span>
@@ -645,16 +665,6 @@ export default function AdminPluginsPage() {
                     {isSavingConfig ? t("common:saving") : t("plugins:saveGlobalConfig")}
                   </Button>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>{t("plugins:globalSchemaJson")}</Label>
-                    <Textarea rows={8} readOnly value={formatJson(selectedPlugin.config_schema_json)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t("plugins:userSchemaJson")}</Label>
-                    <Textarea rows={8} readOnly value={formatJson(selectedPlugin.user_config_schema_json)} />
-                  </div>
-                </div>
               </CardContent>
             </Card>
           ) : null}
@@ -680,13 +690,19 @@ export default function AdminPluginsPage() {
                             {event.name} · {event.mode} · {event.function_name}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 rounded-lg border border-border/70 px-3 py-2 text-sm">
+                        <div
+                          className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${
+                            event.is_enabled ? "border-primary/50 bg-primary/5" : "border-border/70 bg-muted/20"
+                          }`}
+                        >
                           <Switch
                             checked={event.is_enabled}
                             disabled={!canRun}
                             onCheckedChange={(checked) => void handleToggleEventEnabled(event.name, checked)}
                           />
-                          <span>{event.is_enabled ? t("plugins:enabled") : t("plugins:disabled")}</span>
+                          <span className="font-medium">
+                            {event.is_enabled ? t("plugins:enabled") : t("plugins:disabled")}
+                          </span>
                         </div>
                       </div>
                       {event.mode === "short_lived" ? (
@@ -914,32 +930,45 @@ export default function AdminPluginsPage() {
             </Card>
           ) : null}
 
-          <Card className="border-border/70 bg-card/90">
-            <CardHeader>
-              <CardTitle className="text-base">{t("plugins:sharedLibTitle")}</CardTitle>
-              <CardDescription>{t("plugins:sharedLibDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {sharedPackages.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-                  {t("plugins:sharedLibEmpty")}
-                </div>
-              ) : (
-                sharedPackages.map((item) => (
-                  <div key={`${item.normalized_name}@${item.version}`} className="rounded-xl border border-border/70 p-4 text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-medium">{item.name}</div>
-                      <Badge variant="outline">{item.version}</Badge>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <span>{t("plugins:referenceCount", { count: item.reference_count })}</span>
-                      <span>{t("plugins:sizeBytes", { value: item.size_bytes })}</span>
-                    </div>
+          <Collapsible open={isSharedLibsOpen} onOpenChange={setIsSharedLibsOpen}>
+            <Card className="border-border/70 bg-card/90">
+              <CardHeader>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">{t("plugins:sharedLibTitle")}</CardTitle>
+                    <CardDescription>{t("plugins:sharedLibDescription")}</CardDescription>
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <ChevronDown className={`size-4 transition-transform ${isSharedLibsOpen ? "rotate-180" : ""}`} />
+                    </Button>
+                  </CollapsibleTrigger>
+                </div>
+              </CardHeader>
+              <CollapsibleContent>
+                <CardContent className="space-y-2">
+                  {sharedPackages.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+                      {t("plugins:sharedLibEmpty")}
+                    </div>
+                  ) : (
+                    sharedPackages.map((item) => (
+                      <div key={`${item.normalized_name}@${item.version}`} className="rounded-xl border border-border/70 p-4 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-medium">{item.name}</div>
+                          <Badge variant="outline">{item.version}</Badge>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          <span>{t("plugins:referenceCount", { count: item.reference_count })}</span>
+                          <span>{t("plugins:sizeBytes", { value: item.size_bytes })}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
         </div>
       </div>
     </PageFrame>

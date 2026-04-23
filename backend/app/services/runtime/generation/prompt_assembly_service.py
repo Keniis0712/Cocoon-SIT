@@ -13,6 +13,10 @@ from app.services.runtime.prompting import build_provider_message_payload, build
 from app.services.runtime.types import ContextPackage
 
 
+_CONTEXT_HEADINGS = ("角色专属设定：", "当前会话状态：")
+_GLOBAL_RULES_HEADING = "全局规则："
+
+
 @dataclass
 class RenderedPromptSegment:
     """A single rendered prompt segment with the metadata needed for audit."""
@@ -74,7 +78,7 @@ class PromptAssemblyService:
             template_type=template_type,
             variables=variables,
         )
-        combined_prompt = f"{system_prompt}\n\n{rendered_prompt}".strip()
+        combined_prompt = self._combine_prompts(system_prompt, rendered_prompt)
         return PromptAssembly(
             system=RenderedPromptSegment(
                 template=system_template,
@@ -93,3 +97,20 @@ class PromptAssemblyService:
             combined_prompt=combined_prompt,
             messages=[build_provider_message_payload(message, context) for message in message_source],
         )
+
+    def _combine_prompts(self, system_prompt: str, event_prompt: str) -> str:
+        system_prompt = self._trim_overlapping_system_context(system_prompt, event_prompt)
+        return f"{system_prompt}\n\n{event_prompt}".strip()
+
+    def _trim_overlapping_system_context(self, system_prompt: str, event_prompt: str) -> str:
+        if not all(heading in event_prompt for heading in _CONTEXT_HEADINGS):
+            return system_prompt
+        if not all(heading in system_prompt for heading in _CONTEXT_HEADINGS):
+            return system_prompt
+        rules_index = system_prompt.find(_GLOBAL_RULES_HEADING)
+        if rules_index < 0:
+            return system_prompt
+        context_index = min(system_prompt.find(heading) for heading in _CONTEXT_HEADINGS)
+        prefix = system_prompt[:context_index].strip()
+        rules = system_prompt[rules_index:].strip()
+        return f"{prefix}\n\n{rules}".strip()

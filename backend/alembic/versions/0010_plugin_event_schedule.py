@@ -1,7 +1,7 @@
 """add plugin event schedule settings
 
-Revision ID: 0010_plugin_event_schedule
-Revises: 0009_plugin_target_bindings
+Revision ID: 0010_plugin_schedule
+Revises: 0009_plugin_targets
 Create Date: 2026-04-23
 """
 
@@ -11,8 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0010_plugin_event_schedule"
-down_revision = "0009_plugin_target_bindings"
+revision = "0010_plugin_schedule"
+down_revision = "0009_plugin_targets"
 branch_labels = None
 depends_on = None
 

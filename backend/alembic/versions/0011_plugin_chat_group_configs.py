@@ -1,7 +1,7 @@
 """add plugin chat group configs
 
-Revision ID: 0011_plugin_chat_group_configs
-Revises: 0010_plugin_event_schedule
+Revision ID: 0011_plugin_group_cfgs
+Revises: 0010_plugin_schedule
 Create Date: 2026-04-23
 """
 
@@ -11,8 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0011_plugin_chat_group_configs"
-down_revision = "0010_plugin_event_schedule"
+revision = "0011_plugin_group_cfgs"
+down_revision = "0010_plugin_schedule"
 branch_labels = None
 depends_on = None
 

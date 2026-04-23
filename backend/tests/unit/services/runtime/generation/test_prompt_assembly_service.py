@@ -70,6 +70,41 @@ def test_build_assembles_chat_prompt_and_formats_messages(monkeypatch):
     assert "[system note: this message was later retracted]" in result.messages[1]["content"]
 
 
+def test_build_trims_repeated_character_context_from_system_prompt(monkeypatch):
+    monkeypatch.setattr(
+        "app.services.runtime.generation.prompt_assembly_service.build_runtime_prompt_variables",
+        lambda context, provider_capabilities: {"provider_capabilities": provider_capabilities},
+    )
+    prompt_service = SimpleNamespace(
+        render=lambda **kwargs: (
+            {"template_type": kwargs["template_type"]},
+            {"revision_id": f"{kwargs['template_type']}-rev"},
+            dict(kwargs["variables"]),
+            (
+                "你正在 Cocoon-SIT 中扮演当前角色。\n\n"
+                "角色专属设定：system-character\n\n"
+                "当前会话状态：system-state\n\n"
+                "当前模型与提供方能力：{}\n\n"
+                "全局规则：\n1. stay in character"
+                if kwargs["template_type"] == "system"
+                else "请生成当前角色回复。\n\n角色专属设定：event-character\n\n当前会话状态：event-state"
+            ),
+        )
+    )
+
+    result = PromptAssemblyService(prompt_service).build(
+        session=object(),
+        context=_build_context(include_source_messages=False),
+        provider_capabilities={},
+    )
+
+    assert "system-character" not in result.combined_prompt
+    assert "system-state" not in result.combined_prompt
+    assert "全局规则：" in result.combined_prompt
+    assert "event-character" in result.combined_prompt
+    assert result.combined_prompt.count("角色专属设定：") == 1
+
+
 def test_build_uses_pull_sources_and_memory_context(monkeypatch):
     monkeypatch.setattr(
         "app.services.runtime.generation.prompt_assembly_service.build_runtime_prompt_variables",

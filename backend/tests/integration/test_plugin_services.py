@@ -4,6 +4,7 @@ import io
 import json
 from pathlib import Path
 import time
+from types import SimpleNamespace
 from zipfile import ZipFile
 
 import pytest
@@ -616,6 +617,29 @@ def test_dependency_builder_archives_packages_with_package_level_dedup(tmp_path)
     package_two_root = shared_lib_root / "samplepkg" / "2.0.0"
     assert payload_two["paths"][0] == str(package_two_root)
     assert (package_two_root / "samplepkg" / "__init__.py").exists()
+
+
+def test_dependency_builder_uses_uv_when_runtime_python_has_no_pip(tmp_path, monkeypatch):
+    builder = DependencyBuilder()
+    requirements_path = tmp_path / "requirements.txt"
+    staging_root = tmp_path / "staging"
+    requirements_path.write_text("requests==2.31.0\n", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if command[:3] == [command[0], "-m", "pip"] and command[-1] == "--version":
+            return SimpleNamespace(returncode=1)
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr("app.services.plugins.dependency_builder.subprocess.run", fake_run)
+    monkeypatch.setattr("app.services.plugins.dependency_builder.shutil.which", lambda name: "/usr/local/bin/uv" if name == "uv" else None)
+
+    builder._install_to_staging(requirements_path, staging_root)
+
+    assert calls[-1][:4] == ["/usr/local/bin/uv", "pip", "install", "--python"]
+    assert "--target" in calls[-1]
+    assert str(requirements_path) in calls[-1]
 
 
 def test_dependency_builder_prunes_only_unreferenced_packages(tmp_path):

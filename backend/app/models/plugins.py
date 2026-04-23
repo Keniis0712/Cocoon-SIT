@@ -101,9 +101,6 @@ class PluginRunState(Base, TimestampMixin, JsonDefaultMixin):
 
 class PluginDispatchRecord(Base, TimestampMixin, JsonDefaultMixin):
     __tablename__ = "plugin_dispatch_records"
-    __table_args__ = (
-        UniqueConstraint("plugin_id", "event_name", "dedupe_key", name="uq_plugin_dispatch_records_dedupe"),
-    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
     plugin_id: Mapped[str] = mapped_column(ForeignKey("plugin_definitions.id"), nullable=False)
@@ -111,7 +108,6 @@ class PluginDispatchRecord(Base, TimestampMixin, JsonDefaultMixin):
     event_name: Mapped[str] = mapped_column(String(128), nullable=False)
     target_type: Mapped[str] = mapped_column(String(32), nullable=False)
     target_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    dedupe_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
     wakeup_task_id: Mapped[str | None] = mapped_column(ForeignKey("wakeup_tasks.id"), nullable=True)
     payload_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
 

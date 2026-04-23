@@ -141,6 +141,17 @@ def _sanitize_provider_capabilities(payload: dict[str, Any] | None) -> dict[str,
     return _sanitize_prompt_dict(payload or {})
 
 
+def _character_settings_payload(context: ContextPackage) -> dict[str, Any]:
+    payload = dict(context.character.settings_json or {})
+    prompt_summary = (context.character.prompt_summary or "").strip()
+    personality_prompt = str(payload.get("personality_prompt") or "").strip()
+    if prompt_summary and prompt_summary != personality_prompt:
+        payload["prompt_summary"] = prompt_summary
+    elif "prompt_summary" in payload and str(payload.get("prompt_summary") or "").strip() == personality_prompt:
+        payload.pop("prompt_summary", None)
+    return payload
+
+
 def _participant_alias(context: ContextPackage, sender_user_id: str | None) -> str | None:
     if not sender_user_id:
         return None
@@ -247,8 +258,7 @@ def build_runtime_prompt_variables(
     catalog = _tag_catalog(context)
     pending_wakeups = _pending_wakeup_payload(context.external_context.get("pending_wakeups", []))
     return {
-        "character_settings": context.character.settings_json
-        | {"prompt_summary": context.character.prompt_summary},
+        "character_settings": _character_settings_payload(context),
         "conversation_target": {
             "type": context.target_type,
             "name": context.cocoon.name,

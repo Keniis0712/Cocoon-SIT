@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Link2, Plug, RefreshCcw, ShieldAlert, Trash2 } from "lucide-react";
+import { CheckCircle2, Link2, Plug, RefreshCcw, Settings2, ShieldAlert, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -27,6 +27,9 @@ import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -52,6 +55,209 @@ function parseJson(text: string): { value: Record<string, unknown> | null; error
   }
 }
 
+type SchemaProperty = {
+  type?: string | string[];
+  title?: string;
+  description?: string;
+  default?: unknown;
+  enum?: unknown[];
+  minimum?: number;
+  maximum?: number;
+};
+
+function schemaProperties(schema: Record<string, unknown>): Record<string, SchemaProperty> {
+  const properties = schema.properties;
+  if (!properties || typeof properties !== "object" || Array.isArray(properties)) {
+    return {};
+  }
+  return properties as Record<string, SchemaProperty>;
+}
+
+function schemaRequired(schema: Record<string, unknown>): string[] {
+  return Array.isArray(schema.required) ? schema.required.filter((item): item is string => typeof item === "string") : [];
+}
+
+function isMultilineField(key: string, property: SchemaProperty) {
+  const text = `${key} ${property.title || ""} ${property.description || ""}`.toLowerCase();
+  return text.includes("pem") || text.includes("private") || text.includes("secret") || text.includes("token");
+}
+
+function fieldType(property: SchemaProperty) {
+  return Array.isArray(property.type) ? property.type.find((item) => item !== "null") : property.type;
+}
+
+function ConfigSchemaDialog({
+  open,
+  title,
+  description,
+  schema,
+  value,
+  defaultValue,
+  isSaving,
+  isValidating,
+  onOpenChange,
+  onSave,
+  onValidate,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  schema: Record<string, unknown>;
+  value: Record<string, unknown>;
+  defaultValue: Record<string, unknown>;
+  isSaving: boolean;
+  isValidating: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (value: Record<string, unknown>) => void | Promise<void>;
+  onValidate: () => void | Promise<void>;
+}) {
+  const { t } = useTranslation(["plugins", "common"]);
+  const properties = useMemo(() => schemaProperties(schema), [schema]);
+  const required = useMemo(() => new Set(schemaRequired(schema)), [schema]);
+  const [draft, setDraft] = useState<Record<string, unknown>>({});
+  const [jsonDraft, setJsonDraft] = useState("{}");
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const hasSchemaFields = Object.keys(properties).length > 0;
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    setDraft({ ...(defaultValue || {}), ...(value || {}) });
+    setJsonDraft(formatJson(value));
+    setJsonError(null);
+  }, [defaultValue, open, value]);
+
+  function updateField(key: string, next: unknown) {
+    setDraft((prev) => ({ ...prev, [key]: next }));
+  }
+
+  function resetToDefaults() {
+    setDraft({ ...(defaultValue || {}) });
+    setJsonDraft(formatJson(defaultValue));
+    setJsonError(null);
+  }
+
+  function handleSave() {
+    if (hasSchemaFields) {
+      void onSave(draft);
+      return;
+    }
+    const parsed = parseJson(jsonDraft);
+    if (!parsed.value) {
+      setJsonError(t(`plugins:${parsed.errorKey || "jsonInvalid"}`));
+      return;
+    }
+    setJsonError(null);
+    void onSave(parsed.value);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+
+        {hasSchemaFields ? (
+          <div className="grid gap-4">
+            {Object.entries(properties).map(([key, property]) => {
+              const type = fieldType(property);
+              const label = property.title || key;
+              const value = draft[key] ?? property.default ?? "";
+              return (
+                <div key={key} className="grid gap-2">
+                  <Label htmlFor={`plugin-config-${key}`}>
+                    {label}
+                    {required.has(key) ? <span className="text-destructive"> *</span> : null}
+                  </Label>
+                  {property.enum ? (
+                    <Select value={String(value ?? "")} onValueChange={(next) => updateField(key, next)}>
+                      <SelectTrigger id={`plugin-config-${key}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {property.enum.map((option) => (
+                          <SelectItem key={String(option)} value={String(option)}>
+                            {String(option)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : type === "boolean" ? (
+                    <div className="flex h-9 items-center gap-2 rounded-lg border border-border/70 px-3">
+                      <Checkbox
+                        id={`plugin-config-${key}`}
+                        checked={Boolean(value)}
+                        onCheckedChange={(checked) => updateField(key, checked === true)}
+                      />
+                      <span className="text-sm">{Boolean(value) ? t("plugins:enabled") : t("plugins:disabled")}</span>
+                    </div>
+                  ) : type === "integer" || type === "number" ? (
+                    <Input
+                      id={`plugin-config-${key}`}
+                      type="number"
+                      min={property.minimum}
+                      max={property.maximum}
+                      value={typeof value === "number" ? String(value) : String(value || "")}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        updateField(key, raw === "" ? "" : type === "integer" ? Number.parseInt(raw, 10) : Number(raw));
+                      }}
+                    />
+                  ) : isMultilineField(key, property) ? (
+                    <Textarea
+                      id={`plugin-config-${key}`}
+                      rows={5}
+                      value={String(value ?? "")}
+                      onChange={(event) => updateField(key, event.target.value)}
+                    />
+                  ) : (
+                    <Input
+                      id={`plugin-config-${key}`}
+                      value={String(value ?? "")}
+                      onChange={(event) => updateField(key, event.target.value)}
+                    />
+                  )}
+                  {property.description ? (
+                    <div className="text-xs text-muted-foreground">{property.description}</div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            <Label>{t("plugins:configJsonFallback")}</Label>
+            <Textarea
+              rows={12}
+              value={jsonDraft}
+              onChange={(event) => {
+                setJsonDraft(event.target.value);
+                setJsonError(null);
+              }}
+            />
+            {jsonError ? <div className="text-sm text-destructive">{jsonError}</div> : null}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={resetToDefaults}>
+            {t("plugins:resetUserConfig")}
+          </Button>
+          <Button variant="outline" disabled={isValidating} onClick={() => void onValidate()}>
+            {isValidating ? t("common:saving") : t("plugins:validateUserConfig")}
+          </Button>
+          <Button disabled={isSaving} onClick={handleSave}>
+            {isSaving ? t("common:saving") : t("common:save")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function PluginsPage() {
   const { t } = useTranslation(["plugins", "common"]);
   const [plugins, setPlugins] = useState<UserPluginRead[]>([]);
@@ -66,11 +272,9 @@ export default function PluginsPage() {
   const [isGroupConfigSaving, setIsGroupConfigSaving] = useState(false);
   const [isGroupConfigValidating, setIsGroupConfigValidating] = useState(false);
   const [isGroupErrorClearing, setIsGroupErrorClearing] = useState(false);
-  const [configDraft, setConfigDraft] = useState("{}");
-  const [configDraftError, setConfigDraftError] = useState<string | null>(null);
+  const [isUserConfigDialogOpen, setIsUserConfigDialogOpen] = useState(false);
+  const [isGroupConfigDialogOpen, setIsGroupConfigDialogOpen] = useState(false);
   const [groupConfig, setGroupConfig] = useState<ChatGroupPluginConfigRead | null>(null);
-  const [groupConfigDraft, setGroupConfigDraft] = useState("{}");
-  const [groupConfigDraftError, setGroupConfigDraftError] = useState<string | null>(null);
   const [targetBindings, setTargetBindings] = useState<PluginTargetBindingRead[]>([]);
   const [cocoons, setCocoons] = useState<CocoonRead[]>([]);
   const [chatGroups, setChatGroups] = useState<ChatGroupRead[]>([]);
@@ -99,8 +303,6 @@ export default function PluginsPage() {
   useEffect(() => {
     if (!selectedPluginId || !selectedChatGroupId) {
       setGroupConfig(null);
-      setGroupConfigDraft("{}");
-      setGroupConfigDraftError(null);
       return;
     }
     void loadGroupConfig(selectedPluginId, selectedChatGroupId);
@@ -117,16 +319,6 @@ export default function PluginsPage() {
       setSelectedChatGroupId(chatGroups[0].id);
     }
   }, [chatGroups, selectedChatGroupId]);
-
-  useEffect(() => {
-    if (!selectedPlugin) {
-      setConfigDraft("{}");
-      setConfigDraftError(null);
-      return;
-    }
-    setConfigDraft(formatJson(selectedPlugin.user_config_json));
-    setConfigDraftError(null);
-  }, [selectedPlugin]);
 
   async function loadPlugins() {
     setIsLoading(true);
@@ -175,8 +367,6 @@ export default function PluginsPage() {
     try {
       const item = await getChatGroupPluginConfig(pluginId, chatGroupId);
       setGroupConfig(item);
-      setGroupConfigDraft(formatJson(item.config_json));
-      setGroupConfigDraftError(null);
     } catch (error) {
       setGroupConfig(null);
       showErrorToast(error, t("plugins:loadFailed"));
@@ -205,20 +395,15 @@ export default function PluginsPage() {
     }
   }
 
-  async function handleSaveConfig() {
+  async function handleSaveConfig(configJson: Record<string, unknown>) {
     if (!selectedPlugin) {
       return;
     }
-    const parsed = parseJson(configDraft);
-    if (!parsed.value) {
-      setConfigDraftError(t(`plugins:${parsed.errorKey || "jsonInvalid"}`));
-      return;
-    }
-    setConfigDraftError(null);
     setIsSaving(true);
     try {
-      const updated = await updateWorkspacePluginConfig(selectedPlugin.id, parsed.value);
+      const updated = await updateWorkspacePluginConfig(selectedPlugin.id, configJson);
       patchPlugin(updated);
+      setIsUserConfigDialogOpen(false);
       toast.success(t("plugins:saveUserConfigSuccess"));
     } catch (error) {
       showErrorToast(error, t("plugins:saveUserConfigFailed"));
@@ -261,14 +446,6 @@ export default function PluginsPage() {
     } finally {
       setIsClearingError(false);
     }
-  }
-
-  function resetUserConfig() {
-    if (!selectedPlugin) {
-      return;
-    }
-    setConfigDraft(formatJson(selectedPlugin.user_default_config_json));
-    setConfigDraftError(null);
   }
 
   async function handleAddTargetBinding() {
@@ -328,21 +505,15 @@ export default function PluginsPage() {
     }
   }
 
-  async function handleSaveGroupConfig() {
+  async function handleSaveGroupConfig(configJson: Record<string, unknown>) {
     if (!selectedPlugin || !selectedChatGroupId) {
       return;
     }
-    const parsed = parseJson(groupConfigDraft);
-    if (!parsed.value) {
-      setGroupConfigDraftError(t(`plugins:${parsed.errorKey || "jsonInvalid"}`));
-      return;
-    }
-    setGroupConfigDraftError(null);
     setIsGroupConfigSaving(true);
     try {
-      const updated = await updateChatGroupPluginConfig(selectedPlugin.id, selectedChatGroupId, parsed.value);
+      const updated = await updateChatGroupPluginConfig(selectedPlugin.id, selectedChatGroupId, configJson);
       setGroupConfig(updated);
-      setGroupConfigDraft(formatJson(updated.config_json));
+      setIsGroupConfigDialogOpen(false);
       toast.success(t("plugins:groupConfigSaveSuccess"));
     } catch (error) {
       showErrorToast(error, t("plugins:groupConfigSaveFailed"));
@@ -359,7 +530,6 @@ export default function PluginsPage() {
     try {
       const updated = await validateChatGroupPluginConfig(selectedPlugin.id, selectedChatGroupId);
       setGroupConfig(updated);
-      setGroupConfigDraft(formatJson(updated.config_json));
       if (updated.error_text) {
         toast.error(updated.error_text);
       } else {
@@ -462,17 +632,37 @@ export default function PluginsPage() {
               </div>
             ) : (
               <>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2 rounded-lg border border-border/70 px-3 py-2 text-sm">
-                    <Switch
-                      checked={selectedPlugin.is_enabled}
-                      disabled={isSaving}
-                      onCheckedChange={(checked) => void handleToggleEnabled(checked)}
-                    />
-                    <span>{t("plugins:enabledForMe")}</span>
+                <div className="space-y-3">
+                  <div
+                    className={`rounded-xl border p-4 transition ${
+                      selectedPlugin.is_enabled
+                        ? "border-primary/60 bg-primary/5"
+                        : "border-destructive/50 bg-destructive/5"
+                    } ${isSaving ? "opacity-70" : ""}`}
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-semibold">{t("plugins:enabledForMe")}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {selectedPlugin.is_enabled ? t("plugins:enabled") : t("plugins:disabled")}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={selectedPlugin.is_enabled ? "secondary" : "destructive"}>
+                          {selectedPlugin.is_enabled ? t("plugins:enabled") : t("plugins:disabled")}
+                        </Badge>
+                        <Switch
+                          checked={selectedPlugin.is_enabled}
+                          disabled={isSaving}
+                          onCheckedChange={(checked) => void handleToggleEnabled(checked)}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <Badge variant="outline">{selectedPlugin.plugin_type}</Badge>
-                  <Badge variant="outline">{selectedPlugin.status}</Badge>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Badge variant="outline">{selectedPlugin.plugin_type}</Badge>
+                    <Badge variant="outline">{selectedPlugin.status}</Badge>
+                  </div>
                 </div>
 
                 {selectedPlugin.user_error_text ? (
@@ -640,13 +830,24 @@ export default function PluginsPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex items-center gap-2 rounded-lg border border-border/70 px-3 py-2 text-sm">
+                    <div
+                      className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm transition ${
+                        groupConfig?.is_enabled ?? true
+                          ? "border-primary/50 bg-primary/5"
+                          : "border-destructive/40 bg-destructive/5"
+                      }`}
+                    >
+                      <div>
+                        <div className="font-medium">{t("plugins:enabledForGroup")}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {groupConfig?.is_enabled ?? true ? t("plugins:enabled") : t("plugins:disabled")}
+                        </div>
+                      </div>
                       <Switch
                         checked={groupConfig?.is_enabled ?? true}
                         disabled={!selectedChatGroupId || isGroupConfigSaving || isGroupConfigLoading}
                         onCheckedChange={(checked) => void handleToggleGroupEnabled(checked)}
                       />
-                      <span>{t("plugins:enabledForGroup")}</span>
                     </div>
                   </div>
 
@@ -684,25 +885,10 @@ export default function PluginsPage() {
                         </div>
                       ) : null}
 
-                      <div className="space-y-2">
-                        <Label>{t("plugins:groupConfigLabel")}</Label>
-                        <Textarea
-                          rows={8}
-                          value={groupConfigDraft}
-                          onChange={(event) => {
-                            setGroupConfigDraft(event.target.value);
-                            if (groupConfigDraftError) {
-                              setGroupConfigDraftError(null);
-                            }
-                          }}
-                        />
-                        {groupConfigDraftError ? (
-                          <div className="text-sm text-destructive">{groupConfigDraftError}</div>
-                        ) : null}
-                      </div>
                       <div className="flex flex-wrap gap-2">
-                        <Button disabled={isGroupConfigSaving} onClick={() => void handleSaveGroupConfig()}>
-                          {isGroupConfigSaving ? t("common:saving") : t("plugins:saveGroupConfig")}
+                        <Button disabled={isGroupConfigSaving} onClick={() => setIsGroupConfigDialogOpen(true)}>
+                          <Settings2 className="mr-2 size-4" />
+                          {t("plugins:configureGroupSettings")}
                         </Button>
                         <Button
                           variant="outline"
@@ -711,59 +897,58 @@ export default function PluginsPage() {
                         >
                           {isGroupConfigValidating ? t("common:saving") : t("plugins:validateUserConfig")}
                         </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setGroupConfigDraft(formatJson(groupConfig?.default_config_json ?? {}));
-                            setGroupConfigDraftError(null);
-                          }}
-                        >
-                          {t("plugins:resetUserConfig")}
-                        </Button>
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label>{t("plugins:userConfigLabel")}</Label>
-                  <Textarea
-                    rows={12}
-                    value={configDraft}
-                    onChange={(event) => {
-                      setConfigDraft(event.target.value);
-                      if (configDraftError) {
-                        setConfigDraftError(null);
-                      }
-                    }}
-                  />
-                  {configDraftError ? (
-                    <div className="text-sm text-destructive">{configDraftError}</div>
-                  ) : null}
+                <div className="rounded-xl border border-border/70 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="font-medium">{t("plugins:userConfigLabel")}</div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        {t("plugins:userConfigDialogDescription")}
+                      </div>
+                    </div>
+                    <Button disabled={isSaving} onClick={() => setIsUserConfigDialogOpen(true)}>
+                      <Settings2 className="mr-2 size-4" />
+                      {t("plugins:configureUserSettings")}
+                  </Button>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <Button disabled={isSaving} onClick={() => void handleSaveConfig()}>
-                    {isSaving ? t("common:saving") : t("plugins:saveUserConfig")}
-                  </Button>
                   <Button variant="outline" disabled={isValidating} onClick={() => void handleValidateConfig()}>
                     {isValidating ? t("common:saving") : t("plugins:validateUserConfig")}
                   </Button>
-                  <Button variant="outline" onClick={resetUserConfig}>
-                    {t("plugins:resetUserConfig")}
-                  </Button>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>{t("plugins:userConfigSchema")}</Label>
-                    <Textarea rows={8} value={formatJson(selectedPlugin.user_config_schema_json)} readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t("plugins:adminConfigReadOnly")}</Label>
-                    <Textarea rows={8} value={formatJson(selectedPlugin.default_config_json)} readOnly />
-                  </div>
-                </div>
+                <ConfigSchemaDialog
+                  open={isUserConfigDialogOpen}
+                  title={t("plugins:configureUserSettings")}
+                  description={t("plugins:userConfigDialogDescription")}
+                  schema={selectedPlugin.user_config_schema_json}
+                  value={selectedPlugin.user_config_json}
+                  defaultValue={selectedPlugin.user_default_config_json}
+                  isSaving={isSaving}
+                  isValidating={isValidating}
+                  onOpenChange={setIsUserConfigDialogOpen}
+                  onSave={handleSaveConfig}
+                  onValidate={handleValidateConfig}
+                />
+                <ConfigSchemaDialog
+                  open={isGroupConfigDialogOpen}
+                  title={t("plugins:configureGroupSettings")}
+                  description={t("plugins:groupConfigDescription")}
+                  schema={groupConfig?.config_schema_json ?? selectedPlugin.user_config_schema_json}
+                  value={groupConfig?.config_json ?? selectedPlugin.user_default_config_json}
+                  defaultValue={groupConfig?.default_config_json ?? selectedPlugin.user_default_config_json}
+                  isSaving={isGroupConfigSaving}
+                  isValidating={isGroupConfigValidating}
+                  onOpenChange={setIsGroupConfigDialogOpen}
+                  onSave={handleSaveGroupConfig}
+                  onValidate={handleValidateGroupConfig}
+                />
               </>
             )}
           </CardContent>

@@ -172,6 +172,19 @@ def test_build_runtime_prompt_variables_builds_full_payload():
     assert payload["provider_capabilities"] == {"streaming": True}
 
 
+def test_build_runtime_prompt_variables_drops_duplicate_prompt_summary():
+    context = _build_context(target_type="cocoon")
+    context.character.settings_json = {
+        "personality_prompt": "same role prompt",
+        "prompt_summary": "same role prompt",
+    }
+    context.character.prompt_summary = "same role prompt"
+
+    payload = build_runtime_prompt_variables(context)
+
+    assert payload["character_settings"] == {"personality_prompt": "same role prompt"}
+
+
 def test_build_runtime_prompt_variables_handles_non_dict_catalog_and_merge_payload():
     context = _build_context()
     context.external_context["tag_catalog_by_ref"] = []

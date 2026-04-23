@@ -28,7 +28,7 @@ services:
       [
         "sh",
         "-lc",
-        "uv sync --frozen || uv sync; until uv run alembic upgrade head; do echo 'Waiting for database migrations...'; sleep 2; done; exec uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
+        "uv sync --frozen || uv sync; until uv run alembic upgrade head; do echo 'Waiting for database migrations...'; sleep 2; done; exec uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/app --reload-dir /app/alembic --reload-include '*.py'",
       ]
     volumes:
       - ../backend:/app

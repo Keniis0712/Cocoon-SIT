@@ -289,6 +289,20 @@ def test_plugin_service_updates_event_schedule_and_manual_run(tmp_path):
     ]
 
 
+def test_plugin_service_run_short_lived_event_reports_unsubmitted_run(tmp_path):
+    session_factory = _session_factory()
+    service, _runtime_calls, _dependency_calls = _service(tmp_path)
+    service.runtime_manager.trigger_short_lived_event = lambda plugin_id, event_name: False
+
+    with session_factory() as session:
+        plugin = _seed_plugin(session, enabled=True, with_event_config=False)
+
+        with pytest.raises(Exception) as exc_info:
+            service.run_short_lived_event_now(session, plugin.id, "tick")
+
+    assert getattr(exc_info.value, "status_code", None) == 409
+
+
 def test_plugin_service_delete_and_validate_payload_cleanup(tmp_path, monkeypatch):
     session_factory = _session_factory()
     service, _runtime_calls, dependency_calls = _service(tmp_path)

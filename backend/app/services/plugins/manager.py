@@ -3,6 +3,7 @@ from __future__ import annotations
 from concurrent.futures import Future, ProcessPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+import logging
 import multiprocessing as mp
 from pathlib import Path
 from queue import Empty
@@ -32,6 +33,8 @@ from app.models import (
 from app.services.plugins.errors import PluginUserVisibleError
 from app.services.plugins.external_wakeup_service import ExternalWakeupService
 from app.services.plugins.runtime import run_external_daemon, run_im_plugin, run_short_lived_event
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_cron_field(value: str, *, minimum: int, maximum: int, sunday_alias: bool = False) -> set[int]:
@@ -174,9 +177,9 @@ class PluginRuntimeManager:
     def run_short_lived_event_now(self, plugin_id: str, event_name: str) -> None:
         self.trigger_short_lived_event(plugin_id, event_name)
 
-    def trigger_short_lived_event(self, plugin_id: str, event_name: str) -> None:
+    def trigger_short_lived_event(self, plugin_id: str, event_name: str) -> bool:
         with self._lock:
-            self._submit_short_lived_event(plugin_id, event_name)
+            return self._submit_short_lived_event(plugin_id, event_name)
 
     def update_short_lived_schedule(
         self,
@@ -203,7 +206,7 @@ class PluginRuntimeManager:
             try:
                 self.run_once()
             except Exception:
-                pass
+                logger.exception("Plugin runtime loop failed")
             time.sleep(interval)
 
     def _ensure_pool(self) -> ProcessPoolExecutor:
@@ -270,9 +273,23 @@ class PluginRuntimeManager:
         with self.session_factory() as session:
             plugin = session.get(PluginDefinition, plugin_id)
             if not plugin or plugin.status != "enabled" or not plugin.active_version_id:
+                logger.info(
+                    "Plugin short-lived event skipped before submit plugin_id=%s event_name=%s reason=%s status=%s active_version_id=%s",
+                    plugin_id,
+                    event_name,
+                    "plugin_missing" if not plugin else "plugin_not_enabled_or_no_active_version",
+                    getattr(plugin, "status", None),
+                    getattr(plugin, "active_version_id", None),
+                )
                 return False
             active_version = session.get(PluginVersion, plugin.active_version_id)
             if not active_version:
+                logger.info(
+                    "Plugin short-lived event skipped before submit plugin_id=%s event_name=%s reason=active_version_missing active_version_id=%s",
+                    plugin_id,
+                    event_name,
+                    plugin.active_version_id,
+                )
                 return False
             event = session.scalar(
                 select(PluginEventDefinition).where(
@@ -282,6 +299,13 @@ class PluginRuntimeManager:
                 )
             )
             if not event or event.mode != "short_lived":
+                logger.info(
+                    "Plugin short-lived event skipped before submit plugin_id=%s event_name=%s reason=%s event_mode=%s",
+                    plugin_id,
+                    event_name,
+                    "event_missing" if not event else "event_not_short_lived",
+                    getattr(event, "mode", None),
+                )
                 return False
             cfg = session.scalar(
                 select(PluginEventConfig).where(
@@ -290,14 +314,44 @@ class PluginRuntimeManager:
                 )
             )
             if cfg and not cfg.is_enabled:
+                logger.info(
+                    "Plugin short-lived event skipped before submit plugin_id=%s event_name=%s reason=event_disabled",
+                    plugin_id,
+                    event_name,
+                )
                 return False
             config_json = dict(event.default_config_json or {})
             if cfg:
                 config_json.update(cfg.config_json or {})
+            binding_count = session.query(PluginTargetBinding).filter(PluginTargetBinding.plugin_id == plugin_id).count()
             scopes = self._list_short_lived_scopes(session, plugin)
+            if not scopes:
+                logger.warning(
+                    "Plugin short-lived event has no eligible scopes plugin_id=%s plugin_name=%s event_name=%s target_binding_count=%s",
+                    plugin_id,
+                    plugin.name,
+                    event_name,
+                    binding_count,
+                )
+                return False
+            logger.info(
+                "Plugin short-lived event submitting plugin_id=%s plugin_name=%s event_name=%s scope_count=%s target_binding_count=%s",
+                plugin_id,
+                plugin.name,
+                event_name,
+                len(scopes),
+                binding_count,
+            )
             for scope in scopes:
                 key = (plugin_id, event_name, scope.scope_type, scope.scope_id)
                 if key in self._short_lived_futures:
+                    logger.info(
+                        "Plugin short-lived event already running plugin_id=%s event_name=%s scope_type=%s scope_id=%s",
+                        plugin_id,
+                        event_name,
+                        scope.scope_type,
+                        scope.scope_id,
+                    )
                     continue
                 future = self._ensure_pool().submit(
                     run_short_lived_event,
@@ -317,6 +371,21 @@ class PluginRuntimeManager:
                 )
                 self._short_lived_futures[key] = future
                 submitted = True
+                logger.info(
+                    "Plugin short-lived event submitted plugin_id=%s event_name=%s scope_type=%s scope_id=%s user_id=%s",
+                    plugin_id,
+                    event_name,
+                    scope.scope_type,
+                    scope.scope_id,
+                    scope.user_id,
+                )
+            if not submitted:
+                logger.info(
+                    "Plugin short-lived event submit finished with no new futures plugin_id=%s event_name=%s scope_count=%s",
+                    plugin_id,
+                    event_name,
+                    len(scopes),
+                )
             return submitted
 
     def _handle_finished_short_lived(self) -> None:
@@ -328,6 +397,13 @@ class PluginRuntimeManager:
             try:
                 result = future.result()
             except Exception as exc:
+                logger.exception(
+                    "Plugin short-lived event failed plugin_id=%s event_name=%s scope_type=%s scope_id=%s",
+                    plugin_id,
+                    event_name,
+                    scope_type,
+                    scope_id,
+                )
                 with self.session_factory() as session:
                     plugin = session.get(PluginDefinition, plugin_id)
                     if isinstance(exc, PluginUserVisibleError) and plugin and exc.user_id:
@@ -352,6 +428,13 @@ class PluginRuntimeManager:
                     session.commit()
                 continue
             if result is None:
+                logger.info(
+                    "Plugin short-lived event finished without envelope plugin_id=%s event_name=%s scope_type=%s scope_id=%s",
+                    plugin_id,
+                    event_name,
+                    scope_type,
+                    scope_id,
+                )
                 continue
             with self.session_factory() as session:
                 plugin = session.get(PluginDefinition, plugin_id)
@@ -359,7 +442,7 @@ class PluginRuntimeManager:
                 if not plugin or not version:
                     session.rollback()
                     continue
-                self.external_wakeup_service.ingest(
+                task_ids = self.external_wakeup_service.ingest(
                     session,
                     plugin=plugin,
                     version=version,
@@ -367,6 +450,14 @@ class PluginRuntimeManager:
                     envelope=result,
                     scope_type=scope_type,
                     scope_id=scope_id,
+                )
+                logger.info(
+                    "Plugin short-lived event dispatched plugin_id=%s event_name=%s scope_type=%s scope_id=%s wakeup_task_count=%s",
+                    plugin_id,
+                    event_name,
+                    scope_type,
+                    scope_id,
+                    len(task_ids),
                 )
                 run_state = self._ensure_run_state(session, plugin_id)
                 run_state.status = "running"

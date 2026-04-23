@@ -152,6 +152,8 @@ def test_generator_node_build_structured_prompt_includes_runtime_context():
 
     assert "PROMPT_TEXT_START" in prompt
     assert "rendered prompt" in prompt
+    assert "META_DECISION_GUIDANCE_START" in prompt
+    assert "brief" in prompt
     assert '"target_type": "cocoon"' in prompt
     assert '"pending_wakeups": [{"reason": "later", "status": "queued", "has_payload": false, "run_at": null}]' in prompt
     assert "target_id" not in prompt
