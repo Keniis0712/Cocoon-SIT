@@ -28,6 +28,73 @@ from app.services.plugins.external_wakeup_service import ExternalWakeupService
 from app.services.plugins.runtime import run_external_daemon, run_im_plugin, run_short_lived_event
 
 
+def _parse_cron_field(value: str, *, minimum: int, maximum: int, sunday_alias: bool = False) -> set[int]:
+    values: set[int] = set()
+    for raw_part in value.split(","):
+        part = raw_part.strip()
+        if not part:
+            raise ValueError("empty cron field")
+        step = 1
+        if "/" in part:
+            part, raw_step = part.split("/", 1)
+            step = int(raw_step)
+            if step < 1:
+                raise ValueError("cron step must be positive")
+        if part == "*":
+            start, end = minimum, maximum
+        elif "-" in part:
+            raw_start, raw_end = part.split("-", 1)
+            start, end = int(raw_start), int(raw_end)
+        else:
+            start = end = int(part)
+        if sunday_alias:
+            if start == 7:
+                start = 0
+            if end == 7:
+                end = 0
+        if start < minimum or start > maximum or end < minimum or end > maximum:
+            raise ValueError("cron field out of range")
+        if start > end:
+            raise ValueError("cron ranges must be ascending")
+        values.update(range(start, end + 1, step))
+    return values
+
+
+def validate_cron_expression(expression: str) -> str:
+    fields = expression.strip().split()
+    if len(fields) != 5:
+        raise ValueError("cron expression must have 5 fields")
+    _parse_cron_field(fields[0], minimum=0, maximum=59)
+    _parse_cron_field(fields[1], minimum=0, maximum=23)
+    _parse_cron_field(fields[2], minimum=1, maximum=31)
+    _parse_cron_field(fields[3], minimum=1, maximum=12)
+    _parse_cron_field(fields[4], minimum=0, maximum=7, sunday_alias=True)
+    return " ".join(fields)
+
+
+def next_cron_run(expression: str, after: datetime) -> datetime:
+    fields = validate_cron_expression(expression).split()
+    minutes = _parse_cron_field(fields[0], minimum=0, maximum=59)
+    hours = _parse_cron_field(fields[1], minimum=0, maximum=23)
+    days = _parse_cron_field(fields[2], minimum=1, maximum=31)
+    months = _parse_cron_field(fields[3], minimum=1, maximum=12)
+    weekdays = _parse_cron_field(fields[4], minimum=0, maximum=7, sunday_alias=True)
+    candidate = after.replace(second=0, microsecond=0) + timedelta(minutes=1)
+    deadline = candidate + timedelta(days=366)
+    while candidate <= deadline:
+        cron_weekday = (candidate.weekday() + 1) % 7
+        if (
+            candidate.minute in minutes
+            and candidate.hour in hours
+            and candidate.day in days
+            and candidate.month in months
+            and cron_weekday in weekdays
+        ):
+            return candidate
+        candidate += timedelta(minutes=1)
+    raise ValueError("cron expression has no run time in the next year")
+
+
 @dataclass
 class DaemonHandle:
     plugin_id: str
@@ -91,9 +158,30 @@ class PluginRuntimeManager:
             self._sync_plugins()
 
     def run_short_lived_event_now(self, plugin_id: str, event_name: str) -> None:
+        self.trigger_short_lived_event(plugin_id, event_name)
+
+    def trigger_short_lived_event(self, plugin_id: str, event_name: str) -> None:
         with self._lock:
-            self._short_lived_next_run[(plugin_id, event_name)] = datetime.now(UTC).replace(tzinfo=None)
-        self.run_once()
+            self._submit_short_lived_event(plugin_id, event_name)
+
+    def update_short_lived_schedule(
+        self,
+        plugin_id: str,
+        event_name: str,
+        *,
+        schedule_mode: str,
+        interval_seconds: int | None,
+        cron_expression: str | None,
+    ) -> None:
+        key = (plugin_id, event_name)
+        now = datetime.now(UTC).replace(tzinfo=None)
+        with self._lock:
+            if schedule_mode == "interval" and interval_seconds:
+                self._short_lived_next_run[key] = now + timedelta(seconds=max(int(interval_seconds), 1))
+            elif schedule_mode == "cron" and cron_expression:
+                self._short_lived_next_run[key] = next_cron_run(cron_expression, now)
+            else:
+                self._short_lived_next_run.pop(key, None)
 
     def _run_loop(self) -> None:
         interval = max(float(self.settings.plugin_watchdog_interval_seconds), 0.2)
@@ -162,6 +250,52 @@ class PluginRuntimeManager:
                 if user_id:
                     self._clear_user_error(session, plugin_id=plugin_id, user_id=user_id)
             session.commit()
+
+    def _submit_short_lived_event(self, plugin_id: str, event_name: str) -> bool:
+        key = (plugin_id, event_name)
+        if key in self._short_lived_futures:
+            return False
+        with self.session_factory() as session:
+            plugin = session.get(PluginDefinition, plugin_id)
+            if not plugin or plugin.status != "enabled" or not plugin.active_version_id:
+                return False
+            active_version = session.get(PluginVersion, plugin.active_version_id)
+            if not active_version:
+                return False
+            event = session.scalar(
+                select(PluginEventDefinition).where(
+                    PluginEventDefinition.plugin_id == plugin_id,
+                    PluginEventDefinition.plugin_version_id == active_version.id,
+                    PluginEventDefinition.name == event_name,
+                )
+            )
+            if not event or event.mode != "short_lived":
+                return False
+            cfg = session.scalar(
+                select(PluginEventConfig).where(
+                    PluginEventConfig.plugin_id == plugin_id,
+                    PluginEventConfig.event_name == event_name,
+                )
+            )
+            if cfg and not cfg.is_enabled:
+                return False
+            config_json = dict(event.default_config_json or {})
+            if cfg:
+                config_json.update(cfg.config_json or {})
+            future = self._ensure_pool().submit(
+                run_short_lived_event,
+                active_version.manifest_path,
+                plugin.entry_module,
+                event.function_name,
+                plugin.name,
+                active_version.version,
+                dict(plugin.config_json or {}),
+                event.name,
+                config_json,
+                plugin.data_dir,
+            )
+            self._short_lived_futures[key] = future
+            return True
 
     def _handle_finished_short_lived(self) -> None:
         for key, future in list(self._short_lived_futures.items()):
@@ -259,14 +393,21 @@ class PluginRuntimeManager:
                         )
                     elif event.mode == "short_lived":
                         key = (plugin.id, event.name)
-                        interval_seconds = int(
-                            (cfg.config_json if cfg else {}).get("interval_seconds")
-                            or self.settings.plugin_short_lived_default_interval_seconds
-                        )
+                        schedule_mode = (cfg.schedule_mode if cfg else "manual") or "manual"
+                        interval_seconds = cfg.schedule_interval_seconds if cfg else None
+                        cron_expression = cfg.schedule_cron if cfg else None
+                        if schedule_mode == "manual":
+                            self._short_lived_next_run.pop(key, None)
+                            continue
                         next_run = self._short_lived_next_run.get(key)
                         if next_run is None:
-                            self._short_lived_next_run[key] = now
-                            next_run = now
+                            next_run = self._next_run_for_schedule(
+                                schedule_mode,
+                                interval_seconds=interval_seconds,
+                                cron_expression=cron_expression,
+                                after=now,
+                            )
+                            self._short_lived_next_run[key] = next_run
                         if key not in self._short_lived_futures and next_run <= now:
                             future = self._ensure_pool().submit(
                                 run_short_lived_event,
@@ -281,11 +422,30 @@ class PluginRuntimeManager:
                                 plugin.data_dir,
                             )
                             self._short_lived_futures[key] = future
-                            self._short_lived_next_run[key] = now + timedelta(seconds=max(interval_seconds, 1))
+                            self._short_lived_next_run[key] = self._next_run_for_schedule(
+                                schedule_mode,
+                                interval_seconds=interval_seconds,
+                                cron_expression=cron_expression,
+                                after=now,
+                            )
                 if daemon_events:
                     self._ensure_external_daemon(plugin, active_version, daemon_events)
             elif plugin.plugin_type == "im":
                 self._ensure_im_process(plugin, active_version)
+
+    def _next_run_for_schedule(
+        self,
+        schedule_mode: str,
+        *,
+        interval_seconds: int | None,
+        cron_expression: str | None,
+        after: datetime,
+    ) -> datetime:
+        if schedule_mode == "interval":
+            return after + timedelta(seconds=max(int(interval_seconds or 1), 1))
+        if schedule_mode == "cron" and cron_expression:
+            return next_cron_run(cron_expression, after)
+        return after + timedelta(days=3650)
 
     def _ensure_external_daemon(
         self,

@@ -5,7 +5,12 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.models import User
-from app.schemas.workspace.plugins import UserPluginConfigUpdate, UserPluginOut
+from app.schemas.workspace.plugins import (
+    UserPluginConfigUpdate,
+    UserPluginOut,
+    UserPluginTargetBindingCreate,
+    UserPluginTargetBindingOut,
+)
 
 
 router = APIRouter()
@@ -96,3 +101,38 @@ def clear_user_plugin_error(
         plugin_id,
     )
 
+
+@router.get("/{plugin_id}/targets", response_model=list[UserPluginTargetBindingOut])
+def list_plugin_target_bindings_for_user(
+    plugin_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[UserPluginTargetBindingOut]:
+    return db.info["container"].plugin_service.list_target_bindings_for_user(db, user, plugin_id)
+
+
+@router.post("/{plugin_id}/targets", response_model=UserPluginTargetBindingOut)
+def add_plugin_target_binding_for_user(
+    plugin_id: str,
+    payload: UserPluginTargetBindingCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> UserPluginTargetBindingOut:
+    return db.info["container"].plugin_service.add_target_binding_for_user(
+        db,
+        user,
+        plugin_id,
+        target_type=payload.target_type,
+        target_id=payload.target_id,
+    )
+
+
+@router.delete("/{plugin_id}/targets/{binding_id}")
+def delete_plugin_target_binding_for_user(
+    plugin_id: str,
+    binding_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, bool]:
+    db.info["container"].plugin_service.delete_target_binding_for_user(db, user, plugin_id, binding_id)
+    return {"deleted": True}

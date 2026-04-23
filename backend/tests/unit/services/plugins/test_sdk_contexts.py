@@ -22,7 +22,7 @@ def test_external_event_context_emits_events_and_heartbeats():
         outbound_queue=queue,
     )
 
-    context.emit_event({"target_type": "cocoon"})
+    context.emit_event({"summary": "wake"})
     context.heartbeat()
     context.report_user_error("user-1", "bad key")
     context.clear_user_error("user-1")
@@ -30,7 +30,7 @@ def test_external_event_context_emits_events_and_heartbeats():
     assert queue.items[0] == {
         "type": "external_event",
         "plugin_event": "tick",
-        "envelope": {"target_type": "cocoon"},
+        "envelope": {"summary": "wake"},
     }
     assert queue.items[1]["type"] == "heartbeat"
     assert queue.items[1]["plugin_event"] == "tick"

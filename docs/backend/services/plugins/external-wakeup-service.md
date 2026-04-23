@@ -11,20 +11,18 @@ Source: `backend/app/services/plugins/external_wakeup_service.py`
 
 Required outer fields:
 
-- `target_type`: `cocoon` or `chat_group`
-- `target_id`
 - `summary`
 
 Optional outer fields:
 
-- `dedupe_key`
 - `payload`
 
 ## Current Responsibilities
 
 - reject disabled plugins or disabled events
-- validate target existence
-- dedupe by `(plugin_id, event_name, dedupe_key)`
+- fan out the plugin event to configured `plugin_target_bindings`
+- skip bindings whose target no longer exists
+- skip users who cannot currently receive this plugin because of visibility, personal disablement, or unresolved plugin errors
 - create immediate wakeups through `SchedulerNode`
 - record `PluginDispatchRecord`
 
@@ -38,8 +36,9 @@ The created wakeup payload stores:
 - `plugin_event`
 - `external_payload`
 - `summary`
-- `dedupe_key`
+- `target_binding_id`
 
 ## Notes
 
 - v1 only creates wakeups. Plugins do not directly write messages into the workspace timeline.
+- Plugins do not choose wakeup targets. Each user binds their own manageable cocoons or chat groups to visible plugins.

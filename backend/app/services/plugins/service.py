@@ -15,12 +15,16 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.models import (
+    ChatGroupRoom,
+    ChatGroupMember,
+    Cocoon,
     PluginDefinition,
     PluginDispatchRecord,
     PluginEventConfig,
     PluginEventDefinition,
     PluginGroupVisibility,
     PluginRunState,
+    PluginTargetBinding,
     PluginUserConfig,
     PluginVersion,
     User,
@@ -36,9 +40,10 @@ from app.schemas.admin.plugins import (
     PluginSharedPackageOut,
     PluginVersionOut,
 )
+from app.schemas.workspace.plugins import UserPluginTargetBindingOut
 from app.services.plugins.dependency_builder import DependencyBuilder
 from app.services.plugins.manifest import PluginPackageManifest
-from app.services.plugins.manager import PluginRuntimeManager
+from app.services.plugins.manager import PluginRuntimeManager, validate_cron_expression
 from app.services.plugins.schema_validation import PluginSchemaValidationError, validate_json_schema_value
 from app.services.plugins.runtime import validate_plugin_functions, validate_plugin_settings
 
@@ -103,6 +108,11 @@ class PluginService:
                     default_config_json=item.default_config_json or {},
                     config_json=(event_configs.get(item.name).config_json if event_configs.get(item.name) else item.default_config_json) or {},
                     is_enabled=event_configs.get(item.name).is_enabled if event_configs.get(item.name) else True,
+                    schedule_mode=(event_configs.get(item.name).schedule_mode if event_configs.get(item.name) else "manual") or "manual",
+                    schedule_interval_seconds=(
+                        event_configs.get(item.name).schedule_interval_seconds if event_configs.get(item.name) else None
+                    ),
+                    schedule_cron=event_configs.get(item.name).schedule_cron if event_configs.get(item.name) else None,
                 )
                 for item in event_defs
             ],
@@ -192,6 +202,7 @@ class PluginService:
         data_dir = Path(plugin.data_dir)
         session.query(PluginDispatchRecord).filter(PluginDispatchRecord.plugin_id == plugin_id).delete(synchronize_session=False)
         session.query(PluginGroupVisibility).filter(PluginGroupVisibility.plugin_id == plugin_id).delete(synchronize_session=False)
+        session.query(PluginTargetBinding).filter(PluginTargetBinding.plugin_id == plugin_id).delete(synchronize_session=False)
         session.query(PluginUserConfig).filter(PluginUserConfig.plugin_id == plugin_id).delete(synchronize_session=False)
         session.query(PluginEventConfig).filter(PluginEventConfig.plugin_id == plugin_id).delete(synchronize_session=False)
         session.query(PluginEventDefinition).filter(PluginEventDefinition.plugin_id == plugin_id).delete(synchronize_session=False)
@@ -246,6 +257,71 @@ class PluginService:
         session.commit()
         self.runtime_manager.reload_plugin(plugin_id)
         self.runtime_manager.run_once()
+        return self.get_plugin_detail(session, plugin_id)
+
+    def update_event_schedule(
+        self,
+        session: Session,
+        plugin_id: str,
+        event_name: str,
+        *,
+        schedule_mode: str,
+        schedule_interval_seconds: int | None,
+        schedule_cron: str | None,
+    ) -> PluginDetailOut:
+        plugin = session.get(PluginDefinition, plugin_id)
+        if not plugin:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
+        event = self._get_active_event_definition(session, plugin, event_name)
+        if event.mode != "short_lived":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only short-lived events can be scheduled")
+        if schedule_mode not in {"manual", "interval", "cron"}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid schedule_mode")
+        if schedule_mode == "interval" and not schedule_interval_seconds:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="schedule_interval_seconds is required")
+        normalized_cron = None
+        if schedule_mode == "cron":
+            try:
+                normalized_cron = validate_cron_expression(schedule_cron or "")
+            except ValueError as exc:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        current = session.scalar(
+            select(PluginEventConfig).where(
+                PluginEventConfig.plugin_id == plugin_id,
+                PluginEventConfig.event_name == event_name,
+            )
+        )
+        if not current:
+            current = PluginEventConfig(
+                plugin_id=plugin_id,
+                event_name=event_name,
+                config_json=dict(event.default_config_json or {}),
+                is_enabled=True,
+            )
+            session.add(current)
+            session.flush()
+        current.schedule_mode = schedule_mode
+        current.schedule_interval_seconds = int(schedule_interval_seconds) if schedule_mode == "interval" else None
+        current.schedule_cron = normalized_cron if schedule_mode == "cron" else None
+        session.flush()
+        session.commit()
+        self.runtime_manager.update_short_lived_schedule(
+            plugin_id,
+            event_name,
+            schedule_mode=current.schedule_mode,
+            interval_seconds=current.schedule_interval_seconds,
+            cron_expression=current.schedule_cron,
+        )
+        return self.get_plugin_detail(session, plugin_id)
+
+    def run_short_lived_event_now(self, session: Session, plugin_id: str, event_name: str) -> PluginDetailOut:
+        plugin = session.get(PluginDefinition, plugin_id)
+        if not plugin:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
+        event = self._get_active_event_definition(session, plugin, event_name)
+        if event.mode != "short_lived":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only short-lived events can be manually run")
+        self.runtime_manager.trigger_short_lived_event(plugin_id, event_name)
         return self.get_plugin_detail(session, plugin_id)
 
     def set_event_enabled(self, session: Session, plugin_id: str, event_name: str, enabled: bool) -> PluginDetailOut:
@@ -432,6 +508,77 @@ class PluginService:
         )
         return [PluginGroupVisibilityOut.model_validate(item) for item in rows]
 
+    def list_target_bindings_for_user(
+        self,
+        session: Session,
+        user: User,
+        plugin_id: str,
+    ) -> list[UserPluginTargetBindingOut]:
+        self._require_user_visible_plugin(session, user, plugin_id)
+        rows = list(
+            session.scalars(
+                select(PluginTargetBinding)
+                .where(PluginTargetBinding.plugin_id == plugin_id)
+                .order_by(PluginTargetBinding.created_at.asc())
+            ).all()
+        )
+        return [
+            self._serialize_target_binding(session, item)
+            for item in rows
+            if self._can_user_manage_binding_target(session, user, item)
+        ]
+
+    def add_target_binding_for_user(
+        self,
+        session: Session,
+        user: User,
+        plugin_id: str,
+        *,
+        target_type: str,
+        target_id: str,
+    ) -> UserPluginTargetBindingOut:
+        self._require_user_visible_plugin(session, user, plugin_id)
+        target_type = target_type.strip()
+        target_id = target_id.strip()
+        if target_type not in {"cocoon", "chat_group"}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="target_type must be 'cocoon' or 'chat_group'")
+        self._require_user_can_bind_target(session, user, target_type, target_id)
+        current = session.scalar(
+            select(PluginTargetBinding).where(
+                PluginTargetBinding.plugin_id == plugin_id,
+                PluginTargetBinding.target_type == target_type,
+                PluginTargetBinding.target_id == target_id,
+            )
+        )
+        if current:
+            return self._serialize_target_binding(session, current)
+        current = PluginTargetBinding(
+            plugin_id=plugin_id,
+            target_type=target_type,
+            target_id=target_id,
+        )
+        session.add(current)
+        session.flush()
+        session.commit()
+        session.refresh(current)
+        return self._serialize_target_binding(session, current)
+
+    def delete_target_binding_for_user(self, session: Session, user: User, plugin_id: str, binding_id: str) -> None:
+        self._require_user_visible_plugin(session, user, plugin_id)
+        current = session.scalar(
+            select(PluginTargetBinding).where(
+                PluginTargetBinding.id == binding_id,
+                PluginTargetBinding.plugin_id == plugin_id,
+            )
+        )
+        if not current:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin target binding not found")
+        if not self._can_user_manage_binding_target(session, user, current):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Plugin target binding access denied")
+        session.delete(current)
+        session.flush()
+        session.commit()
+
     def record_user_plugin_error(self, session: Session, plugin_id: str, user_id: str, error_text: str) -> None:
         plugin = session.get(PluginDefinition, plugin_id)
         if not plugin:
@@ -456,6 +603,63 @@ class PluginService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only bootstrap admin can manage plugin visibility",
             )
+
+    def _require_user_visible_plugin(self, session: Session, user: User, plugin_id: str) -> PluginDefinition:
+        plugin = session.get(PluginDefinition, plugin_id)
+        if not plugin:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
+        group_ids = self._group_ids_for_user(session, user.id)
+        visibility_overrides = self._group_visibility_map(session, plugin_ids=[plugin.id], group_ids=group_ids).get(plugin.id, [])
+        if not self._resolve_plugin_visibility(plugin, visibility_overrides):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
+        return plugin
+
+    def _require_user_can_bind_target(self, session: Session, user: User, target_type: str, target_id: str) -> None:
+        if target_type == "cocoon":
+            target = session.get(Cocoon, target_id)
+            if not target:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cocoon not found")
+            if target.owner_user_id != user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the cocoon owner can bind plugins")
+            return
+        target = session.get(ChatGroupRoom, target_id)
+        if not target:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat group not found")
+        if target.owner_user_id == user.id:
+            return
+        membership = session.scalar(
+            select(ChatGroupMember).where(
+                ChatGroupMember.room_id == target_id,
+                ChatGroupMember.user_id == user.id,
+            )
+        )
+        if not membership or membership.member_role != "admin":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat group management denied")
+
+    def _can_user_manage_binding_target(self, session: Session, user: User, binding: PluginTargetBinding) -> bool:
+        try:
+            self._require_user_can_bind_target(session, user, binding.target_type, binding.target_id)
+        except HTTPException:
+            return False
+        return True
+
+    def _serialize_target_binding(self, session: Session, binding: PluginTargetBinding) -> UserPluginTargetBindingOut:
+        target_name = binding.target_id
+        if binding.target_type == "cocoon":
+            target = session.get(Cocoon, binding.target_id)
+            target_name = target.name if target else binding.target_id
+        elif binding.target_type == "chat_group":
+            target = session.get(ChatGroupRoom, binding.target_id)
+            target_name = target.name if target else binding.target_id
+        return UserPluginTargetBindingOut(
+            id=binding.id,
+            plugin_id=binding.plugin_id,
+            target_type=binding.target_type,
+            target_id=binding.target_id,
+            target_name=target_name,
+            created_at=binding.created_at,
+            updated_at=binding.updated_at,
+        )
 
     def _group_ids_for_user(self, session: Session, user_id: str) -> list[str]:
         return [
@@ -708,6 +912,14 @@ class PluginService:
             db_touched = True
             session.flush()
             for item in manifest.events:
+                schema_properties = (item.config_schema or {}).get("properties")
+                if "interval_seconds" in (item.default_config or {}) or (
+                    isinstance(schema_properties, dict) and "interval_seconds" in schema_properties
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="event config must not define interval_seconds; use plugin event schedule settings",
+                    )
                 self._validate_config_payload(item.config_schema or {}, item.default_config or {}, location=f"event_default_config.{item.name}")
                 session.add(
                     PluginEventDefinition(
@@ -735,6 +947,9 @@ class PluginService:
                             event_name=item.name,
                             is_enabled=True,
                             config_json=dict(item.default_config or {}),
+                            schedule_mode="manual",
+                            schedule_interval_seconds=None,
+                            schedule_cron=None,
                         )
                     )
             plugin.active_version_id = version.id

@@ -12,6 +12,7 @@ from app.models import (
     PluginDispatchRecord,
     PluginEventConfig,
     PluginGroupVisibility,
+    PluginTargetBinding,
     PluginUserConfig,
     PluginVersion,
     UserGroupMember,
@@ -31,9 +32,9 @@ class ExternalWakeupService:
         version: PluginVersion,
         event_name: str,
         envelope: dict,
-    ) -> str | None:
+    ) -> list[str]:
         if plugin.status != "enabled":
-            return None
+            return []
         event_config = session.scalar(
             select(PluginEventConfig).where(
                 PluginEventConfig.plugin_id == plugin.id,
@@ -41,44 +42,12 @@ class ExternalWakeupService:
             )
         )
         if event_config and not event_config.is_enabled:
-            return None
+            return []
 
-        target_type = str(envelope.get("target_type") or "").strip()
-        target_id = str(envelope.get("target_id") or "").strip()
         summary = str(envelope.get("summary") or "").strip()
-        dedupe_key = envelope.get("dedupe_key")
         payload = dict(envelope.get("payload") or {})
-        if target_type not in {"cocoon", "chat_group"}:
-            raise ValueError("External plugin event target_type must be 'cocoon' or 'chat_group'")
-        if not target_id:
-            raise ValueError("External plugin event target_id is required")
         if not summary:
             raise ValueError("External plugin event summary is required")
-        target_user_id: str | None = None
-        if target_type == "cocoon":
-            cocoon = session.get(Cocoon, target_id)
-            if not cocoon:
-                raise ValueError(f"Unknown cocoon target: {target_id}")
-            target_user_id = cocoon.owner_user_id
-        else:
-            room = session.get(ChatGroupRoom, target_id)
-            if not room:
-                raise ValueError(f"Unknown chat_group target: {target_id}")
-            target_user_id = room.owner_user_id
-
-        if target_user_id and not self._can_deliver_to_user(session, plugin, target_user_id):
-            return None
-
-        if dedupe_key:
-            existing = session.scalar(
-                select(PluginDispatchRecord).where(
-                    PluginDispatchRecord.plugin_id == plugin.id,
-                    PluginDispatchRecord.event_name == event_name,
-                    PluginDispatchRecord.dedupe_key == str(dedupe_key),
-                )
-            )
-            if existing:
-                return existing.wakeup_task_id
 
         wakeup_payload = {
             "source_kind": "plugin",
@@ -87,29 +56,52 @@ class ExternalWakeupService:
             "plugin_event": event_name,
             "external_payload": payload,
             "summary": summary,
-            "dedupe_key": str(dedupe_key) if dedupe_key is not None else None,
         }
-        task, _ = self.scheduler_node.schedule_wakeup(
-            session,
-            cocoon_id=target_id if target_type == "cocoon" else None,
-            chat_group_id=target_id if target_type == "chat_group" else None,
-            run_at=datetime.now(UTC).replace(tzinfo=None),
-            reason=summary,
-            payload_json=wakeup_payload,
+        task_ids: list[str] = []
+        bindings = list(
+            session.scalars(
+                select(PluginTargetBinding)
+                .where(PluginTargetBinding.plugin_id == plugin.id)
+                .order_by(PluginTargetBinding.created_at.asc())
+            ).all()
         )
-        record = PluginDispatchRecord(
-            plugin_id=plugin.id,
-            plugin_version_id=version.id,
-            event_name=event_name,
-            target_type=target_type,
-            target_id=target_id,
-            dedupe_key=str(dedupe_key) if dedupe_key is not None else None,
-            wakeup_task_id=task.id,
-            payload_json={"envelope": envelope},
-        )
-        session.add(record)
+        for binding in bindings:
+            target_user_id = self._resolve_target_user_id(session, binding)
+            if not target_user_id:
+                continue
+            if not self._can_deliver_to_user(session, plugin, target_user_id):
+                continue
+            task, _ = self.scheduler_node.schedule_wakeup(
+                session,
+                cocoon_id=binding.target_id if binding.target_type == "cocoon" else None,
+                chat_group_id=binding.target_id if binding.target_type == "chat_group" else None,
+                run_at=datetime.now(UTC).replace(tzinfo=None),
+                reason=summary,
+                payload_json={**wakeup_payload, "target_binding_id": binding.id},
+            )
+            record = PluginDispatchRecord(
+                plugin_id=plugin.id,
+                plugin_version_id=version.id,
+                event_name=event_name,
+                target_type=binding.target_type,
+                target_id=binding.target_id,
+                dedupe_key=None,
+                wakeup_task_id=task.id,
+                payload_json={"envelope": envelope, "target_binding_id": binding.id},
+            )
+            session.add(record)
+            task_ids.append(task.id)
         session.flush()
-        return task.id
+        return task_ids
+
+    def _resolve_target_user_id(self, session: Session, binding: PluginTargetBinding) -> str | None:
+        if binding.target_type == "cocoon":
+            cocoon = session.get(Cocoon, binding.target_id)
+            return cocoon.owner_user_id if cocoon else None
+        if binding.target_type == "chat_group":
+            room = session.get(ChatGroupRoom, binding.target_id)
+            return room.owner_user_id if room else None
+        return None
 
     def _can_deliver_to_user(self, session: Session, plugin: PluginDefinition, user_id: str) -> bool:
         user_config = session.scalar(

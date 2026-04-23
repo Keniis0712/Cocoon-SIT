@@ -39,6 +39,9 @@ export interface AdminPluginEventRead {
   default_config_json: Record<string, unknown>;
   config_json: Record<string, unknown>;
   is_enabled: boolean;
+  schedule_mode: "manual" | "interval" | "cron" | string;
+  schedule_interval_seconds: number | null;
+  schedule_cron: string | null;
 }
 
 export interface AdminPluginRunStateRead {
@@ -97,6 +100,16 @@ export interface PluginGroupVisibilityRead {
   plugin_id: string;
   group_id: string;
   is_visible: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PluginTargetBindingRead {
+  id: string;
+  plugin_id: string;
+  target_type: "cocoon" | "chat_group";
+  target_id: string;
+  target_name: string;
   created_at: string;
   updated_at: string;
 }

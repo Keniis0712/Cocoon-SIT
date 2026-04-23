@@ -57,6 +57,7 @@ def test_plugin_admin_routes_cover_detail_shared_libs_and_event_toggles(client, 
     detail = client.get(f"/api/v1/admin/plugins/{plugin_id}", headers=auth_headers)
     assert detail.status_code == 200, detail.text
     assert detail.json()["id"] == plugin_id
+    assert detail.json()["events"][0]["schedule_mode"] == "manual"
 
     shared = client.get("/api/v1/admin/plugins/shared-libs", headers=auth_headers)
     assert shared.status_code == 200, shared.text
@@ -70,6 +71,19 @@ def test_plugin_admin_routes_cover_detail_shared_libs_and_event_toggles(client, 
 
     event_enable = client.post(f"/api/v1/admin/plugins/{plugin_id}/events/tick/enable", headers=auth_headers)
     assert event_enable.status_code == 200, event_enable.text
+
+    event_schedule = client.patch(
+        f"/api/v1/admin/plugins/{plugin_id}/events/tick/schedule",
+        headers=auth_headers,
+        json={"schedule_mode": "cron", "schedule_interval_seconds": None, "schedule_cron": "0 9 * * *"},
+    )
+    assert event_schedule.status_code == 200, event_schedule.text
+    scheduled_tick = next(item for item in event_schedule.json()["events"] if item["name"] == "tick")
+    assert scheduled_tick["schedule_mode"] == "cron"
+    assert scheduled_tick["schedule_cron"] == "0 9 * * *"
+
+    event_run = client.post(f"/api/v1/admin/plugins/{plugin_id}/events/tick/run", headers=auth_headers)
+    assert event_run.status_code == 200, event_run.text
 
     disable = client.post(f"/api/v1/admin/plugins/{plugin_id}/disable", headers=auth_headers)
     assert disable.status_code == 200, disable.text

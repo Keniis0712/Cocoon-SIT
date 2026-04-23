@@ -6,7 +6,18 @@ from zipfile import ZipFile
 
 from sqlalchemy import select
 
-from app.models import Role, User, UserGroup, UserGroupMember
+from app.models import (
+    AvailableModel,
+    Character,
+    ChatGroupMember,
+    ChatGroupRoom,
+    Cocoon,
+    Role,
+    SessionState,
+    User,
+    UserGroup,
+    UserGroupMember,
+)
 from app.services.security.encryption import hash_secret
 
 
@@ -43,6 +54,69 @@ def _ensure_user_with_role(client, *, username: str, password: str, role_name: s
             session.commit()
             session.refresh(user)
         return user.id
+
+
+def _create_user_cocoon(client, *, user_id: str, name: str) -> str:
+    container = client.app.state.container
+    with container.session_factory() as session:
+        character = session.scalar(select(Character).order_by(Character.created_at.asc()))
+        model = session.scalar(select(AvailableModel).order_by(AvailableModel.created_at.asc()))
+        assert character is not None
+        assert model is not None
+        cocoon = Cocoon(
+            name=name,
+            owner_user_id=user_id,
+            character_id=character.id,
+            selected_model_id=model.id,
+        )
+        session.add(cocoon)
+        session.flush()
+        session.add(
+            SessionState(
+                cocoon_id=cocoon.id,
+                relation_score=50,
+                persona_json={},
+                active_tags_json=[],
+            )
+        )
+        session.commit()
+        return cocoon.id
+
+
+def _create_chat_group_with_admin_member(client, *, member_user_id: str, name: str) -> str:
+    container = client.app.state.container
+    with container.session_factory() as session:
+        owner = session.scalar(select(User).where(User.username == "admin"))
+        character = session.scalar(select(Character).order_by(Character.created_at.asc()))
+        model = session.scalar(select(AvailableModel).order_by(AvailableModel.created_at.asc()))
+        assert owner is not None
+        assert character is not None
+        assert model is not None
+        room = ChatGroupRoom(
+            name=name,
+            owner_user_id=owner.id,
+            character_id=character.id,
+            selected_model_id=model.id,
+        )
+        session.add(room)
+        session.flush()
+        session.add(
+            ChatGroupMember(
+                room_id=room.id,
+                user_id=member_user_id,
+                member_role="admin",
+            )
+        )
+        session.add(
+            SessionState(
+                chat_group_id=room.id,
+                relation_score=50,
+                persona_json={},
+                active_tags_json=[],
+            )
+        )
+        session.commit()
+        return room.id
 
 
 def test_user_can_manage_own_plugin_settings_with_group_visibility_override(client, auth_headers):
@@ -207,3 +281,82 @@ def test_only_bootstrap_admin_can_manage_plugin_visibility(client, auth_headers,
     assert allowed.status_code == 200, allowed.text
     assert allowed.json()["is_globally_visible"] is False
     assert test_settings.default_admin_username == "admin"
+
+
+def test_user_can_manage_own_plugin_wakeup_target_bindings(client, auth_headers, default_cocoon_id):
+    install_payload = _plugin_zip(
+        manifest={
+            "name": "binding-plugin",
+            "version": "1.0.0",
+            "display_name": "Binding Plugin",
+            "plugin_type": "external",
+            "entry_module": "main",
+            "events": [
+                {
+                    "name": "tick",
+                    "mode": "short_lived",
+                    "function_name": "tick",
+                    "title": "Tick",
+                    "description": "Tick event",
+                    "config_schema": {"type": "object"},
+                }
+            ],
+        },
+        sources={"main.py": "def tick(ctx):\n    return {'summary': 'bound wakeup'}\n"},
+    )
+    install = client.post(
+        "/api/v1/admin/plugins/install",
+        headers=auth_headers,
+        files={"file": ("plugin.zip", install_payload, "application/zip")},
+    )
+    assert install.status_code == 200, install.text
+    plugin_id = install.json()["id"]
+
+    user_id = _ensure_user_with_role(
+        client,
+        username="binding-user",
+        password="pass123",
+        role_name="user",
+    )
+    user_cocoon_id = _create_user_cocoon(client, user_id=user_id, name="User Binding Cocoon")
+    user_headers = _login(client, "binding-user", "pass123")
+
+    forbidden = client.post(
+        f"/api/v1/plugins/{plugin_id}/targets",
+        headers=user_headers,
+        json={"target_type": "cocoon", "target_id": default_cocoon_id},
+    )
+    assert forbidden.status_code == 403, forbidden.text
+
+    created = client.post(
+        f"/api/v1/plugins/{plugin_id}/targets",
+        headers=user_headers,
+        json={"target_type": "cocoon", "target_id": user_cocoon_id},
+    )
+    assert created.status_code == 200, created.text
+    binding = created.json()
+    assert binding["target_type"] == "cocoon"
+    assert binding["target_id"] == user_cocoon_id
+    assert binding["target_name"]
+
+    listing = client.get(f"/api/v1/plugins/{plugin_id}/targets", headers=user_headers)
+    assert listing.status_code == 200, listing.text
+    assert [item["id"] for item in listing.json()] == [binding["id"]]
+
+    deleted = client.delete(f"/api/v1/plugins/{plugin_id}/targets/{binding['id']}", headers=user_headers)
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["deleted"] is True
+
+    room_id = _create_chat_group_with_admin_member(
+        client,
+        member_user_id=user_id,
+        name="User Managed Group",
+    )
+    group_created = client.post(
+        f"/api/v1/plugins/{plugin_id}/targets",
+        headers=user_headers,
+        json={"target_type": "chat_group", "target_id": room_id},
+    )
+    assert group_created.status_code == 200, group_created.text
+    assert group_created.json()["target_type"] == "chat_group"
+    assert group_created.json()["target_id"] == room_id

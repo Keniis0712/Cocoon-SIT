@@ -41,6 +41,7 @@ from app.models.plugins import (
     PluginEventDefinition,
     PluginGroupVisibility,
     PluginRunState,
+    PluginTargetBinding,
     PluginUserConfig,
     PluginVersion,
 )
@@ -101,6 +102,7 @@ __all__ = [
     "PluginEventDefinition",
     "PluginGroupVisibility",
     "PluginRunState",
+    "PluginTargetBinding",
     "PluginUserConfig",
     "PluginVersion",
     "ProviderCredential",

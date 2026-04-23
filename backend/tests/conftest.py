@@ -60,7 +60,6 @@ def test_settings(tmp_path: Path) -> Settings:
         plugin_root=tmp_path / ".plugins",
         plugin_data_root=tmp_path / "data" / "plugins",
         plugin_watchdog_interval_seconds=1,
-        plugin_short_lived_default_interval_seconds=1,
         secret_key="test-secret-key-for-cocoon-sit-at-least-32-bytes",
         default_admin_username="admin",
         default_admin_email="admin@example.com",

@@ -26,10 +26,10 @@ def test_normalize_envelope_accepts_none_and_dict():
 def test_run_short_lived_event_supports_sync_and_async(monkeypatch):
     async def async_event(context):
         context.heartbeat()
-        return {"target_type": "cocoon", "target_id": "c1"}
+        return {"summary": "async wakeup"}
 
     def sync_event(context):
-        return {"target_type": "chat_group", "target_id": "g1"}
+        return {"summary": "sync wakeup"}
 
     module = SimpleNamespace(async_event=async_event, sync_event=sync_event)
     monkeypatch.setattr("app.services.plugins.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
@@ -57,8 +57,8 @@ def test_run_short_lived_event_supports_sync_and_async(monkeypatch):
         data_dir="data",
     )
 
-    assert sync_result == {"target_type": "chat_group", "target_id": "g1"}
-    assert async_result == {"target_type": "cocoon", "target_id": "c1"}
+    assert sync_result == {"summary": "sync wakeup"}
+    assert async_result == {"summary": "async wakeup"}
 
 
 def test_run_external_daemon_function_requires_async_and_can_emit_events():
@@ -80,7 +80,7 @@ def test_run_external_daemon_function_requires_async_and_can_emit_events():
         )
 
     async def async_event(context):
-        context.emit_event({"target_type": "cocoon", "target_id": "c1"})
+        context.emit_event({"summary": "daemon wakeup"})
 
     queue = _Queue()
     module = SimpleNamespace(async_event=async_event)
@@ -103,7 +103,7 @@ def test_run_external_daemon_function_requires_async_and_can_emit_events():
 
 def test_run_external_daemon_and_im_plugin(monkeypatch):
     async def daemon_one(context):
-        context.emit_event({"target_type": "cocoon", "target_id": "c1"})
+        context.emit_event({"summary": "daemon wakeup"})
 
     async def daemon_two(context):
         context.heartbeat()

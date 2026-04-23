@@ -9,6 +9,11 @@ class UserPluginConfigUpdate(BaseModel):
     config_json: dict = Field(default_factory=dict)
 
 
+class UserPluginTargetBindingCreate(BaseModel):
+    target_type: str
+    target_id: str
+
+
 class UserPluginOut(BaseModel):
     id: str
     name: str
@@ -26,3 +31,12 @@ class UserPluginOut(BaseModel):
     user_error_text: str | None
     user_error_at: datetime | None
 
+
+class UserPluginTargetBindingOut(BaseModel):
+    id: str
+    plugin_id: str
+    target_type: str
+    target_id: str
+    target_name: str
+    created_at: datetime
+    updated_at: datetime

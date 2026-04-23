@@ -36,7 +36,6 @@ class Settings(BaseSettings):
     plugin_data_root: Path = Field(default=Path("data/plugins"))
     plugin_watchdog_interval_seconds: int = 1
     plugin_heartbeat_timeout_seconds: int = 10
-    plugin_short_lived_default_interval_seconds: int = 60
     plugin_short_lived_max_workers: int = 2
 
     chat_dispatch_stream: str = "cocoon:dispatch:chat"

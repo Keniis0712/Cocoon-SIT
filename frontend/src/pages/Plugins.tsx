@@ -1,18 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Plug, RefreshCcw, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Link2, Plug, RefreshCcw, ShieldAlert, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { clearWorkspacePluginError, listWorkspacePlugins, setWorkspacePluginEnabled, updateWorkspacePluginConfig, validateWorkspacePluginConfig } from "@/api/plugins";
-import type { UserPluginRead } from "@/api/types/plugins";
+import { listChatGroups } from "@/api/chatGroups";
+import { showErrorToast } from "@/api/client";
+import { getCocoons } from "@/api/cocoons";
+import {
+  addWorkspacePluginTargetBinding,
+  clearWorkspacePluginError,
+  deleteWorkspacePluginTargetBinding,
+  listWorkspacePluginTargetBindings,
+  listWorkspacePlugins,
+  setWorkspacePluginEnabled,
+  updateWorkspacePluginConfig,
+  validateWorkspacePluginConfig,
+} from "@/api/plugins";
+import type { ChatGroupRead, CocoonRead } from "@/api/types";
+import type { PluginTargetBindingRead, UserPluginRead } from "@/api/types/plugins";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { showErrorToast } from "@/api/client";
 
 function formatJson(value: unknown) {
   return JSON.stringify(value ?? {}, null, 2);
@@ -42,8 +55,16 @@ export default function PluginsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [isClearingError, setIsClearingError] = useState(false);
+  const [isBindingLoading, setIsBindingLoading] = useState(false);
+  const [isBindingSaving, setIsBindingSaving] = useState(false);
   const [configDraft, setConfigDraft] = useState("{}");
   const [configDraftError, setConfigDraftError] = useState<string | null>(null);
+  const [targetBindings, setTargetBindings] = useState<PluginTargetBindingRead[]>([]);
+  const [cocoons, setCocoons] = useState<CocoonRead[]>([]);
+  const [chatGroups, setChatGroups] = useState<ChatGroupRead[]>([]);
+  const [bindingTargetType, setBindingTargetType] = useState<"cocoon" | "chat_group">("cocoon");
+  const [selectedCocoonId, setSelectedCocoonId] = useState("");
+  const [selectedChatGroupId, setSelectedChatGroupId] = useState("");
 
   const selectedPlugin = useMemo(
     () => plugins.find((item) => item.id === selectedPluginId) ?? null,
@@ -52,7 +73,28 @@ export default function PluginsPage() {
 
   useEffect(() => {
     void loadPlugins();
+    void loadTargets();
   }, []);
+
+  useEffect(() => {
+    if (!selectedPluginId) {
+      setTargetBindings([]);
+      return;
+    }
+    void loadTargetBindings(selectedPluginId);
+  }, [selectedPluginId]);
+
+  useEffect(() => {
+    if (!selectedCocoonId && cocoons[0]) {
+      setSelectedCocoonId(String(cocoons[0].id));
+    }
+  }, [cocoons, selectedCocoonId]);
+
+  useEffect(() => {
+    if (!selectedChatGroupId && chatGroups[0]) {
+      setSelectedChatGroupId(chatGroups[0].id);
+    }
+  }, [chatGroups, selectedChatGroupId]);
 
   useEffect(() => {
     if (!selectedPlugin) {
@@ -79,6 +121,30 @@ export default function PluginsPage() {
       showErrorToast(error, t("plugins:loadFailed"));
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function loadTargets() {
+    try {
+      const [cocoonPage, rooms] = await Promise.all([
+        getCocoons(1, 200, "mine"),
+        listChatGroups(),
+      ]);
+      setCocoons(cocoonPage.items);
+      setChatGroups(rooms);
+    } catch (error) {
+      showErrorToast(error, t("plugins:loadFailed"));
+    }
+  }
+
+  async function loadTargetBindings(pluginId: string) {
+    setIsBindingLoading(true);
+    try {
+      setTargetBindings(await listWorkspacePluginTargetBindings(pluginId));
+    } catch (error) {
+      showErrorToast(error, t("plugins:loadFailed"));
+    } finally {
+      setIsBindingLoading(false);
     }
   }
 
@@ -166,6 +232,47 @@ export default function PluginsPage() {
     }
     setConfigDraft(formatJson(selectedPlugin.user_default_config_json));
     setConfigDraftError(null);
+  }
+
+  async function handleAddTargetBinding() {
+    if (!selectedPlugin) {
+      return;
+    }
+    const targetId = bindingTargetType === "cocoon" ? selectedCocoonId : selectedChatGroupId;
+    if (!targetId) {
+      return;
+    }
+    setIsBindingSaving(true);
+    try {
+      const created = await addWorkspacePluginTargetBinding(selectedPlugin.id, bindingTargetType, targetId);
+      setTargetBindings((prev) => {
+        if (prev.some((item) => item.id === created.id)) {
+          return prev.map((item) => (item.id === created.id ? created : item));
+        }
+        return [...prev, created];
+      });
+      toast.success(t("plugins:targetBindingSuccess"));
+    } catch (error) {
+      showErrorToast(error, t("plugins:targetBindingFailed"));
+    } finally {
+      setIsBindingSaving(false);
+    }
+  }
+
+  async function handleDeleteTargetBinding(bindingId: string) {
+    if (!selectedPlugin) {
+      return;
+    }
+    setIsBindingSaving(true);
+    try {
+      await deleteWorkspacePluginTargetBinding(selectedPlugin.id, bindingId);
+      setTargetBindings((prev) => prev.filter((item) => item.id !== bindingId));
+      toast.success(t("plugins:targetUnbindingSuccess"));
+    } catch (error) {
+      showErrorToast(error, t("plugins:targetUnbindingFailed"));
+    } finally {
+      setIsBindingSaving(false);
+    }
   }
 
   return (
@@ -286,6 +393,112 @@ export default function PluginsPage() {
                     </div>
                   </div>
                 )}
+
+                <div className="rounded-xl border border-border/70 p-4">
+                  <div className="flex items-start gap-3">
+                    <Link2 className="mt-0.5 size-4 text-primary" />
+                    <div>
+                      <div className="font-medium">{t("plugins:targetBindingTitle")}</div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        {t("plugins:targetBindingDescription")}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-[170px_1fr_auto] md:items-end">
+                    <div className="grid gap-2">
+                      <Label>{t("plugins:targetType")}</Label>
+                      <Select
+                        value={bindingTargetType}
+                        onValueChange={(value) => setBindingTargetType(value as "cocoon" | "chat_group")}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cocoon">{t("plugins:targetCocoon")}</SelectItem>
+                          <SelectItem value="chat_group">{t("plugins:targetChatGroup")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label>{t("plugins:targetObject")}</Label>
+                      {bindingTargetType === "cocoon" ? (
+                        <Select value={selectedCocoonId} onValueChange={setSelectedCocoonId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t("plugins:selectCocoon")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {cocoons.map((cocoon) => (
+                              <SelectItem key={cocoon.id} value={String(cocoon.id)}>
+                                {cocoon.name} - {cocoon.id}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Select value={selectedChatGroupId} onValueChange={setSelectedChatGroupId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t("plugins:selectChatGroup")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {chatGroups.map((room) => (
+                              <SelectItem key={room.id} value={room.id}>
+                                {room.name} - {room.id}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+
+                    <Button
+                      disabled={
+                        isBindingSaving ||
+                        (bindingTargetType === "cocoon" ? !selectedCocoonId : !selectedChatGroupId)
+                      }
+                      onClick={() => void handleAddTargetBinding()}
+                    >
+                      {isBindingSaving ? t("common:saving") : t("plugins:addTargetBinding")}
+                    </Button>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {isBindingLoading ? (
+                      <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                        {t("common:loading")}
+                      </div>
+                    ) : targetBindings.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                        {t("plugins:noTargetBindings")}
+                      </div>
+                    ) : (
+                      targetBindings.map((binding) => (
+                        <div
+                          key={binding.id}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 p-3 text-sm"
+                        >
+                          <div>
+                            <div className="font-medium">{binding.target_name}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {binding.target_type === "cocoon" ? t("plugins:targetCocoon") : t("plugins:targetChatGroup")} - {binding.target_id}
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={isBindingSaving}
+                            onClick={() => void handleDeleteTargetBinding(binding.id)}
+                          >
+                            <Trash2 className="mr-2 size-4" />
+                            {t("plugins:removeTargetBinding")}
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
 
                 <div className="space-y-2">
                   <Label>{t("plugins:userConfigLabel")}</Label>

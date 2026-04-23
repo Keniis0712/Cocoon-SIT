@@ -77,6 +77,9 @@ class PluginEventConfig(Base, TimestampMixin, JsonDefaultMixin):
     event_name: Mapped[str] = mapped_column(String(128), nullable=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     config_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+    schedule_mode: Mapped[str] = mapped_column(String(32), default="manual")
+    schedule_interval_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    schedule_cron: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class PluginRunState(Base, TimestampMixin, JsonDefaultMixin):
@@ -138,3 +141,15 @@ class PluginGroupVisibility(Base, TimestampMixin):
     plugin_id: Mapped[str] = mapped_column(ForeignKey("plugin_definitions.id"), nullable=False)
     group_id: Mapped[str] = mapped_column(ForeignKey("user_groups.id"), nullable=False)
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class PluginTargetBinding(Base, TimestampMixin):
+    __tablename__ = "plugin_target_bindings"
+    __table_args__ = (
+        UniqueConstraint("plugin_id", "target_type", "target_id", name="uq_plugin_target_bindings_plugin_target"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    plugin_id: Mapped[str] = mapped_column(ForeignKey("plugin_definitions.id"), nullable=False)
+    target_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(64), nullable=False)

@@ -34,6 +34,16 @@ def _install_response(client, auth_headers, *, manifest: dict, sources: dict[str
     )
 
 
+def _bind_plugin_target(client, auth_headers, plugin_id: str, *, target_type: str, target_id: str):
+    response = client.post(
+        f"/api/v1/plugins/{plugin_id}/targets",
+        headers=auth_headers,
+        json={"target_type": target_type, "target_id": target_id},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
 def test_install_external_plugin_and_short_lived_wakeup(client, auth_headers, default_cocoon_id):
     response = _install_response(
         client,
@@ -60,10 +70,7 @@ def test_install_external_plugin_and_short_lived_wakeup(client, auth_headers, de
             "main.py": f"""
 def sample_short(ctx):
     return {{
-        "target_type": "cocoon",
-        "target_id": "{default_cocoon_id}",
         "summary": "short-lived wakeup",
-        "dedupe_key": "short-1",
         "payload": {{"source": "test"}}
     }}
 """,
@@ -71,6 +78,7 @@ def sample_short(ctx):
     )
     assert response.status_code == 200, response.text
     plugin_id = response.json()["id"]
+    _bind_plugin_target(client, auth_headers, plugin_id, target_type="cocoon", target_id=default_cocoon_id)
 
     enable_response = client.post(f"/api/v1/admin/plugins/{plugin_id}/enable", headers=auth_headers)
     assert enable_response.status_code == 200, enable_response.text
@@ -131,10 +139,7 @@ def test_external_plugin_can_target_chat_group(client, auth_headers):
             "main.py": f"""
 def group_short(ctx):
     return {{
-        "target_type": "chat_group",
-        "target_id": "{room_id}",
         "summary": "group wakeup",
-        "dedupe_key": "group-1",
         "payload": {{"kind": "group"}}
     }}
 """,
@@ -142,6 +147,7 @@ def group_short(ctx):
     )
     assert response.status_code == 200, response.text
     plugin_id = response.json()["id"]
+    _bind_plugin_target(client, auth_headers, plugin_id, target_type="chat_group", target_id=room_id)
     assert client.post(f"/api/v1/admin/plugins/{plugin_id}/enable", headers=auth_headers).status_code == 200
 
     container.plugin_runtime_manager.run_short_lived_event_now(plugin_id, "group_short")
@@ -189,10 +195,7 @@ import asyncio
 
 async def daemon_one(ctx):
     ctx.emit_event({{
-        "target_type": "cocoon",
-        "target_id": "{default_cocoon_id}",
         "summary": "daemon wakeup one",
-        "dedupe_key": "daemon-one",
         "payload": {{"event": "one"}}
     }})
     while True:
@@ -207,6 +210,7 @@ async def daemon_two(ctx):
     )
     assert daemon_response.status_code == 200, daemon_response.text
     daemon_id = daemon_response.json()["id"]
+    _bind_plugin_target(client, auth_headers, daemon_id, target_type="cocoon", target_id=default_cocoon_id)
     assert client.post(f"/api/v1/admin/plugins/{daemon_id}/enable", headers=auth_headers).status_code == 200
 
     im_response = _install_response(
@@ -355,13 +359,11 @@ def test_plugin_config_and_event_config_validate_json_schema(client, auth_header
                     "description": "Schema checked event",
                     "config_schema": {
                         "type": "object",
-                        "required": ["interval_seconds"],
                         "properties": {
-                            "interval_seconds": {"type": "integer"},
                             "channel": {"type": "string", "enum": ["a", "b"]},
                         },
                     },
-                    "default_config": {"interval_seconds": 60, "channel": "a"},
+                    "default_config": {"channel": "a"},
                 }
             ],
         },
@@ -387,16 +389,25 @@ def test_plugin_config_and_event_config_validate_json_schema(client, auth_header
     bad_event_config = client.patch(
         f"/api/v1/admin/plugins/{plugin_id}/events/poller/config",
         headers=auth_headers,
-        json={"config_json": {"interval_seconds": "soon", "channel": "c"}},
+        json={"config_json": {"channel": "c"}},
     )
     assert bad_event_config.status_code == 400, bad_event_config.text
 
     good_event_config = client.patch(
         f"/api/v1/admin/plugins/{plugin_id}/events/poller/config",
         headers=auth_headers,
-        json={"config_json": {"interval_seconds": 30, "channel": "b"}},
+        json={"config_json": {"channel": "b"}},
     )
     assert good_event_config.status_code == 200, good_event_config.text
+
+    schedule = client.patch(
+        f"/api/v1/admin/plugins/{plugin_id}/events/poller/schedule",
+        headers=auth_headers,
+        json={"schedule_mode": "interval", "schedule_interval_seconds": 30, "schedule_cron": None},
+    )
+    assert schedule.status_code == 200, schedule.text
+    assert schedule.json()["events"][0]["schedule_mode"] == "interval"
+    assert schedule.json()["events"][0]["schedule_interval_seconds"] == 30
 
 
 def test_plugin_install_rejects_invalid_default_config(client, auth_headers):
@@ -418,16 +429,47 @@ def test_plugin_install_rejects_invalid_default_config(client, auth_headers):
                     "description": "Bad defaults",
                     "config_schema": {
                         "type": "object",
-                        "required": ["interval_seconds"],
-                        "properties": {"interval_seconds": {"type": "integer"}},
+                        "required": ["channel"],
+                        "properties": {"channel": {"type": "string"}},
                     },
-                    "default_config": {"interval_seconds": "wrong"},
+                    "default_config": {"channel": 123},
                 }
             ],
         },
         sources={"main.py": "def bad(ctx):\n    return None\n"},
     )
     assert response.status_code == 400, response.text
+
+
+def test_plugin_install_rejects_event_interval_seconds_config(client, auth_headers):
+    response = _install_response(
+        client,
+        auth_headers,
+        manifest={
+            "name": "reserved-event-schedule",
+            "version": "1.0.0",
+            "display_name": "Reserved Event Schedule",
+            "plugin_type": "external",
+            "entry_module": "main",
+            "events": [
+                {
+                    "name": "tick",
+                    "mode": "short_lived",
+                    "function_name": "tick",
+                    "title": "Tick",
+                    "description": "Tick event",
+                    "config_schema": {
+                        "type": "object",
+                        "properties": {"interval_seconds": {"type": "integer"}},
+                    },
+                    "default_config": {},
+                }
+            ],
+        },
+        sources={"main.py": "def tick(ctx):\n    return None\n"},
+    )
+    assert response.status_code == 400, response.text
+    assert "event schedule settings" in response.text
 
 
 def test_plugin_install_rejects_invalid_manifest_as_bad_request(client, auth_headers):
