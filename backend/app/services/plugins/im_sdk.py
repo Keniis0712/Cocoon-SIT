@@ -340,7 +340,7 @@ class ImPluginContext:
                 if now - last_heartbeat_at >= self.heartbeat_interval_seconds:
                     self.heartbeat()
                     last_heartbeat_at = now
-                message = await self._next_control_message(timeout=poll_interval_seconds)
+                message = await self._next_control_message(timeout=poll_interval_seconds, include_rpc_responses=False)
                 if not message:
                     continue
                 if message.get("type") == "stop":
@@ -418,7 +418,9 @@ class ImPluginContext:
             }
         )
         while True:
-            message = await self._next_control_message(timeout=0.2)
+            message = self._pop_buffered_rpc_response(request_id)
+            if message is None:
+                message = await self._next_queue_message(timeout=0.2)
             if not message:
                 continue
             if message.get("type") != "rpc_response":
@@ -434,9 +436,13 @@ class ImPluginContext:
                 return payload
             raise RuntimeError(f"RPC returned invalid payload for method {method}")
 
-    async def _next_control_message(self, *, timeout: float) -> dict[str, Any] | None:
-        if self._buffered_control_messages:
-            return self._buffered_control_messages.pop(0)
+    async def _next_control_message(self, *, timeout: float, include_rpc_responses: bool = True) -> dict[str, Any] | None:
+        buffered = self._pop_buffered_control_message(include_rpc_responses=include_rpc_responses)
+        if buffered is not None:
+            return buffered
+        return await self._next_queue_message(timeout=timeout)
+
+    async def _next_queue_message(self, *, timeout: float) -> dict[str, Any] | None:
         if not self.inbound_queue:
             await asyncio.sleep(timeout)
             return None
@@ -444,6 +450,18 @@ class ImPluginContext:
             return await asyncio.to_thread(self.inbound_queue.get, True, timeout)
         except Empty:
             return None
+
+    def _pop_buffered_control_message(self, *, include_rpc_responses: bool) -> dict[str, Any] | None:
+        for index, message in enumerate(self._buffered_control_messages):
+            if include_rpc_responses or message.get("type") != "rpc_response":
+                return self._buffered_control_messages.pop(index)
+        return None
+
+    def _pop_buffered_rpc_response(self, request_id: str) -> dict[str, Any] | None:
+        for index, message in enumerate(self._buffered_control_messages):
+            if message.get("type") == "rpc_response" and str(message.get("request_id") or "") == request_id:
+                return self._buffered_control_messages.pop(index)
+        return None
 
     async def _invoke(self, func: Callable[..., Any], *args: Any) -> Any:
         result = func(*args)
