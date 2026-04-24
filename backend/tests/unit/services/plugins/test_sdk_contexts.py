@@ -1,6 +1,6 @@
 import asyncio
 
-import app.services.plugins.im_sdk as im_sdk_module
+import app.services.plugins.im_sdk_runtime as im_sdk_module
 from app.services.plugins.external_sdk import ExternalEventContext
 from app.services.plugins.im_sdk import (
     ImDeliveryResult,
@@ -171,7 +171,9 @@ def test_im_plugin_context_supports_callbacks_rpc_and_outbound_delivery():
                 "type": "rpc_response",
                 "request_id": "req-targets",
                 "ok": True,
-                "payload": {"items": [{"target_type": "cocoon", "target_id": "cocoon-1", "name": "Bridge"}]},
+                "payload": {
+                    "items": [{"target_type": "cocoon", "target_id": "cocoon-1", "name": "Bridge"}]
+                },
             },
         )
         inbound.items.insert(
@@ -203,7 +205,14 @@ def test_im_plugin_context_supports_callbacks_rpc_and_outbound_delivery():
         )
         original_uuid4 = im_sdk_module.uuid4
         request_ids = iter(
-            ("req-created", "req-binding", "req-targets", "req-characters", "req-route-upsert", "req-route-delete")
+            (
+                "req-created",
+                "req-binding",
+                "req-targets",
+                "req-characters",
+                "req-route-upsert",
+                "req-route-delete",
+            )
         )
         im_sdk_module.uuid4 = lambda: type("X", (), {"hex": next(request_ids)})()
         try:
@@ -213,7 +222,9 @@ def test_im_plugin_context_supports_callbacks_rpc_and_outbound_delivery():
                 character_id="char-1",
                 selected_model_id="model-1",
             )
-            binding_response = await context.verify_user_binding(username="alice", token="secret-token")
+            binding_response = await context.verify_user_binding(
+                username="alice", token="secret-token"
+            )
             targets_response = await context.list_accessible_targets(user_id="user-1")
             characters_response = await context.list_accessible_characters(user_id="user-1")
             route_response = await context.upsert_im_target_route(
@@ -268,11 +279,32 @@ def test_im_plugin_context_supports_callbacks_rpc_and_outbound_delivery():
     asyncio.run(_exercise())
 
     assert any(item["type"] == "im_inbound_message" for item in outbound.items)
-    assert any(item["type"] == "rpc_request" and item["method"] == "create_cocoon" for item in outbound.items)
-    assert any(item["type"] == "rpc_request" and item["method"] == "verify_user_binding" for item in outbound.items)
-    assert any(item["type"] == "rpc_request" and item["method"] == "list_accessible_targets" for item in outbound.items)
-    assert any(item["type"] == "rpc_request" and item["method"] == "list_accessible_characters" for item in outbound.items)
-    assert any(item["type"] == "rpc_request" and item["method"] == "upsert_im_target_route" for item in outbound.items)
-    assert any(item["type"] == "rpc_request" and item["method"] == "delete_im_target_route" for item in outbound.items)
-    assert any(item["type"] == "delivery_result" and item["delivery_id"] == "delivery-1" for item in outbound.items)
+    assert any(
+        item["type"] == "rpc_request" and item["method"] == "create_cocoon"
+        for item in outbound.items
+    )
+    assert any(
+        item["type"] == "rpc_request" and item["method"] == "verify_user_binding"
+        for item in outbound.items
+    )
+    assert any(
+        item["type"] == "rpc_request" and item["method"] == "list_accessible_targets"
+        for item in outbound.items
+    )
+    assert any(
+        item["type"] == "rpc_request" and item["method"] == "list_accessible_characters"
+        for item in outbound.items
+    )
+    assert any(
+        item["type"] == "rpc_request" and item["method"] == "upsert_im_target_route"
+        for item in outbound.items
+    )
+    assert any(
+        item["type"] == "rpc_request" and item["method"] == "delete_im_target_route"
+        for item in outbound.items
+    )
+    assert any(
+        item["type"] == "delivery_result" and item["delivery_id"] == "delivery-1"
+        for item in outbound.items
+    )
     assert deliveries == ["pong"]
