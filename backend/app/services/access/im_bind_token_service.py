@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 import secrets
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import User, UserImBindToken
@@ -61,25 +61,27 @@ class ImBindTokenService:
         raise ValueError("invalid username or token")
 
     def _revoke_active_tokens(self, session: Session, user_id: str, now: datetime) -> None:
-        session.execute(
-            update(UserImBindToken)
-            .where(
+        rows = session.scalars(
+            select(UserImBindToken).where(
                 UserImBindToken.user_id == user_id,
                 UserImBindToken.revoked_at.is_(None),
                 UserImBindToken.expires_at > now,
             )
-            .values(revoked_at=now, updated_at=now)
-        )
+        ).all()
+        for row in rows:
+            row.revoked_at = now
+            row.updated_at = now
 
     def _prune_expired_tokens(self, session: Session, now: datetime) -> None:
-        session.execute(
-            update(UserImBindToken)
-            .where(
+        rows = session.scalars(
+            select(UserImBindToken).where(
                 UserImBindToken.revoked_at.is_(None),
                 UserImBindToken.expires_at <= now,
             )
-            .values(revoked_at=now, updated_at=now)
-        )
+        ).all()
+        for row in rows:
+            row.revoked_at = now
+            row.updated_at = now
 
     def _now(self) -> datetime:
         return datetime.now(UTC).replace(tzinfo=None)

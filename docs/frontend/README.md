@@ -25,5 +25,5 @@ The frontend is moving from a page-heavy structure toward a clearer split:
 
 ## Notes
 
-- Root-level legacy docs such as `docs/frontend-architecture.md` and `docs/frontend-api-structure.md` are now compatibility stubs that point back to this directory.
+- Legacy repo-root docs such as `frontend-api-structure.md` should point readers back to this directory.
 - The current priority is to keep cocoon and chat-group chat flows structurally aligned without forcing them into one monolithic page.

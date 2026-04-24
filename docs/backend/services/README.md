@@ -1,6 +1,6 @@
 # Backend Services
 
-This index mirrors the current service layout under `backend/app/services/` and `backend/app/worker/`.
+This index tracks the main documented service modules under `backend/app/services/` and `backend/app/worker/`.
 
 ## Root Services
 
@@ -13,6 +13,7 @@ This index mirrors the current service layout under `backend/app/services/` and 
 - [RoleService](./access/role-service.md)
 - [GroupService](./access/group-service.md)
 - [InviteService](./access/invite-service.md)
+- [ImBindTokenService](./access/im-bind-token-service.md)
 
 ## Audit
 
@@ -38,6 +39,7 @@ This index mirrors the current service layout under `backend/app/services/` and 
 - [CharacterService](./catalog/character-service.md)
 - [PromptTemplateAdminService](./catalog/prompt-template-admin-service.md)
 - [TagService](./catalog/tag-service.md)
+- [SystemSettingsService](./catalog/system-settings-service.md)
 
 ## Jobs
 
@@ -63,6 +65,7 @@ This index mirrors the current service layout under `backend/app/services/` and 
 - [PluginRuntimeManager](./plugins/plugin-runtime-manager.md)
 - [ExternalWakeupService](./plugins/external-wakeup-service.md)
 - [Plugin Manifest](./plugins/plugin-manifest.md)
+- [ImDeliveryService](./plugins/im-delivery-service.md)
 
 ## Prompts
 
@@ -112,6 +115,7 @@ This index mirrors the current service layout under `backend/app/services/` and 
 - [TokenAuthenticationService](./security/token-authentication-service.md)
 - [SecretCipher](./security/secret-cipher.md)
 - [RBAC Helpers](./security/rbac.md)
+- [AuthorizationService](./security/authorization-service.md)
 
 ## Storage
 
@@ -135,3 +139,6 @@ This index mirrors the current service layout under `backend/app/services/` and 
 - [MessageDispatchService](./workspace/message-dispatch-service.md)
 - [CocoonTagService](./workspace/cocoon-tag-service.md)
 - [WorkspaceRealtimeService](./workspace/workspace-realtime-service.md)
+- [ChatGroupService](./workspace/chat-group-service.md)
+- [MessageService](./workspace/message-service.md)
+- [Workspace Targets](./workspace/targets.md)

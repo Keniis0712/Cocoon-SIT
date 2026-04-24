@@ -13,6 +13,7 @@ node_modules/
 dist/
 coverage/
 htmlcov/
+coverage.xml
 .artifacts/
 .tmp_pytest/
 .VSCodeCounter/
@@ -31,3 +32,4 @@ backend/.coverage
 frontend/dist/
 *.db
 .coverage
+.coverage.*
