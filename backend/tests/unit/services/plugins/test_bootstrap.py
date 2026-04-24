@@ -77,3 +77,35 @@ def test_bootstrap_module_refreshes_preloaded_package_paths(tmp_path):
     finally:
         sys.path[:] = original_sys_path
         _clear_modules(("entry_preloaded", "stickymerged"))
+
+
+def test_bootstrap_module_promotes_current_manifest_paths_for_shared_entry_name(tmp_path):
+    original_sys_path = list(sys.path)
+    try:
+        plugin_one = tmp_path / "plugin_one"
+        plugin_two = tmp_path / "plugin_two"
+        manifest_one = tmp_path / "dependency_manifest_one.json"
+        manifest_two = tmp_path / "dependency_manifest_two.json"
+
+        plugin_one.mkdir(parents=True, exist_ok=True)
+        plugin_two.mkdir(parents=True, exist_ok=True)
+        (plugin_one / "main.py").write_text(
+            "PLUGIN = 'one'\n"
+            "def daily_forecast(ctx):\n"
+            "    return {'summary': PLUGIN}\n",
+            encoding="utf-8",
+        )
+        (plugin_two / "main.py").write_text("PLUGIN = 'two'\n", encoding="utf-8")
+
+        _write_manifest(manifest_one, paths=[str(plugin_one)])
+        _write_manifest(manifest_two, paths=[str(plugin_two)])
+
+        module_two = bootstrap_module(manifest_two, "main")
+        module_one = bootstrap_module(manifest_one, "main")
+
+        assert module_two.PLUGIN == "two"
+        assert module_one.PLUGIN == "one"
+        assert callable(module_one.daily_forecast)
+    finally:
+        sys.path[:] = original_sys_path
+        _clear_modules(("main",))

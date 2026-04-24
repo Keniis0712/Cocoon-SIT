@@ -87,11 +87,18 @@ def _ensure_package_tree_finder() -> None:
     sys.meta_path.append(_PACKAGE_TREE_FINDER)
 
 
+def _promote_manifest_paths(paths: Iterable[str]) -> None:
+    normalized_paths = [path for path in paths if path]
+    for path in normalized_paths:
+        while path in sys.path:
+            sys.path.remove(path)
+    for path in reversed(normalized_paths):
+        sys.path.insert(0, path)
+
+
 def bootstrap_module(manifest_path: str | Path, entry_module: str):
     manifest = load_dependency_manifest(manifest_path)
-    for path in reversed(manifest.get("paths") or []):
-        if path not in sys.path:
-            sys.path.insert(0, path)
+    _promote_manifest_paths(manifest.get("paths") or [])
     importlib.invalidate_caches()
     _ensure_package_tree_finder()
     _refresh_loaded_package_paths()
