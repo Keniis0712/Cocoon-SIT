@@ -24,6 +24,8 @@ from app.models import (
     PluginEventConfig,
     PluginEventDefinition,
     PluginGroupVisibility,
+    PluginImDeliveryOutbox,
+    PluginImTargetRoute,
     PluginRunState,
     PluginTargetBinding,
     PluginUserConfig,
@@ -201,9 +203,19 @@ class PluginService:
             for item in session.scalars(select(PluginVersion).where(PluginVersion.plugin_id != plugin_id)).all()
         ]
         data_dir = Path(plugin.data_dir)
+        plugin.active_version_id = None
+        session.flush()
+        session.query(PluginRunState).filter(PluginRunState.plugin_id == plugin_id).update(
+            {
+                PluginRunState.current_version_id: None,
+            },
+            synchronize_session=False,
+        )
         session.query(PluginDispatchRecord).filter(PluginDispatchRecord.plugin_id == plugin_id).delete(synchronize_session=False)
         session.query(PluginChatGroupConfig).filter(PluginChatGroupConfig.plugin_id == plugin_id).delete(synchronize_session=False)
         session.query(PluginGroupVisibility).filter(PluginGroupVisibility.plugin_id == plugin_id).delete(synchronize_session=False)
+        session.query(PluginImDeliveryOutbox).filter(PluginImDeliveryOutbox.plugin_id == plugin_id).delete(synchronize_session=False)
+        session.query(PluginImTargetRoute).filter(PluginImTargetRoute.plugin_id == plugin_id).delete(synchronize_session=False)
         session.query(PluginTargetBinding).filter(PluginTargetBinding.plugin_id == plugin_id).delete(synchronize_session=False)
         session.query(PluginUserConfig).filter(PluginUserConfig.plugin_id == plugin_id).delete(synchronize_session=False)
         session.query(PluginEventConfig).filter(PluginEventConfig.plugin_id == plugin_id).delete(synchronize_session=False)
@@ -231,6 +243,14 @@ class PluginService:
         session.commit()
         self.runtime_manager.reload_plugin(plugin_id)
         self.runtime_manager.run_once()
+        return self.get_plugin_detail(session, plugin_id)
+
+    def validate_admin_plugin_config(self, session: Session, plugin_id: str, config_json: dict) -> PluginDetailOut:
+        plugin = session.get(PluginDefinition, plugin_id)
+        if not plugin:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
+        self._validate_config_payload(plugin.config_schema_json or {}, config_json, location="plugin_config")
+        self._validate_admin_plugin_settings(session, plugin, plugin_config=dict(config_json or {}))
         return self.get_plugin_detail(session, plugin_id)
 
     def update_event_config(self, session: Session, plugin_id: str, event_name: str, config_json: dict) -> PluginDetailOut:
@@ -1186,3 +1206,54 @@ class PluginService:
             validate_json_schema_value(schema, payload or {}, location=location)
         except PluginSchemaValidationError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    def _validate_admin_plugin_settings(
+        self,
+        session: Session,
+        plugin: PluginDefinition,
+        *,
+        plugin_config: dict[str, object],
+    ) -> None:
+        if not plugin.settings_validation_function_name or not plugin.active_version_id:
+            return
+        if not self._has_admin_plugin_config_surface(plugin, plugin_config=plugin_config):
+            return
+        version = session.get(PluginVersion, plugin.active_version_id)
+        if not version:
+            return
+        try:
+            message = validate_plugin_settings(
+                version.manifest_path,
+                plugin.entry_module,
+                plugin.settings_validation_function_name,
+                plugin_name=plugin.name,
+                plugin_version=version.version,
+                plugin_config=plugin_config,
+                user_config={},
+                user_id=None,
+                data_dir=plugin.data_dir,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        if message:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+
+    def _has_admin_plugin_config_surface(
+        self,
+        plugin: PluginDefinition,
+        *,
+        plugin_config: dict[str, object],
+    ) -> bool:
+        if dict(plugin_config or {}):
+            return True
+        if dict(plugin.config_json or {}):
+            return True
+        if dict(plugin.default_config_json or {}):
+            return True
+        schema = dict(plugin.config_schema_json or {})
+        if not schema:
+            return False
+        meaningful_keys = set(schema.keys()) - {"type", "title", "description", "additionalProperties"}
+        if meaningful_keys:
+            return True
+        return bool(schema.get("properties") or schema.get("required"))

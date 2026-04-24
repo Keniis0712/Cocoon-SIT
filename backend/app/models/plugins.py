@@ -112,6 +112,45 @@ class PluginDispatchRecord(Base, TimestampMixin, JsonDefaultMixin):
     payload_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
 
 
+class PluginImDeliveryOutbox(Base, TimestampMixin, JsonDefaultMixin):
+    __tablename__ = "plugin_im_delivery_outbox"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    plugin_id: Mapped[str] = mapped_column(ForeignKey("plugin_definitions.id"), nullable=False)
+    action_id: Mapped[str | None] = mapped_column(ForeignKey("action_dispatches.id"), nullable=True)
+    message_id: Mapped[str | None] = mapped_column(ForeignKey("messages.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="queued")
+    payload_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    last_error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class PluginImTargetRoute(Base, TimestampMixin, JsonDefaultMixin):
+    __tablename__ = "plugin_im_target_routes"
+    __table_args__ = (
+        UniqueConstraint(
+            "plugin_id",
+            "external_platform",
+            "conversation_kind",
+            "external_account_id",
+            "external_conversation_id",
+            name="uq_plugin_im_target_routes_plugin_conversation",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    plugin_id: Mapped[str] = mapped_column(ForeignKey("plugin_definitions.id"), nullable=False)
+    target_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    external_platform: Mapped[str] = mapped_column(String(64), nullable=False)
+    conversation_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    external_account_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    external_conversation_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    route_metadata_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+
+
 class PluginUserConfig(Base, TimestampMixin, JsonDefaultMixin):
     __tablename__ = "plugin_user_configs"
     __table_args__ = (

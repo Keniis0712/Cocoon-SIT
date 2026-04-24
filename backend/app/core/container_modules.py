@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.services.access.auth_session_service import AuthSessionService
 from app.services.access.group_service import GroupService
+from app.services.access.im_bind_token_service import ImBindTokenService
 from app.services.access.invite_service import InviteService
 from app.services.access.role_service import RoleService
 from app.services.access.user_service import UserService
@@ -21,6 +22,7 @@ from app.services.observability.audit_query_service import AuditQueryService
 from app.services.observability.insight_query_service import InsightQueryService
 from app.services.prompts.service import PromptTemplateService
 from app.services.plugins.dependency_builder import DependencyBuilder
+from app.services.plugins.im_delivery_service import PluginImDeliveryService
 from app.services.plugins.external_wakeup_service import ExternalWakeupService
 from app.services.plugins.manager import PluginRuntimeManager
 from app.services.plugins.service import PluginService
@@ -84,6 +86,7 @@ def wire_access_services(container) -> None:
         container.settings,
         system_settings_service=container.system_settings_service,
     )
+    container.im_bind_token_service = ImBindTokenService()
     container.user_service = UserService()
     container.role_service = RoleService()
     container.group_service = GroupService()
@@ -165,10 +168,12 @@ def wire_runtime_services(container) -> None:
         side_effects=container.side_effects,
         realtime_hub=container.realtime_hub,
     )
+    container.plugin_im_delivery_service = PluginImDeliveryService()
     container.reply_delivery_service = ReplyDeliveryService(
         side_effects=container.side_effects,
         audit_service=container.audit_service,
         realtime_hub=container.realtime_hub,
+        plugin_im_delivery_service=container.plugin_im_delivery_service,
     )
     container.chat_runtime = ChatRuntime(
         context_builder=ContextBuilder(
@@ -199,6 +204,8 @@ def wire_runtime_services(container) -> None:
         session_factory=container.session_factory,
         settings=container.settings,
         external_wakeup_service=container.external_wakeup_service,
+        message_dispatch_service=container.message_dispatch_service,
+        im_bind_token_service=container.im_bind_token_service,
     )
     container.plugin_service = PluginService(
         settings=container.settings,

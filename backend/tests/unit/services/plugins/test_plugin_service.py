@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy.orm import Query
 
 from app.core.config import Settings
 from app.models import (
@@ -11,6 +12,8 @@ from app.models import (
     PluginDispatchRecord,
     PluginEventConfig,
     PluginEventDefinition,
+    PluginImDeliveryOutbox,
+    PluginImTargetRoute,
     PluginRunState,
     PluginVersion,
 )
@@ -190,6 +193,76 @@ def test_plugin_service_enable_requires_active_version_and_helpers_cover_missing
         assert getattr(missing_event.value, "status_code", None) == 404
 
 
+def test_plugin_service_enable_does_not_validate_admin_plugin_settings(tmp_path, monkeypatch):
+    session_factory = _session_factory()
+    service, runtime_calls, _dependency_calls = _service(tmp_path)
+
+    with session_factory() as session:
+        plugin = _seed_plugin(session, enabled=False)
+        plugin.settings_validation_function_name = "validate_settings"
+        session.commit()
+
+        def _unexpected(*args, **kwargs):
+            raise AssertionError("enable should not trigger admin settings validation")
+
+        monkeypatch.setattr("app.services.plugins.service.validate_plugin_settings", _unexpected)
+
+        detail = service.enable_plugin(session, plugin.id)
+
+        session.refresh(plugin)
+        assert plugin.status == "enabled"
+        assert detail.status == "enabled"
+
+    assert runtime_calls == [("reload", "plugin-1"), ("run_once",)]
+
+
+def test_plugin_service_update_plugin_config_validates_admin_plugin_settings(tmp_path, monkeypatch):
+    session_factory = _session_factory()
+    service, runtime_calls, _dependency_calls = _service(tmp_path)
+
+    with session_factory() as session:
+        plugin = _seed_plugin(session, enabled=False)
+        plugin.settings_validation_function_name = "validate_settings"
+        session.commit()
+
+        monkeypatch.setattr(
+            "app.services.plugins.service.validate_plugin_settings",
+            lambda *args, **kwargs: "bad runtime config",
+        )
+
+        detail = service.update_plugin_config(session, plugin.id, {"token": "updated"})
+
+        session.refresh(plugin)
+        assert plugin.config_json == {"token": "updated"}
+        assert detail.config_json == {"token": "updated"}
+
+    assert runtime_calls == [("reload", "plugin-1"), ("run_once",)]
+
+
+def test_plugin_service_validate_admin_plugin_config_runs_settings_validation(tmp_path, monkeypatch):
+    session_factory = _session_factory()
+    service, runtime_calls, _dependency_calls = _service(tmp_path)
+
+    with session_factory() as session:
+        plugin = _seed_plugin(session, enabled=False)
+        plugin.settings_validation_function_name = "validate_settings"
+        session.commit()
+
+        monkeypatch.setattr(
+            "app.services.plugins.service.validate_plugin_settings",
+            lambda *args, **kwargs: "bad runtime config",
+        )
+
+        with pytest.raises(Exception) as exc_info:
+            service.validate_admin_plugin_config(session, plugin.id, {"token": "updated"})
+
+        session.refresh(plugin)
+        assert plugin.config_json == {"token": "current"}
+
+    assert getattr(exc_info.value, "status_code", None) == 400
+    assert runtime_calls == []
+
+
 def test_plugin_service_update_plugin_rolls_back_enabled_plugin_when_install_fails(tmp_path, monkeypatch):
     session_factory = _session_factory()
     service, runtime_calls, _dependency_calls = _service(tmp_path)
@@ -352,3 +425,74 @@ def test_plugin_service_delete_and_validate_payload_cleanup(tmp_path, monkeypatc
     with pytest.raises(Exception) as exc_info:
         service._validate_config_payload({}, {}, location="plugin_config")
     assert getattr(exc_info.value, "status_code", None) == 400
+
+
+def test_plugin_service_delete_clears_version_references_before_removing_versions(tmp_path, monkeypatch):
+    session_factory = _session_factory()
+    service, _runtime_calls, _dependency_calls = _service(tmp_path)
+    original_delete = Query.delete
+    checked = {"done": False}
+
+    def delete_with_check(self, *args, **kwargs):
+        entity = self.column_descriptions[0].get("entity")
+        if entity is PluginVersion:
+            plugin_id = self.whereclause.right.value  # type: ignore[attr-defined]
+            plugin = self.session.get(PluginDefinition, plugin_id)
+            run_state = self.session.query(PluginRunState).filter(PluginRunState.plugin_id == plugin_id).one_or_none()
+            assert plugin is not None
+            assert plugin.active_version_id is None
+            assert run_state is None or run_state.current_version_id is None
+            checked["done"] = True
+        return original_delete(self, *args, **kwargs)
+
+    monkeypatch.setattr(Query, "delete", delete_with_check)
+
+    with session_factory() as session:
+        plugin = _seed_plugin(session)
+        run_state = session.get(PluginRunState, "run-state-1")
+        assert run_state is not None
+        run_state.current_version_id = "version-1"
+        session.commit()
+
+        service.delete_plugin(session, plugin.id)
+
+    assert checked["done"] is True
+
+
+def test_plugin_service_delete_removes_im_delivery_and_route_rows(tmp_path):
+    session_factory = _session_factory()
+    service, _runtime_calls, _dependency_calls = _service(tmp_path)
+
+    with session_factory() as session:
+        plugin = _seed_plugin(session)
+        session.add(
+            PluginImDeliveryOutbox(
+                id="outbox-1",
+                plugin_id=plugin.id,
+                action_id=None,
+                message_id=None,
+                status="queued",
+                payload_json={"reply_text": "hello"},
+                attempt_count=0,
+            )
+        )
+        session.add(
+            PluginImTargetRoute(
+                id="route-1",
+                plugin_id=plugin.id,
+                target_type="cocoon",
+                target_id="cocoon-1",
+                external_platform="onebot_v11",
+                conversation_kind="private",
+                external_account_id="acct-1",
+                external_conversation_id="conv-1",
+                route_metadata_json={"conversation_kind": "private"},
+            )
+        )
+        session.commit()
+
+        service.delete_plugin(session, plugin.id)
+
+        assert session.get(PluginDefinition, plugin.id) is None
+        assert session.get(PluginImDeliveryOutbox, "outbox-1") is None
+        assert session.get(PluginImTargetRoute, "route-1") is None

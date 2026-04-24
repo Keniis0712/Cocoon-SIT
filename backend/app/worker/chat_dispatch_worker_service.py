@@ -49,10 +49,13 @@ class ChatDispatchWorkerService:
             action.status = ActionStatus.running
             action.started_at = action.started_at or action.queued_at
             session.flush()
+            action_event_type = action.event_type
+            action_cocoon_id = action.cocoon_id
+            action_chat_group_id = action.chat_group_id
             self.logger.info(
                 "Worker starting runtime action_id=%s event_type=%s status=%s payload_keys=%s",
                 action.id,
-                action.event_type,
+                action_event_type,
                 action.status,
                 sorted((action.payload_json or {}).keys()),
             )
@@ -62,9 +65,9 @@ class ChatDispatchWorkerService:
                 self.logger.exception(
                     "Worker runtime failed action_id=%s event_type=%s cocoon_id=%s chat_group_id=%s",
                     envelope.action_id,
-                    action.event_type if action else None,
-                    action.cocoon_id if action else None,
-                    action.chat_group_id if action else None,
+                    action_event_type,
+                    action_cocoon_id,
+                    action_chat_group_id,
                 )
                 session.rollback()
                 action = session.get(ActionDispatch, envelope.action_id)
@@ -89,7 +92,7 @@ class ChatDispatchWorkerService:
             self.logger.info(
                 "Worker runtime completed action_id=%s event_type=%s",
                 action.id,
-                action.event_type,
+                action_event_type,
             )
             session.commit()
         self.chat_queue.ack(envelope)

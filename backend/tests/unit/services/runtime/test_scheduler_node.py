@@ -160,6 +160,7 @@ def test_scheduler_node_schedule_handles_cancellation_hints_and_compaction():
             payload_json={"trigger_kind": "idle_timeout"},
         )
         context = _context(
+            payload={"timezone": "Asia/Shanghai"},
             visible_messages=[SimpleNamespace(id="message-1", created_at=datetime.now(UTC).replace(tzinfo=None), role="user", is_retracted=False)],
             max_context_messages=1,
         )
@@ -180,6 +181,9 @@ def test_scheduler_node_schedule_handles_cancellation_hints_and_compaction():
         assert result["compaction_job_id"] is not None
         assert cancelled_task is not None
         assert cancelled_task.status == DurableJobStatus.cancelled
+        scheduled_task = session.get(WakeupTask, result["wakeup_task_id"])
+        assert scheduled_task is not None
+        assert scheduled_task.payload_json["timezone"] == "Asia/Shanghai"
         assert current_state is not None
         assert current_state.current_wakeup_task_id == result["wakeup_task_id"]
 
@@ -193,7 +197,7 @@ def test_scheduler_node_idle_wakeup_logic_and_delay_resolution():
         session.commit()
 
         active_context = _context(
-            payload={"recent_turn_count": 3},
+            payload={"recent_turn_count": 3, "timezone": "Asia/Shanghai"},
             visible_messages=[
                 SimpleNamespace(
                     id=f"m{i}",
@@ -209,6 +213,7 @@ def test_scheduler_node_idle_wakeup_logic_and_delay_resolution():
         task = session.get(WakeupTask, result["wakeup_task_id"])
         assert task is not None
         assert task.payload_json["trigger_kind"] == "idle_timeout"
+        assert task.payload_json["timezone"] == "Asia/Shanghai"
         assert task.payload_json["memory_owner_user_id"] == "user-1"
         assert result["compaction_job_id"] is None
 

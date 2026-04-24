@@ -1,6 +1,6 @@
 import type { Schemas } from "@cocoon-sit/ts-sdk";
 
-import { apiCall, createAnonymousClient, createTokenClient } from "./client";
+import { apiCall, apiJson, createAnonymousClient, createTokenClient } from "./client";
 import { rememberLegacyId, rememberLegacyStringId } from "./id-map";
 import type { PublicFeaturesRead } from "./types/providers";
 
@@ -44,6 +44,12 @@ export interface MeResponse {
   invite_quota_remaining: number | null;
   invite_quota_unlimited: boolean | null;
   created_at: string;
+}
+
+export interface ImBindTokenResponse {
+  token: string;
+  expires_at: string;
+  expires_in_seconds: number;
 }
 
 export type RegisterPayload = {
@@ -152,6 +158,12 @@ export async function me(): Promise<MeResponse> {
       }
     }
     return buildMeResponse(user, role);
+  });
+}
+
+export async function createImBindToken(): Promise<ImBindTokenResponse> {
+  return apiJson<ImBindTokenResponse>("/auth/me/im-bind-token", {
+    method: "POST",
   });
 }
 

@@ -159,6 +159,8 @@ class SchedulerNode:
             payload_json.setdefault("scheduled_by", "meta_node")
             payload_json.setdefault("source_action_id", context.runtime_event.action_id)
             payload_json.setdefault("source_event_type", context.runtime_event.event_type)
+            if timezone := context.runtime_event.payload.get("timezone"):
+                payload_json.setdefault("timezone", timezone)
             if context.memory_owner_user_id:
                 payload_json.setdefault("memory_owner_user_id", context.memory_owner_user_id)
             task, job = self.schedule_wakeup(
@@ -236,6 +238,8 @@ class SchedulerNode:
                 f"for about {delay_minutes} minute(s)."
             ),
         }
+        if timezone := context.runtime_event.payload.get("timezone"):
+            payload_json["timezone"] = timezone
         if context.memory_owner_user_id:
             payload_json["memory_owner_user_id"] = context.memory_owner_user_id
         return self.schedule_wakeup(

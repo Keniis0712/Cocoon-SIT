@@ -12,7 +12,7 @@ def _build_context(*, event_type: str = "chat", latest_user: str = "hello", targ
         cocoon_id=None if target_type == "chat_group" else "cocoon-1",
         chat_group_id="group-1" if target_type == "chat_group" else None,
         action_id="action-1",
-        payload={"reason": "scheduled wakeup", "source_cocoon_id": "source-1"},
+        payload={"reason": "scheduled wakeup", "source_cocoon_id": "source-1", "timezone": "Asia/Shanghai"},
     )
     conversation = SimpleNamespace(selected_model_id="model-1")
     visible_messages = [
@@ -29,7 +29,6 @@ def _build_context(*, event_type: str = "chat", latest_user: str = "hello", targ
         external_context={
             "pending_wakeups": [{"id": "wake-1"}],
             "wakeup_context": {"reason": "idle timeout"},
-            "now_utc": "2026-04-21T00:00:00Z",
         },
     )
 
@@ -140,7 +139,7 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
         render=lambda **kwargs: (
             {"id": "meta-template"},
             {"id": "meta-revision"},
-            {"session_state": {"mood": "calm"}},
+            {"session_state": {"relation_score": 5, "persona": {"mood": "calm"}, "active_tags": []}},
             "rendered meta prompt",
         )
     )
@@ -162,7 +161,12 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
     assert provider.calls[0]["output_name"] == "cocoon_meta_output"
     assert provider.calls[0]["messages"][0] == {"role": "user", "content": "[speaker:participant_1] hello"}
     assert "[system note: this message was later retracted]" in provider.calls[0]["messages"][1]["content"]
-    assert '"session_state": {"mood": "calm"}' in provider.calls[0]["prompt"]
+    assert "Current local time:" in provider.calls[0]["prompt"]
+    assert "Asia/Shanghai" in provider.calls[0]["prompt"]
+    assert '"current_time": {"timezone": "Asia/Shanghai"' in provider.calls[0]["prompt"]
+    assert '"session_state": {' in provider.calls[0]["prompt"]
+    assert '"relation_score": 5' in provider.calls[0]["prompt"]
+    assert '"persona": {"mood": "calm"}' in provider.calls[0]["prompt"]
     assert result.decision == "reply"
     assert result.relation_delta == 2
     assert result.persona_patch == {"last_seen_intent": "hello"}

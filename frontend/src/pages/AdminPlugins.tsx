@@ -17,6 +17,7 @@ import {
   runAdminPluginEventNow,
   updateAdminPlugin,
   updateAdminPluginConfig,
+  validateAdminPluginConfig,
   updateAdminPluginEventConfig,
   updateAdminPluginEventSchedule,
 } from "@/api/admin-plugins";
@@ -27,6 +28,16 @@ import type { GroupRead } from "@/api/types";
 import type { AdminPluginDetailRead, AdminPluginListItemRead, AdminPluginSharedPackageRead, PluginGroupVisibilityRead } from "@/api/types/plugins";
 import AccessCard from "@/components/AccessCard";
 import PageFrame from "@/components/PageFrame";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,6 +85,8 @@ export default function AdminPluginsPage() {
 
   const installInputRef = useRef<HTMLInputElement | null>(null);
   const updateInputRef = useRef<HTMLInputElement | null>(null);
+  const runtimeMonitorTokenRef = useRef(0);
+  const runtimeToastKeyRef = useRef("");
 
   const [plugins, setPlugins] = useState<AdminPluginListItemRead[]>([]);
   const [selectedPluginId, setSelectedPluginId] = useState("");
@@ -95,12 +108,15 @@ export default function AdminPluginsPage() {
   const [isListLoading, setIsListLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [isValidatingGlobalConfig, setIsValidatingGlobalConfig] = useState(false);
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [runningEventName, setRunningEventName] = useState<string | null>(null);
   const [isInstalling, setIsInstalling] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isGroupSaving, setIsGroupSaving] = useState(false);
   const [isSharedLibsOpen, setIsSharedLibsOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const groupNameByActualId = useMemo(() => {
     return new Map(groups.map((group) => [resolveActualId("group", group.gid), group.name] as const));
@@ -116,12 +132,20 @@ export default function AdminPluginsPage() {
 
   useEffect(() => {
     if (!selectedPluginId || !canView) {
+      runtimeMonitorTokenRef.current += 1;
+      runtimeToastKeyRef.current = "";
       setSelectedPlugin(null);
       setGroupVisibility([]);
       return;
     }
     void loadSelectedPlugin(selectedPluginId);
   }, [selectedPluginId, canView]);
+
+  useEffect(() => {
+    return () => {
+      runtimeMonitorTokenRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedPlugin) {
@@ -230,6 +254,68 @@ export default function AdminPluginsPage() {
     });
   }
 
+  function describeRuntimeIssue(plugin: AdminPluginDetailRead) {
+    const errorText = plugin.run_state?.error_text?.trim();
+    if (errorText) {
+      return errorText;
+    }
+    return `${t("plugins:runtimeStatus")}: ${plugin.run_state?.status || "-"}`;
+  }
+
+  async function monitorPluginRuntime(
+    pluginId: string,
+    options?: {
+      attempts?: number;
+      intervalMs?: number;
+    },
+  ) {
+    const attempts = options?.attempts ?? 8;
+    const intervalMs = options?.intervalMs ?? 1500;
+    const monitorToken = ++runtimeMonitorTokenRef.current;
+    let lastErrorText = selectedPlugin?.id === pluginId ? selectedPlugin.run_state?.error_text?.trim() || "" : "";
+
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, intervalMs);
+      });
+      if (monitorToken !== runtimeMonitorTokenRef.current) {
+        return;
+      }
+      try {
+        const detail = await getAdminPlugin(pluginId);
+        if (monitorToken !== runtimeMonitorTokenRef.current) {
+          return;
+        }
+        syncSelectedPlugin(detail);
+        const errorText = detail.run_state?.error_text?.trim() || "";
+        const hasFailed = detail.run_state?.status === "failed";
+        if (errorText && errorText !== lastErrorText) {
+          const toastKey = `${pluginId}:${errorText}`;
+          if (runtimeToastKeyRef.current !== toastKey) {
+            runtimeToastKeyRef.current = toastKey;
+            toast.error(t("plugins:runtimeState"), { description: errorText });
+          }
+          return;
+        }
+        if (hasFailed) {
+          const description = describeRuntimeIssue(detail);
+          const toastKey = `${pluginId}:${description}`;
+          if (runtimeToastKeyRef.current !== toastKey) {
+            runtimeToastKeyRef.current = toastKey;
+            toast.error(t("plugins:runtimeState"), { description });
+          }
+          return;
+        }
+        lastErrorText = errorText;
+        if (detail.status !== "enabled") {
+          return;
+        }
+      } catch {
+        return;
+      }
+    }
+  }
+
   async function handleInstallFromInput(file: File | null) {
     if (!file) {
       return;
@@ -272,6 +358,12 @@ export default function AdminPluginsPage() {
       const updated = await setAdminPluginEnabled(selectedPlugin.id, enabled);
       syncSelectedPlugin(updated);
       toast.success(t("plugins:toggleRuntimeSuccess"));
+      if (enabled) {
+        runtimeToastKeyRef.current = "";
+        void monitorPluginRuntime(updated.id);
+      } else {
+        runtimeMonitorTokenRef.current += 1;
+      }
     } catch (error) {
       showErrorToast(error, t("plugins:toggleRuntimeFailed"));
     }
@@ -281,17 +373,18 @@ export default function AdminPluginsPage() {
     if (!selectedPlugin) {
       return;
     }
-    if (!window.confirm(t("plugins:deleteConfirm", { name: selectedPlugin.display_name || selectedPlugin.name }))) {
-      return;
-    }
+    setIsDeleting(true);
     try {
       await deleteAdminPlugin(selectedPlugin.id);
       toast.success(t("plugins:deleteSuccess"));
+      setIsDeleteDialogOpen(false);
       setSelectedPlugin(null);
       setSelectedPluginId("");
       await loadPluginList();
     } catch (error) {
       showErrorToast(error, t("plugins:deleteFailed"));
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -314,6 +407,28 @@ export default function AdminPluginsPage() {
       showErrorToast(error, t("plugins:saveGlobalConfigFailed"));
     } finally {
       setIsSavingConfig(false);
+    }
+  }
+
+  async function handleValidateGlobalConfig() {
+    if (!selectedPlugin) {
+      return;
+    }
+    const parsed = parseObjectJson(globalConfigDraft);
+    if (!parsed.value || parsed.error) {
+      setGlobalConfigErrorKey(parsed.error || "jsonInvalid");
+      return;
+    }
+    setGlobalConfigErrorKey(null);
+    setIsValidatingGlobalConfig(true);
+    try {
+      const detail = await validateAdminPluginConfig(selectedPlugin.id, parsed.value);
+      syncSelectedPlugin(detail);
+      toast.success(t("plugins:validateSuccess"));
+    } catch (error) {
+      showErrorToast(error, t("plugins:validateFailed"));
+    } finally {
+      setIsValidatingGlobalConfig(false);
     }
   }
 
@@ -621,14 +736,38 @@ export default function AdminPluginsPage() {
                             onCheckedChange={(checked) => void handleSetGlobalVisibility(checked)}
                           />
                         </div>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          disabled={!canWrite}
-                          onClick={() => void handleDeletePlugin()}
-                        >
-                          {t("plugins:deletePlugin")}
-                        </Button>
+                        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={!canWrite}
+                            onClick={() => setIsDeleteDialogOpen(true)}
+                          >
+                            {t("plugins:deletePlugin")}
+                          </Button>
+                          <AlertDialogContent size="sm">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t("plugins:deletePlugin")}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {selectedPlugin
+                                  ? t("plugins:deleteConfirm", {
+                                      name: selectedPlugin.display_name || selectedPlugin.name,
+                                    })
+                                  : t("plugins:deletePlugin")}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel disabled={isDeleting}>{t("common:cancel")}</AlertDialogCancel>
+                              <AlertDialogAction
+                                variant="destructive"
+                                disabled={isDeleting}
+                                onClick={() => void handleDeletePlugin()}
+                              >
+                                {isDeleting ? t("common:saving") : t("common:delete")}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   </div>
@@ -663,6 +802,13 @@ export default function AdminPluginsPage() {
                 <div className="flex flex-wrap gap-2">
                   <Button disabled={!canWrite || isSavingConfig} onClick={() => void handleSaveGlobalConfig()}>
                     {isSavingConfig ? t("common:saving") : t("plugins:saveGlobalConfig")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={!canWrite || isValidatingGlobalConfig}
+                    onClick={() => void handleValidateGlobalConfig()}
+                  >
+                    {isValidatingGlobalConfig ? t("common:saving") : t("plugins:validateGlobalConfig")}
                   </Button>
                 </div>
               </CardContent>

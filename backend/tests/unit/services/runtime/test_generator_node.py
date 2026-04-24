@@ -13,7 +13,7 @@ def _build_context() -> ContextPackage:
             cocoon_id="cocoon-1",
             chat_group_id=None,
             action_id="action-1",
-            payload={"reason": "user_message"},
+            payload={"reason": "user_message", "timezone": "Asia/Shanghai"},
         ),
         conversation=cocoon,
         character=SimpleNamespace(),
@@ -23,7 +23,6 @@ def _build_context() -> ContextPackage:
         external_context={
             "wakeup_context": {"reason": "scheduled reminder"},
             "pending_wakeups": [{"id": "wake-1"}],
-            "now_utc": "2026-04-21T00:00:00Z",
         },
     )
 
@@ -113,6 +112,8 @@ def test_generator_node_generate_records_artifacts_and_uses_structured_fallback(
     assert provider.calls[0]["output_name"] == "cocoon_generation_output"
     assert provider.calls[0]["messages"] == [{"role": "user", "content": "hello"}]
     assert "CONTEXT_JSON_START" in provider.calls[0]["prompt"]
+    assert "Current local time:" in provider.calls[0]["prompt"]
+    assert "Asia/Shanghai" in provider.calls[0]["prompt"]
     assert '"generation_brief": "stay concise"' in provider.calls[0]["prompt"]
     assert result.reply_text == "Generated reply"
     assert result.chunks == ["Generated ", "reply "]
@@ -146,7 +147,7 @@ def test_generator_node_build_structured_prompt_includes_runtime_context():
         prompt_snapshot={
             "runtime_event": {"event_type": "chat", "target_type": "cocoon"},
             "wakeup_context": {"reason": "scheduled reminder"},
-            "pending_wakeups": [{"reason": "later", "status": "queued", "has_payload": False, "run_at": None}],
+            "pending_wakeups": [{"id": "wake-1", "reason": "later", "status": "queued", "has_payload": False, "run_at": None}],
         },
     )
 
@@ -154,6 +155,8 @@ def test_generator_node_build_structured_prompt_includes_runtime_context():
     assert "rendered prompt" in prompt
     assert "META_DECISION_GUIDANCE_START" in prompt
     assert "brief" in prompt
+    assert "Current local time:" in prompt
     assert '"target_type": "cocoon"' in prompt
-    assert '"pending_wakeups": [{"reason": "later", "status": "queued", "has_payload": false, "run_at": null}]' in prompt
+    assert '"current_time": {"timezone": "Asia/Shanghai"' in prompt
+    assert '"pending_wakeups": [{"id": "wake-1", "reason": "later", "status": "queued"}]' in prompt
     assert "target_id" not in prompt

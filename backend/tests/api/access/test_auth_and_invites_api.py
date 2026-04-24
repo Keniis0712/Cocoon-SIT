@@ -29,6 +29,21 @@ def test_auth_refresh_me_and_missing_bearer(client):
     assert payload["data"] is None
 
 
+def test_auth_can_issue_short_lived_im_bind_token(client):
+    login = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin"})
+    assert login.status_code == 200, login.text
+    access_token = login.json()["access_token"]
+
+    response = client.post("/api/v1/auth/me/im-bind-token", headers={"Authorization": f"Bearer {access_token}"})
+    assert response.status_code == 200, response.text
+    payload = response.json()
+
+    assert payload["token"]
+    assert payload["expires_in_seconds"] >= 0
+    assert payload["expires_in_seconds"] <= 60
+    assert payload["expires_at"]
+
+
 def test_invites_api_crud_and_summary_routes(client, auth_headers):
     container = client.app.state.container
     with container.session_factory() as session:

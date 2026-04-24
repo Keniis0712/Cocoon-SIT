@@ -1,0 +1,42 @@
+{
+  "bindings": {
+    "private": {
+      "3753343973:399384532": {
+        "attached": true,
+        "route": {
+          "target_type": "cocoon",
+          "target_id": "72d0be45-c156-490d-bb06-f0fceda91c40",
+          "metadata_json": {
+            "platform": "nonebot_onebot_v11",
+            "conversation_kind": "private",
+            "external_account_id": "3753343973",
+            "external_conversation_id": "399384532",
+            "tags": []
+          }
+        },
+        "tags": [],
+        "updated_at": "2026-04-24T09:20:16.125646+00:00"
+      }
+    },
+    "group": {}
+  },
+  "targets": {
+    "6defc8fc-8ce0-4743-9c55-6749cd489377": {
+      "target_type": "cocoon",
+      "target_id": "6defc8fc-8ce0-4743-9c55-6749cd489377",
+      "name": "测试",
+      "created_at": "2026-04-24T08:45:18.342463+00:00",
+      "updated_at": "2026-04-24T08:45:19.415898+00:00",
+      "tags": []
+    },
+    "72d0be45-c156-490d-bb06-f0fceda91c40": {
+      "target_type": "cocoon",
+      "target_id": "72d0be45-c156-490d-bb06-f0fceda91c40",
+      "name": "1",
+      "created_at": "2026-04-24T09:20:14.890964+00:00",
+      "updated_at": "2026-04-24T09:20:16.142658+00:00",
+      "tags": []
+    }
+  },
+  "platform_bindings": {}
+}

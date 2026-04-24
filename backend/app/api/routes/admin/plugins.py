@@ -111,6 +111,17 @@ def update_plugin_config(
     return container.plugin_service.update_plugin_config(db, plugin_id, payload.config_json)
 
 
+@router.post("/{plugin_id}/config/validate", response_model=PluginDetailOut)
+def validate_plugin_config(
+    plugin_id: str,
+    payload: PluginConfigUpdate,
+    db: Session = Depends(get_db),
+    container: AppContainer = Depends(get_container),
+    _=Depends(require_permission("plugins:write")),
+) -> PluginDetailOut:
+    return container.plugin_service.validate_admin_plugin_config(db, plugin_id, payload.config_json)
+
+
 @router.patch("/{plugin_id}/events/{event_name}/config", response_model=PluginDetailOut)
 def update_event_config(
     plugin_id: str,

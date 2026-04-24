@@ -52,6 +52,12 @@ class UserOut(ORMModel):
     created_at: datetime
 
 
+class ImBindTokenOut(BaseModel):
+    token: str
+    expires_at: datetime
+    expires_in_seconds: int
+
+
 class UserCreate(BaseModel):
     username: str = Field(min_length=1)
     email: EmailStr | None = None

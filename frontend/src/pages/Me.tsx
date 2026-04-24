@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { LogOut, Save, Shield, User } from "lucide-react";
+import { Copy, LogOut, Save, Shield, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { showErrorToast } from "@/api/client";
-import { changePassword, changeUsername, logout, me } from "@/api/user";
+import { changePassword, changeUsername, createImBindToken, logout, me } from "@/api/user";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,10 @@ export default function MePage() {
   const [email, setEmail] = useState<string | null>(null);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [bindToken, setBindToken] = useState("");
+  const [bindTokenExpiresAt, setBindTokenExpiresAt] = useState<string | null>(null);
+  const [isCreatingBindToken, setIsCreatingBindToken] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     async function refreshProfile() {
@@ -59,6 +63,16 @@ export default function MePage() {
     void refreshProfile();
   }, [updateInfo, userInfo?.uid]);
 
+  useEffect(() => {
+    if (!bindTokenExpiresAt) {
+      return undefined;
+    }
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [bindTokenExpiresAt]);
+
   const badges = useMemo(
     () =>
       [
@@ -69,6 +83,16 @@ export default function MePage() {
       ].filter(Boolean) as string[],
     [t, userInfo],
   );
+
+  const bindTokenSecondsRemaining = useMemo(() => {
+    if (!bindTokenExpiresAt) {
+      return 0;
+    }
+    const diffMs = new Date(bindTokenExpiresAt).getTime() - nowMs;
+    return Math.max(0, Math.ceil(diffMs / 1000));
+  }, [bindTokenExpiresAt, nowMs]);
+
+  const bindTokenExpired = Boolean(bindTokenExpiresAt) && bindTokenSecondsRemaining <= 0;
 
   async function saveProfile() {
     if (!userInfo) {
@@ -126,82 +150,177 @@ export default function MePage() {
     }
   }
 
+  async function handleCreateBindToken() {
+    setIsCreatingBindToken(true);
+    try {
+      const payload = await createImBindToken();
+      setBindToken(payload.token);
+      setBindTokenExpiresAt(payload.expires_at);
+      setNowMs(Date.now());
+      toast.success(t("me.imBindTokenCreated"));
+    } catch (error) {
+      showErrorToast(error, t("me.imBindTokenCreateFailed"));
+    } finally {
+      setIsCreatingBindToken(false);
+    }
+  }
+
+  async function handleCopyBindToken() {
+    if (!bindToken) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(bindToken);
+      toast.success(t("me.imBindTokenCopied"));
+    } catch (error) {
+      showErrorToast(error, t("me.imBindTokenCopyFailed"));
+    }
+  }
+
   return (
     <PageFrame title={t("me.title")} description={t("me.description")}>
-      <div className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="size-4 text-primary" />
-              {t("me.overview")}
-            </CardTitle>
-            <CardDescription>{t("me.overviewDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div>
-              <div className="text-muted-foreground">{t("me.username")}</div>
-              <div className="mt-1 font-medium">{userInfo?.username || "-"}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">{t("me.role")}</div>
-              <div className="mt-1 font-medium">
-                {userInfo?.role || "-"} · L{userInfo?.role_level ?? "-"}
+      <div className="grid gap-6">
+        <div className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="size-4 text-primary" />
+                {t("me.overview")}
+              </CardTitle>
+              <CardDescription>{t("me.overviewDescription")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <div>
+                <div className="text-muted-foreground">{t("me.username")}</div>
+                <div className="mt-1 font-medium">{userInfo?.username || "-"}</div>
               </div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">{t("me.userUid")}</div>
-              <div className="mt-1 font-medium break-all">{userInfo?.uid || "-"}</div>
-            </div>
-            <div>
-              <div className="mb-2 text-muted-foreground">{t("me.capabilities")}</div>
+              <div>
+                <div className="text-muted-foreground">{t("me.role")}</div>
+                <div className="mt-1 font-medium">
+                  {userInfo?.role || "-"} 路 L{userInfo?.role_level ?? "-"}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">{t("me.userUid")}</div>
+                <div className="mt-1 font-medium break-all">{userInfo?.uid || "-"}</div>
+              </div>
+              <div>
+                <div className="mb-2 text-muted-foreground">{t("me.capabilities")}</div>
+                <div className="flex flex-wrap gap-2">
+                  {badges.length > 0 ? (
+                    badges.map((badge) => <Badge key={badge}>{badge}</Badge>)
+                  ) : (
+                    <Badge variant="secondary">{t("me.normalUser")}</Badge>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="size-4 text-primary" />
+                {t("me.profile")}
+              </CardTitle>
+              <CardDescription>{t("me.profileDescription")}</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label>{t("me.username")}</Label>
+                  <Input value={username} onChange={(event) => setUsername(event.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>{t("common.email")}</Label>
+                  <Input value={email || ""} disabled placeholder={t("common.notSet")} />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("common.createdAt")}</Label>
+                <Input value={createdAt ? new Date(createdAt).toLocaleString() : ""} disabled placeholder="-" />
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="profile-old-password">{t("me.oldPassword")}</Label>
+                  <Input
+                    id="profile-old-password"
+                    type="password"
+                    value={oldPassword}
+                    onChange={(event) => setOldPassword(event.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="profile-new-password">{t("me.newPassword")}</Label>
+                  <Input
+                    id="profile-new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                  />
+                </div>
+              </div>
               <div className="flex flex-wrap gap-2">
-                {badges.length > 0 ? badges.map((badge) => <Badge key={badge}>{badge}</Badge>) : <Badge variant="secondary">{t("me.normalUser")}</Badge>}
+                <Button disabled={isSaving} onClick={saveProfile}>
+                  <Save className="mr-2 size-4" />
+                  {isSaving ? t("common.saving") : t("common.saveChanges")}
+                </Button>
+                <Button variant="outline" onClick={handleLogout}>
+                  <LogOut className="mr-2 size-4" />
+                  {t("nav.logout")}
+                </Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="size-4 text-primary" />
-              {t("me.profile")}
-            </CardTitle>
-            <CardDescription>{t("me.profileDescription")}</CardDescription>
+            <CardTitle>{t("me.imBindTitle")}</CardTitle>
+            <CardDescription>{t("me.imBindDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <div className="grid gap-2 md:grid-cols-2">
+            <div className="grid gap-2 md:grid-cols-[1.5fr_220px]">
               <div className="grid gap-2">
-                <Label>{t("me.username")}</Label>
-                <Input value={username} onChange={(event) => setUsername(event.target.value)} />
+                <Label>{t("me.imBindToken")}</Label>
+                <div className="flex gap-2">
+                  <Input value={bindToken} disabled placeholder={t("me.imBindTokenPlaceholder")} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleCopyBindToken}
+                    disabled={!bindToken}
+                    aria-label={t("me.imBindCopy")}
+                    title={t("me.imBindCopy")}
+                  >
+                    <Copy className="size-4" />
+                  </Button>
+                </div>
               </div>
               <div className="grid gap-2">
-                <Label>{t("common.email")}</Label>
-                <Input value={email || ""} disabled placeholder={t("common.notSet")} />
+                <Label>{t("me.imBindExpiresAt")}</Label>
+                <Input
+                  value={bindTokenExpiresAt ? new Date(bindTokenExpiresAt).toLocaleTimeString() : ""}
+                  disabled
+                  placeholder="-"
+                />
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label>{t("common.createdAt")}</Label>
-              <Input value={createdAt ? new Date(createdAt).toLocaleString() : ""} disabled placeholder="-" />
-            </div>
-            <div className="grid gap-2 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="profile-old-password">{t("me.oldPassword")}</Label>
-                <Input id="profile-old-password" type="password" value={oldPassword} onChange={(event) => setOldPassword(event.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="profile-new-password">{t("me.newPassword")}</Label>
-                <Input id="profile-new-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
-              </div>
+            <div className={`text-sm ${bindTokenExpired ? "text-destructive" : "text-muted-foreground"}`}>
+              {!bindToken
+                ? t("me.imBindHint")
+                : bindTokenExpired
+                  ? t("me.imBindExpired")
+                  : t("me.imBindCountdown", { count: bindTokenSecondsRemaining })}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button disabled={isSaving} onClick={saveProfile}>
-                <Save className="mr-2 size-4" />
-                {isSaving ? t("common.saving") : t("common.saveChanges")}
-              </Button>
-              <Button variant="outline" onClick={handleLogout}>
-                <LogOut className="mr-2 size-4" />
-                {t("nav.logout")}
+              <Button disabled={isCreatingBindToken} onClick={handleCreateBindToken}>
+                {isCreatingBindToken
+                  ? t("common.loading")
+                  : bindToken
+                    ? t("me.imBindRegenerate")
+                    : t("me.imBindGenerate")}
               </Button>
             </div>
           </CardContent>

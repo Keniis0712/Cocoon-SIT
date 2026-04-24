@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.models import ActionDispatch, AuditRun, Message
+from app.services.plugins.im_delivery_service import PluginImDeliveryService
 from app.services.audit.service import AuditService
 from app.services.realtime.hub import RealtimeHub
 from app.services.runtime.side_effects import SideEffects
@@ -17,10 +18,12 @@ class ReplyDeliveryService:
         side_effects: SideEffects,
         audit_service: AuditService,
         realtime_hub: RealtimeHub,
+        plugin_im_delivery_service: PluginImDeliveryService,
     ) -> None:
         self.side_effects = side_effects
         self.audit_service = audit_service
         self.realtime_hub = realtime_hub
+        self.plugin_im_delivery_service = plugin_im_delivery_service
 
     def deliver(
         self,
@@ -52,6 +55,7 @@ class ReplyDeliveryService:
             },
         )
         message = self.side_effects.persist_generated_message(session, context, action, generation)
+        self.plugin_im_delivery_service.enqueue_reply(session, action=action, message=message)
         self.realtime_hub.publish(
             context.channel_key,
             {

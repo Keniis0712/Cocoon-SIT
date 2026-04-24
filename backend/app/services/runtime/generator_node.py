@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.services.audit.service import AuditService
 from app.services.providers.registry import ProviderRegistry
 from app.services.runtime.generation.prompt_assembly_service import PromptAssemblyService
-from app.services.runtime.prompting import record_prompt_render_artifacts
+from app.services.runtime.prompting import build_structured_prompt_context, record_prompt_render_artifacts
 from app.services.runtime.structured_models import GenerationStructuredOutputModel
 from app.services.runtime.types import ContextPackage, GenerationOutput
 from app.services.runtime.types import MetaDecision
@@ -109,17 +109,12 @@ class GeneratorNode:
         *,
         prompt_snapshot: dict,
     ) -> str:
-        context_json = json.dumps(
-            {
-                "runtime_event": prompt_snapshot.get("runtime_event"),
-                "wakeup_context": prompt_snapshot.get("wakeup_context"),
-                "pending_wakeups": prompt_snapshot.get("pending_wakeups", []),
-                "now_utc": context.external_context.get("now_utc"),
-                "generation_brief": meta.generation_brief,
-            },
-            ensure_ascii=False,
-            default=str,
+        context_payload, context_summary = build_structured_prompt_context(
+            context,
+            prompt_snapshot,
+            generation_brief=meta.generation_brief,
         )
+        context_json = json.dumps(context_payload, ensure_ascii=False, default=str)
         generation_guidance = ""
         if meta.generation_brief:
             generation_guidance = (
@@ -133,6 +128,7 @@ class GeneratorNode:
             "You are producing the assistant's visible reply for the host application.\n"
             "If this is an idle wakeup, you may proactively re-engage the user and naturally weave in the time or reason context.\n"
             "Stay in character and focus on the most relevant continuity from the current conversation.\n"
+            f"{context_summary}\n"
             "CONTEXT_JSON_START\n"
             f"{context_json}\n"
             "CONTEXT_JSON_END\n"

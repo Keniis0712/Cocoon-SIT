@@ -10,6 +10,7 @@ from app.services.runtime.prompting import (
     _serialize_tags,
     _tag_catalog,
     _visibility_description,
+    build_runtime_clock_payload,
     build_runtime_prompt_variables,
     record_prompt_render_artifacts,
 )
@@ -166,8 +167,11 @@ def test_build_runtime_prompt_variables_builds_full_payload():
     assert payload["memory_context"][0]["source"] == "chat_group"
     assert payload["runtime_event"]["source"] == "user"
     assert payload["runtime_event"]["timezone"] == "Asia/Shanghai"
+    assert payload["current_time"]["timezone"] == "Asia/Shanghai"
+    assert payload["current_time"]["local_time"]
+    assert payload["current_time"]["local_time_iso"].endswith("+08:00")
     assert "message_id" not in payload["runtime_event"]
-    assert payload["pending_wakeups"] == [{"run_at": None, "reason": None, "status": None, "has_payload": False}]
+    assert payload["pending_wakeups"] == [{"id": "wake-1", "run_at": None, "reason": None, "status": None, "has_payload": False}]
     assert payload["merge_context"]["source_state"]["active_tags"][0]["name"] == "Public Tag"
     assert payload["provider_capabilities"] == {"streaming": True}
 
@@ -196,7 +200,25 @@ def test_build_runtime_prompt_variables_handles_non_dict_catalog_and_merge_paylo
     assert payload["merge_context"] == "plain"
 
 
-def test_pending_wakeup_payload_hides_ids_and_payload_details():
+def test_build_runtime_clock_payload_falls_back_to_wakeup_context_and_utc():
+    context = _build_context(target_type="cocoon")
+    context.runtime_event.payload.pop("timezone")
+    context.external_context["wakeup_context"]["timezone"] = "Asia/Tokyo"
+
+    payload = build_runtime_clock_payload(context)
+
+    assert payload["timezone"] == "Asia/Tokyo"
+    assert payload["local_time_iso"].endswith("+09:00")
+
+    context.external_context["wakeup_context"]["timezone"] = "Invalid/Zone"
+
+    fallback = build_runtime_clock_payload(context)
+
+    assert fallback["timezone"] == "UTC"
+    assert fallback["local_time_iso"].endswith("+00:00")
+
+
+def test_pending_wakeup_payload_keeps_ids_and_hides_payload_details():
     payload = _pending_wakeup_payload(
         [
             {
@@ -211,6 +233,7 @@ def test_pending_wakeup_payload_hides_ids_and_payload_details():
 
     assert payload == [
         {
+            "id": "wake-1",
             "run_at": "2026-04-22T12:00:00",
             "reason": "follow up",
             "status": "queued",

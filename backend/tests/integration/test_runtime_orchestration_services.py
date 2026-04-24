@@ -129,7 +129,12 @@ def test_state_patch_service_updates_session_state_and_broadcasts(client, defaul
 def test_reply_delivery_service_persists_reply_and_records_artifact(client, default_cocoon_id):
     container = client.app.state.container
     hub = RecordingHub()
-    service = ReplyDeliveryService(container.side_effects, container.audit_service, hub)
+    service = ReplyDeliveryService(
+        container.side_effects,
+        container.audit_service,
+        hub,
+        container.plugin_im_delivery_service,
+    )
 
     with container.session_factory() as session:
         state = session.get(SessionState, default_cocoon_id)
@@ -309,3 +314,37 @@ def test_side_effects_resolve_readable_tag_references_to_canonical_ids(client, d
         assert state.active_tags_json == [tag.id]
         assert len(memories) == 1
         assert memories[0].tags_json == [tag.id]
+
+
+def test_side_effects_prefers_valid_context_memory_owner_over_model_supplied_display_name(client, default_cocoon_id):
+    container = client.app.state.container
+
+    with container.session_factory() as session:
+        context = _build_context(session, default_cocoon_id)
+        context.memory_owner_user_id = context.conversation.owner_user_id
+        action = ActionDispatch(
+            cocoon_id=default_cocoon_id,
+            event_type="message",
+            payload_json={"content": "remember this reminder request"},
+        )
+        session.add(action)
+        session.flush()
+
+        memories = container.side_effects.persist_memory_candidates(
+            session,
+            context,
+            action,
+            [
+                MemoryCandidate(
+                    scope="dialogue",
+                    summary="Reminder request",
+                    content="The user asked for a reminder in three minutes.",
+                    owner_user_id="ken",
+                    importance=7,
+                )
+            ],
+        )
+        session.commit()
+
+        assert len(memories) == 1
+        assert memories[0].owner_user_id == context.conversation.owner_user_id

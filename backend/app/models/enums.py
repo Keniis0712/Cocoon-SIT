@@ -22,6 +22,7 @@ class DurableJobType(StrEnum):
     pull = "pull"
     merge = "merge"
     wakeup = "wakeup"
+    plugin_im_delivery = "plugin_im_delivery"
     rollback = "rollback"
     compaction = "compaction"
     artifact_cleanup = "artifact_cleanup"

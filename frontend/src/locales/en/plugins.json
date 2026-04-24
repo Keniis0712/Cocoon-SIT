@@ -74,6 +74,7 @@
   "saveGlobalConfig": "Save Global Settings",
   "saveGlobalConfigSuccess": "Global settings saved.",
   "saveGlobalConfigFailed": "Failed to save global settings.",
+  "validateGlobalConfig": "Validate Global Settings",
   "globalSchemaJson": "Global Schema JSON",
   "userSchemaJson": "User Schema JSON",
   "eventConfigTitle": "Event Settings",

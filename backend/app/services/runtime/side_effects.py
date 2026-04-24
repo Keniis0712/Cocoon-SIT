@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import ActionDispatch, AuditRun, MemoryChunk, MemoryTag, Message, MessageTag, SessionState
+from app.models import ActionDispatch, AuditRun, MemoryChunk, MemoryTag, Message, MessageTag, SessionState, User
 from app.models.entities import ActionStatus
 from app.models.workspace import DEFAULT_RELATION_SCORE, MAX_RELATION_SCORE, MIN_RELATION_SCORE
 from app.services.audit.service import AuditService
@@ -96,10 +96,11 @@ class SideEffects:
             if not summary or not content:
                 continue
             tag_ids = self._resolve_candidate_tags(context, candidate) or list(context.session_state.active_tags_json)
+            owner_user_id = self._resolve_memory_owner_user_id(session, context, candidate)
             memory = MemoryChunk(
                 cocoon_id=context.runtime_event.cocoon_id,
                 chat_group_id=context.runtime_event.chat_group_id,
-                owner_user_id=candidate.owner_user_id or context.memory_owner_user_id,
+                owner_user_id=owner_user_id,
                 character_id=context.character.id,
                 source_message_id=source_message.id if source_message else None,
                 scope=candidate.scope,
@@ -135,6 +136,20 @@ class SideEffects:
             memories.append(memory)
         session.flush()
         return memories
+
+    def _resolve_memory_owner_user_id(
+        self,
+        session: Session,
+        context: ContextPackage,
+        candidate: MemoryCandidate,
+    ) -> str | None:
+        for raw_value in (context.memory_owner_user_id, candidate.owner_user_id):
+            normalized = str(raw_value or "").strip()
+            if not normalized:
+                continue
+            if session.get(User, normalized):
+                return normalized
+        return None
 
     def _resolve_candidate_tags(self, context: ContextPackage, candidate: MemoryCandidate) -> list[str]:
         resolved: list[str] = []

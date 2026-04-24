@@ -10,6 +10,7 @@ from app.services.audit.service import AuditService
 from app.services.prompts.service import PromptTemplateService
 from app.services.runtime.prompting import (
     build_provider_message_payload,
+    build_structured_prompt_context,
     build_runtime_prompt_variables,
     record_prompt_render_artifacts,
 )
@@ -151,17 +152,12 @@ class MetaNode:
         rendered_prompt: str,
         snapshot: dict,
     ) -> str:
-        context_json = json.dumps(
-            {
-                "runtime_event": snapshot.get("runtime_event"),
-                "session_state": snapshot.get("session_state"),
-                "pending_wakeups": snapshot.get("pending_wakeups", []),
-                "wakeup_context": snapshot.get("wakeup_context"),
-                "now_utc": context.external_context.get("now_utc"),
-            },
-            ensure_ascii=False,
-            default=str,
+        context_payload, context_summary = build_structured_prompt_context(
+            context,
+            snapshot,
+            include_session_state=True,
         )
+        context_json = json.dumps(context_payload, ensure_ascii=False, default=str)
         return (
             "You are producing the runtime analysis result for the host application.\n"
             "Decide whether the assistant should reply now or stay silent, then extract only durable memories worth retrieving later.\n"
@@ -169,6 +165,7 @@ class MetaNode:
             "Only propose wakeups that have a concrete reason.\n"
             "Only extract memory candidates for durable facts, preferences, commitments, or event conclusions.\n"
             "Do not turn the assistant's draft reply or ordinary chit-chat into long-term memory.\n"
+            f"{context_summary}\n"
             "CONTEXT_JSON_START\n"
             f"{context_json}\n"
             "CONTEXT_JSON_END\n"

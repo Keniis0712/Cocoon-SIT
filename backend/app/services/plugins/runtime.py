@@ -185,6 +185,7 @@ def run_im_plugin(
     plugin_version: str,
     plugin_config: dict[str, Any],
     data_dir: str,
+    inbound_queue,
     outbound_queue,
 ) -> None:
     module = bootstrap_module(manifest_path, entry_module)
@@ -194,6 +195,7 @@ def run_im_plugin(
         plugin_version=plugin_version,
         plugin_config=plugin_config,
         data_dir=data_dir,
+        inbound_queue=inbound_queue,
         outbound_queue=outbound_queue,
     )
     try:

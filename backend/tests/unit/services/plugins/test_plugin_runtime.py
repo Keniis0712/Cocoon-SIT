@@ -140,6 +140,7 @@ def test_run_external_daemon_and_im_plugin(monkeypatch):
         plugin_version="1.0.0",
         plugin_config={},
         data_dir="data",
+        inbound_queue=_Queue(),
         outbound_queue=queue,
     )
     runtime.run_im_plugin(
@@ -150,6 +151,7 @@ def test_run_external_daemon_and_im_plugin(monkeypatch):
         plugin_version="1.0.0",
         plugin_config={},
         data_dir="data",
+        inbound_queue=_Queue(),
         outbound_queue=queue,
     )
 
@@ -187,6 +189,7 @@ def test_runtime_reports_user_visible_errors_for_daemon_and_im(monkeypatch):
         plugin_version="1.0.0",
         plugin_config={},
         data_dir="data",
+        inbound_queue=_Queue(),
         outbound_queue=queue,
     )
 

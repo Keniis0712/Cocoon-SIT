@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_permission
@@ -24,6 +24,8 @@ from app.models import (
     MemoryTag,
     Message,
     MessageTag,
+    PluginDispatchRecord,
+    PluginImDeliveryOutbox,
     SessionState,
     User,
     WakeupTask,
@@ -68,10 +70,15 @@ def _delete_cocoon_subtree(db: Session, cocoon_ids: list[str]) -> None:
     message_ids = list(db.scalars(select(Message.id).where(Message.cocoon_id.in_(cocoon_ids))).all())
     memory_ids = list(db.scalars(select(MemoryChunk.id).where(MemoryChunk.cocoon_id.in_(cocoon_ids))).all())
     durable_job_ids = list(db.scalars(select(DurableJob.id).where(DurableJob.cocoon_id.in_(cocoon_ids))).all())
+    wakeup_task_ids = list(db.scalars(select(WakeupTask.id).where(WakeupTask.cocoon_id.in_(cocoon_ids))).all())
 
     db.query(SessionState).filter(SessionState.cocoon_id.in_(cocoon_ids)).delete(synchronize_session=False)
     db.query(CocoonTagBinding).filter(CocoonTagBinding.cocoon_id.in_(cocoon_ids)).delete(synchronize_session=False)
     db.query(Checkpoint).filter(Checkpoint.cocoon_id.in_(cocoon_ids)).delete(synchronize_session=False)
+    if wakeup_task_ids:
+        db.query(PluginDispatchRecord).filter(
+            PluginDispatchRecord.wakeup_task_id.in_(wakeup_task_ids)
+        ).delete(synchronize_session=False)
     db.query(WakeupTask).filter(WakeupTask.cocoon_id.in_(cocoon_ids)).delete(synchronize_session=False)
     db.query(CocoonPullJob).filter(
         (CocoonPullJob.source_cocoon_id.in_(cocoon_ids)) | (CocoonPullJob.target_cocoon_id.in_(cocoon_ids))
@@ -85,6 +92,14 @@ def _delete_cocoon_subtree(db: Session, cocoon_ids: list[str]) -> None:
         db.query(MemoryTag).filter(MemoryTag.memory_chunk_id.in_(memory_ids)).delete(synchronize_session=False)
         db.query(MemoryEmbedding).filter(MemoryEmbedding.memory_chunk_id.in_(memory_ids)).delete(synchronize_session=False)
         db.query(MemoryChunk).filter(MemoryChunk.id.in_(memory_ids)).delete(synchronize_session=False)
+
+    outbox_filters = []
+    if message_ids:
+        outbox_filters.append(PluginImDeliveryOutbox.message_id.in_(message_ids))
+    if action_ids:
+        outbox_filters.append(PluginImDeliveryOutbox.action_id.in_(action_ids))
+    if outbox_filters:
+        db.query(PluginImDeliveryOutbox).filter(or_(*outbox_filters)).delete(synchronize_session=False)
 
     if message_ids:
         db.query(MessageTag).filter(MessageTag.message_id.in_(message_ids)).delete(synchronize_session=False)

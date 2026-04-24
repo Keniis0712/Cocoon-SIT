@@ -4,7 +4,7 @@ import json
 from datetime import UTC
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, WebSocketException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_permission
@@ -24,6 +24,8 @@ from app.models import (
     MemoryTag,
     Message,
     MessageTag,
+    PluginDispatchRecord,
+    PluginImDeliveryOutbox,
     User,
     WakeupTask,
 )
@@ -63,7 +65,12 @@ def _cleanup_room(session: Session, room_id: str) -> None:
     message_ids = list(session.scalars(select(Message.id).where(Message.chat_group_id == room_id)).all())
     memory_ids = list(session.scalars(select(MemoryChunk.id).where(MemoryChunk.chat_group_id == room_id)).all())
     durable_job_ids = list(session.scalars(select(DurableJob.id).where(DurableJob.chat_group_id == room_id)).all())
+    wakeup_task_ids = list(session.scalars(select(WakeupTask.id).where(WakeupTask.chat_group_id == room_id)).all())
 
+    if wakeup_task_ids:
+        session.query(PluginDispatchRecord).filter(
+            PluginDispatchRecord.wakeup_task_id.in_(wakeup_task_ids)
+        ).delete(synchronize_session=False)
     session.query(WakeupTask).filter(WakeupTask.chat_group_id == room_id).delete(synchronize_session=False)
     session.query(DurableJob).filter(DurableJob.id.in_(durable_job_ids)).delete(synchronize_session=False)
 
@@ -73,6 +80,14 @@ def _cleanup_room(session: Session, room_id: str) -> None:
             synchronize_session=False
         )
         session.query(MemoryChunk).filter(MemoryChunk.id.in_(memory_ids)).delete(synchronize_session=False)
+
+    outbox_filters = []
+    if message_ids:
+        outbox_filters.append(PluginImDeliveryOutbox.message_id.in_(message_ids))
+    if action_ids:
+        outbox_filters.append(PluginImDeliveryOutbox.action_id.in_(action_ids))
+    if outbox_filters:
+        session.query(PluginImDeliveryOutbox).filter(or_(*outbox_filters)).delete(synchronize_session=False)
 
     if message_ids:
         session.query(MessageTag).filter(MessageTag.message_id.in_(message_ids)).delete(synchronize_session=False)

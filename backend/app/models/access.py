@@ -38,6 +38,17 @@ class AuthSession(Base, TimestampMixin):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
 
 
+class UserImBindToken(Base, TimestampMixin):
+    __tablename__ = "user_im_bind_tokens"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    last_validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+
+
 class InviteCode(Base, TimestampMixin):
     __tablename__ = "invite_codes"
 

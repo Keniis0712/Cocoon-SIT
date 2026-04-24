@@ -129,6 +129,7 @@ class MessageDispatchService:
         recent_turn_count: int | None = None,
         typing_hint_ms: int | None = None,
         sender_user_id: str | None = None,
+        extra_payload: dict | None = None,
     ) -> ActionDispatch:
         """Create a chat action and user message, enqueue it, and emit a queue event."""
         existing = session.scalar(
@@ -183,6 +184,7 @@ class MessageDispatchService:
                 "idle_seconds": idle_seconds,
                 "recent_turn_count": recent_turn_count,
                 "typing_hint_ms": typing_hint_ms,
+                **dict(extra_payload or {}),
             },
         )
         session.add(action)
@@ -209,6 +211,7 @@ class MessageDispatchService:
             "idle_seconds": idle_seconds,
             "recent_turn_count": recent_turn_count,
             "typing_hint_ms": typing_hint_ms,
+            **dict(extra_payload or {}),
         }
         for tag in state.active_tags_json:
             session.add(MessageTag(message_id=message.id, tag_id=tag))
@@ -235,7 +238,8 @@ class MessageDispatchService:
         idle_seconds: int | None = None,
         recent_turn_count: int | None = None,
         typing_hint_ms: int | None = None,
-        sender_user_id: str,
+        sender_user_id: str | None,
+        extra_payload: dict | None = None,
     ) -> ActionDispatch:
         existing = session.scalar(
             select(ActionDispatch).where(ActionDispatch.client_request_id == client_request_id)
@@ -274,6 +278,7 @@ class MessageDispatchService:
             cancelled_reason="Cancelled because the user sent a new group message",
         )
         debounce_seconds = self._current_debounce_seconds(session)
+        debounce_sender = sender_user_id or ""
 
         action = ActionDispatch(
             chat_group_id=chat_group_id,
@@ -283,7 +288,7 @@ class MessageDispatchService:
             debounce_until=datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=debounce_seconds),
             payload_json={
                 "timezone": timezone,
-                "debounce_key": debounce_key,
+                "debounce_key": self._build_debounce_key("chat_group", chat_group_id, debounce_sender, content),
                 "sender_user_id": sender_user_id,
                 "character_id": room.character_id,
                 "client_sent_at": client_sent_at.isoformat() if client_sent_at else None,
@@ -291,6 +296,7 @@ class MessageDispatchService:
                 "idle_seconds": idle_seconds,
                 "recent_turn_count": recent_turn_count,
                 "typing_hint_ms": typing_hint_ms,
+                **dict(extra_payload or {}),
             },
         )
         session.add(action)
@@ -319,6 +325,7 @@ class MessageDispatchService:
             "idle_seconds": idle_seconds,
             "recent_turn_count": recent_turn_count,
             "typing_hint_ms": typing_hint_ms,
+            **dict(extra_payload or {}),
         }
         for tag in state.active_tags_json:
             session.add(MessageTag(message_id=message.id, tag_id=tag))

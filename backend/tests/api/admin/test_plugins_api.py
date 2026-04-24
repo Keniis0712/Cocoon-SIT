@@ -83,7 +83,8 @@ def test_plugin_admin_routes_cover_detail_shared_libs_and_event_toggles(client, 
     assert scheduled_tick["schedule_cron"] == "0 9 * * *"
 
     event_run = client.post(f"/api/v1/admin/plugins/{plugin_id}/events/tick/run", headers=auth_headers)
-    assert event_run.status_code == 200, event_run.text
+    assert event_run.status_code == 409, event_run.text
+    assert event_run.envelope_json()["code"] == "NO_ELIGIBLE_PLUGIN_TARGET_BINDINGS_WERE_SUBMITTED_FOR_THIS_EVENT"
 
     disable = client.post(f"/api/v1/admin/plugins/{plugin_id}/disable", headers=auth_headers)
     assert disable.status_code == 200, disable.text

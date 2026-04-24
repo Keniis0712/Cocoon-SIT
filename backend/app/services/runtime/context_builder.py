@@ -1,7 +1,5 @@
 """Runtime context builder composed from smaller context subservices."""
 
-from datetime import UTC, datetime
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -82,7 +80,6 @@ class ContextBuilder:
             }
             for task in pending_wakeups
         ]
-        external_context["now_utc"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
         tags = list(session.scalars(select(TagRegistry)).all())
         external_context["tag_catalog_by_ref"] = {
             **{
@@ -137,12 +134,12 @@ class ContextBuilder:
         conversation: Cocoon | ChatGroupRoom,
         visible_messages: list,
     ) -> str | None:
-        if event.target_type == "cocoon":
-            return conversation.owner_user_id
-        if sender_user_id := event.payload.get("sender_user_id"):
-            return str(sender_user_id)
         if sender_user_id := event.payload.get("memory_owner_user_id"):
             return str(sender_user_id)
+        if sender_user_id := event.payload.get("sender_user_id"):
+            return str(sender_user_id)
+        if event.target_type == "cocoon":
+            return conversation.owner_user_id
         for message in reversed(visible_messages):
             if message.role == "user" and message.sender_user_id:
                 return message.sender_user_id

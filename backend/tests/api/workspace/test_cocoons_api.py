@@ -16,6 +16,10 @@ from app.models import (
     FailedRound,
     MemoryChunk,
     Message,
+    PluginDefinition,
+    PluginDispatchRecord,
+    PluginImDeliveryOutbox,
+    PluginVersion,
     SessionState,
     WakeupTask,
 )
@@ -214,6 +218,118 @@ def test_delete_cocoon_cleans_subtree_and_related_records(
         assert session.scalar(select(AuditRun).where(AuditRun.cocoon_id == child_id)) is None
         assert session.scalar(select(DurableJob).where(DurableJob.cocoon_id == child_id)) is None
         assert session.scalar(select(WakeupTask).where(WakeupTask.cocoon_id == child_id)) is None
+
+
+def test_delete_cocoon_cleans_plugin_dispatch_records_for_wakeups(client, auth_headers, create_branch_cocoon):
+    container = client.app.state.container
+    child_id = create_branch_cocoon("Delete Branch With Plugin Dispatch")["id"]
+
+    with container.session_factory() as session:
+        plugin = PluginDefinition(
+            name="cleanup-plugin",
+            display_name="Cleanup Plugin",
+            plugin_type="external",
+            entry_module="main",
+            status="enabled",
+            data_dir="data/plugins/cleanup-plugin",
+        )
+        session.add(plugin)
+        session.flush()
+        version = PluginVersion(
+            plugin_id=plugin.id,
+            version="1.0.0",
+            source_zip_path="cleanup.zip",
+            extracted_path="cleanup",
+            manifest_path="cleanup/plugin.json",
+        )
+        session.add(version)
+        session.flush()
+        plugin.active_version_id = version.id
+        wakeup = WakeupTask(
+            cocoon_id=child_id,
+            run_at=datetime.now(UTC).replace(tzinfo=None),
+            reason="delete wakeup with dispatch",
+            payload_json={},
+        )
+        session.add(wakeup)
+        session.flush()
+        dispatch = PluginDispatchRecord(
+            plugin_id=plugin.id,
+            plugin_version_id=version.id,
+            event_name="tick",
+            target_type="cocoon",
+            target_id=child_id,
+            wakeup_task_id=wakeup.id,
+            payload_json={},
+        )
+        session.add(dispatch)
+        session.commit()
+        wakeup_id = wakeup.id
+        dispatch_id = dispatch.id
+
+    delete_response = client.delete(f"/api/v1/cocoons/{child_id}", headers=auth_headers)
+    assert delete_response.status_code == 200, delete_response.text
+
+    with container.session_factory() as session:
+        assert session.get(WakeupTask, wakeup_id) is None
+        assert session.get(PluginDispatchRecord, dispatch_id) is None
+
+
+def test_delete_cocoon_cleans_plugin_im_delivery_outbox_records(client, auth_headers, create_branch_cocoon):
+    container = client.app.state.container
+    child_id = create_branch_cocoon("Delete Branch With IM Outbox")["id"]
+
+    with container.session_factory() as session:
+        plugin = PluginDefinition(
+            name="cleanup-im-plugin",
+            display_name="Cleanup IM Plugin",
+            plugin_type="im",
+            entry_module="main",
+            service_function_name="run",
+            status="enabled",
+            data_dir="data/plugins/cleanup-im-plugin",
+        )
+        session.add(plugin)
+        session.flush()
+        version = PluginVersion(
+            plugin_id=plugin.id,
+            version="1.0.0",
+            source_zip_path="cleanup-im.zip",
+            extracted_path="cleanup-im",
+            manifest_path="cleanup-im/plugin.json",
+        )
+        session.add(version)
+        session.flush()
+        plugin.active_version_id = version.id
+
+        action = ActionDispatch(cocoon_id=child_id, event_type="chat", status="completed", payload_json={})
+        session.add(action)
+        session.flush()
+
+        message = Message(cocoon_id=child_id, action_id=action.id, role="assistant", content="Delete me and outbox")
+        session.add(message)
+        session.flush()
+
+        outbox = PluginImDeliveryOutbox(
+            plugin_id=plugin.id,
+            action_id=action.id,
+            message_id=message.id,
+            status="delivered",
+            payload_json={"reply_text": "Delete me and outbox"},
+        )
+        session.add(outbox)
+        session.commit()
+        outbox_id = outbox.id
+        message_id = message.id
+        action_id = action.id
+
+    delete_response = client.delete(f"/api/v1/cocoons/{child_id}", headers=auth_headers)
+    assert delete_response.status_code == 200, delete_response.text
+
+    with container.session_factory() as session:
+        assert session.get(PluginImDeliveryOutbox, outbox_id) is None
+        assert session.get(Message, message_id) is None
+        assert session.get(ActionDispatch, action_id) is None
 
 
 def test_cocoon_update_selected_model_and_delete_without_actions(client, auth_headers, default_cocoon_id):

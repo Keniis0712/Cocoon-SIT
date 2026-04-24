@@ -126,7 +126,7 @@ def test_context_builder_builds_chat_group_context_with_tags_and_pending_wakeups
             "payload_json": {"kind": "unit"},
         }
     ]
-    assert "now_utc" in result.external_context
+    assert "now_utc" not in result.external_context
     assert result.external_context["tag_catalog_by_ref"]["tag-row-1"]["brief"] == "Keep focus"
     assert result.external_context["tag_catalog_by_ref"]["focus"]["is_isolated"] is True
     assert window_calls[0][0][1:] == (8, ["focus"])
@@ -241,6 +241,22 @@ def test_context_builder_resolves_memory_owner_from_payload_messages_and_owner()
         SimpleNamespace(role="user", sender_user_id="member-9"),
     ]
 
+    assert (
+        builder._resolve_memory_owner_user_id(
+            _event(cocoon_id="cocoon-1", payload={"memory_owner_user_id": "plugin-owner"}),
+            SimpleNamespace(owner_user_id="cocoon-owner"),
+            [],
+        )
+        == "plugin-owner"
+    )
+    assert (
+        builder._resolve_memory_owner_user_id(
+            _event(cocoon_id="cocoon-1", payload={"sender_user_id": "plugin-sender"}),
+            SimpleNamespace(owner_user_id="cocoon-owner"),
+            [],
+        )
+        == "plugin-sender"
+    )
     assert (
         builder._resolve_memory_owner_user_id(
             _event(cocoon_id="cocoon-1"),

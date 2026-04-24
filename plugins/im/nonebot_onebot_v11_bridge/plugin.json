@@ -1,0 +1,106 @@
+{
+  "name": "nonebot_onebot_v11_bridge",
+  "version": "1.0.0",
+  "display_name": "NoneBot OneBot V11 Bridge",
+  "plugin_type": "im",
+  "entry_module": "main",
+  "service_function": "run",
+  "settings_validation_function": "validate_settings",
+  "config_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "driver",
+      "onebot_ws_urls",
+      "default_owner_username",
+      "default_model_id"
+    ],
+    "properties": {
+      "driver": {
+        "type": "string",
+        "title": "NoneBot Driver",
+        "default": "~aiohttp"
+      },
+      "onebot_ws_urls": {
+        "type": "array",
+        "title": "OneBot WS URLs",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1
+      },
+      "onebot_access_token": {
+        "type": "string",
+        "title": "OneBot Access Token",
+        "default": ""
+      },
+      "command_start": {
+        "type": "array",
+        "title": "Command Prefixes",
+        "items": {
+          "type": "string"
+        },
+        "default": [
+          "/"
+        ]
+      },
+      "command_sep": {
+        "type": "array",
+        "title": "Command Separators",
+        "items": {
+          "type": "string"
+        },
+        "default": [
+          "."
+        ]
+      },
+      "default_owner_username": {
+        "type": "string",
+        "title": "Default Owner Username"
+      },
+      "default_model_id": {
+        "type": "string",
+        "title": "Default Model ID"
+      },
+      "private_cocoon_name_prefix": {
+        "type": "string",
+        "title": "Private Cocoon Name Prefix",
+        "default": "QQ"
+      },
+      "group_room_name_prefix": {
+        "type": "string",
+        "title": "Group Room Name Prefix",
+        "default": "QQ群"
+      },
+      "message_priority": {
+        "type": "integer",
+        "title": "NoneBot Message Priority",
+        "minimum": 1,
+        "maximum": 255,
+        "default": 95
+      }
+    }
+  },
+  "default_config": {
+    "driver": "~aiohttp",
+    "onebot_ws_urls": [],
+    "onebot_access_token": "",
+    "command_start": [
+      "/"
+    ],
+    "command_sep": [
+      "."
+    ],
+    "default_owner_username": "",
+    "default_model_id": "",
+    "private_cocoon_name_prefix": "QQ",
+    "group_room_name_prefix": "QQ群",
+    "message_priority": 95
+  },
+  "user_config_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "user_default_config": {}
+}

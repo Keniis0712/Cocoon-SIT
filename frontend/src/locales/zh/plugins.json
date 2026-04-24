@@ -74,6 +74,7 @@
   "saveGlobalConfig": "保存全局设置",
   "saveGlobalConfigSuccess": "全局设置已保存。",
   "saveGlobalConfigFailed": "保存全局设置失败。",
+  "validateGlobalConfig": "校验全局设置",
   "globalSchemaJson": "全局 Schema JSON",
   "userSchemaJson": "用户 Schema JSON",
   "eventConfigTitle": "事件设置",

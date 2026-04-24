@@ -15,6 +15,7 @@ class ArchivedDependency:
     name: str
     version: str
     path: Path
+    size_bytes: int
 
 
 @dataclass(slots=True)
@@ -32,6 +33,7 @@ class DependencyBuilder:
 
     REQUIREMENT_FILENAMES = ("requirements.txt", "requirements.lock", "requirements-dev.txt")
     _NORMALIZE_NAME_PATTERN = re.compile(r"[-_.]+")
+    _PACKAGE_METADATA_FILENAME = ".package-info.json"
 
     def _find_requirements_file(self, extracted_root: Path) -> Path | None:
         for name in self.REQUIREMENT_FILENAMES:
@@ -47,13 +49,57 @@ class DependencyBuilder:
         if not root.exists():
             return 0
         total = 0
-        for path in root.rglob("*"):
-            if path.is_file():
-                total += path.stat().st_size
+        try:
+            paths = list(root.rglob("*"))
+        except FileNotFoundError:
+            return 0
+        for path in paths:
+            try:
+                if path.is_file():
+                    total += path.stat().st_size
+            except FileNotFoundError:
+                continue
         return total
 
     def _normalize_distribution_name(self, name: str) -> str:
         return self._NORMALIZE_NAME_PATTERN.sub("-", name).strip("-").lower()
+
+    def _package_metadata_path(self, package_root: Path) -> Path:
+        return package_root / self._PACKAGE_METADATA_FILENAME
+
+    def _load_package_metadata(self, package_root: Path) -> dict | None:
+        metadata_path = self._package_metadata_path(package_root)
+        if not metadata_path.exists():
+            return None
+        try:
+            payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        return payload if isinstance(payload, dict) else None
+
+    def _write_package_metadata(
+        self,
+        package_root: Path,
+        *,
+        name: str,
+        normalized_name: str,
+        version: str,
+        size_bytes: int,
+    ) -> None:
+        metadata_path = self._package_metadata_path(package_root)
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "name": name,
+                    "normalized_name": normalized_name,
+                    "version": version,
+                    "size_bytes": int(size_bytes),
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
     def _install_to_staging(self, requirements_path: Path, staging_root: Path) -> None:
         staging_root.mkdir(parents=True, exist_ok=True)
@@ -136,7 +182,28 @@ class DependencyBuilder:
                 files = list(distribution.files or [])
                 if files:
                     self._copy_distribution_files(staging_root=staging_root, package_root=package_root, files=files)
-            archived.append(ArchivedDependency(name=name, version=version, path=package_root))
+                size_bytes = self._directory_size_bytes(package_root)
+                self._write_package_metadata(
+                    package_root,
+                    name=name,
+                    normalized_name=normalized_name,
+                    version=version,
+                    size_bytes=size_bytes,
+                )
+            else:
+                metadata = self._load_package_metadata(package_root)
+                if metadata and metadata.get("size_bytes") is not None:
+                    size_bytes = int(metadata["size_bytes"])
+                else:
+                    size_bytes = self._directory_size_bytes(package_root)
+                    self._write_package_metadata(
+                        package_root,
+                        name=name,
+                        normalized_name=normalized_name,
+                        version=version,
+                        size_bytes=size_bytes,
+                    )
+            archived.append(ArchivedDependency(name=name, version=version, path=package_root, size_bytes=size_bytes))
         return archived
 
     def build(
@@ -167,6 +234,7 @@ class DependencyBuilder:
                     "normalized_name": self._normalize_distribution_name(item.name),
                     "version": item.version,
                     "path": str(item.path),
+                    "size_bytes": item.size_bytes,
                 }
                 for item in archived
             ]
@@ -228,23 +296,48 @@ class DependencyBuilder:
                 name = str(package.get("name") or package_path.parent.name)
                 normalized_name = str(package.get("normalized_name") or self._normalize_distribution_name(name))
                 version = str(package.get("version") or package_path.name)
-                _, _, _, current_count = reference_counts.get(package_path, (name, normalized_name, version, 0))
-                reference_counts[package_path] = (name, normalized_name, version, current_count + 1)
+                size_bytes = int(package.get("size_bytes") or 0)
+                _, _, _, _, current_count = reference_counts.get(package_path, (name, normalized_name, version, size_bytes, 0))
+                reference_counts[package_path] = (name, normalized_name, version, size_bytes, current_count + 1)
 
         inventory: list[SharedPackageInventoryItem] = []
         if not shared_lib_root.exists():
             return inventory
-        for package_name_root in shared_lib_root.iterdir():
+        try:
+            package_roots = list(shared_lib_root.iterdir())
+        except FileNotFoundError:
+            return inventory
+        for package_name_root in package_roots:
             if not package_name_root.is_dir():
                 continue
-            for version_root in package_name_root.iterdir():
+            try:
+                version_roots = list(package_name_root.iterdir())
+            except FileNotFoundError:
+                continue
+            for version_root in version_roots:
                 if not version_root.is_dir():
                     continue
                 resolved_root = version_root.resolve()
-                name, normalized_name, version, count = reference_counts.get(
+                metadata = self._load_package_metadata(version_root) or {}
+                name, normalized_name, version, size_bytes, count = reference_counts.get(
                     resolved_root,
-                    (package_name_root.name, package_name_root.name, version_root.name, 0),
+                    (
+                        str(metadata.get("name") or package_name_root.name),
+                        str(metadata.get("normalized_name") or package_name_root.name),
+                        str(metadata.get("version") or version_root.name),
+                        int(metadata.get("size_bytes") or 0),
+                        0,
+                    ),
                 )
+                if size_bytes <= 0:
+                    size_bytes = self._directory_size_bytes(version_root)
+                    self._write_package_metadata(
+                        version_root,
+                        name=name,
+                        normalized_name=normalized_name,
+                        version=version,
+                        size_bytes=size_bytes,
+                    )
                 inventory.append(
                     SharedPackageInventoryItem(
                         name=name,
@@ -252,7 +345,7 @@ class DependencyBuilder:
                         version=version,
                         path=version_root,
                         reference_count=count,
-                        size_bytes=self._directory_size_bytes(version_root),
+                        size_bytes=size_bytes,
                     )
                 )
         inventory.sort(key=lambda item: (item.normalized_name, item.version))

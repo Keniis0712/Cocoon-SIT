@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -5,6 +7,7 @@ from app.api.deps import get_current_user, get_db
 from app.models import User
 from app.schemas.access.auth import (
     LoginRequest,
+    ImBindTokenOut,
     PublicFeaturesOut,
     RefreshRequest,
     RegisterRequest,
@@ -52,6 +55,21 @@ def logout(
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> User:
     return user
+
+
+@router.post("/me/im-bind-token", response_model=ImBindTokenOut)
+def create_im_bind_token(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ImBindTokenOut:
+    token, row = db.info["container"].im_bind_token_service.issue_for_user(db, user)
+    expires_at = row.expires_at.replace(tzinfo=UTC)
+    expires_in_seconds = max(0, int((expires_at - datetime.now(UTC)).total_seconds()))
+    return ImBindTokenOut(
+        token=token,
+        expires_at=expires_at,
+        expires_in_seconds=expires_in_seconds,
+    )
 
 
 @router.get("/features", response_model=PublicFeaturesOut)

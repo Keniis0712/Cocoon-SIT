@@ -47,6 +47,7 @@ def test_deliver_streams_reply_persists_message_and_records_artifacts():
             record_link=lambda *args, **kwargs: link_calls.append((args, kwargs)),
         ),
         realtime_hub=SimpleNamespace(publish=lambda channel_key, payload: publish_calls.append((channel_key, payload))),
+        plugin_im_delivery_service=SimpleNamespace(enqueue_reply=lambda *args, **kwargs: None),
     )
     action = SimpleNamespace(id="action-1")
     audit_run = SimpleNamespace(id="audit-1")

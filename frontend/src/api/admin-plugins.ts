@@ -63,6 +63,16 @@ export function updateAdminPluginConfig(
   });
 }
 
+export function validateAdminPluginConfig(
+  pluginId: string,
+  config_json: Record<string, unknown>,
+): Promise<AdminPluginDetailRead> {
+  return apiJson<AdminPluginDetailRead>(`/admin/plugins/${pluginId}/config/validate`, {
+    method: "POST",
+    body: JSON.stringify({ config_json }),
+  });
+}
+
 export function updateAdminPluginEventConfig(
   pluginId: string,
   eventName: string,
