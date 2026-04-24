@@ -1,5 +1,6 @@
 from typing import Any
 import logging
+import time
 
 import httpx
 from pydantic import BaseModel
@@ -17,6 +18,27 @@ from app.services.runtime.structured_output import invoke_with_structured_output
 
 class OpenAICompatibleProvider(ChatProvider, EmbeddingProvider):
     logger = logging.getLogger(__name__)
+
+    def _embedding_retry_count(self, provider_config: dict[str, Any]) -> int:
+        raw_value = provider_config.get("embedding_max_retries", provider_config.get("embedding_retry_count", 0))
+        try:
+            return max(0, int(raw_value or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    def _embedding_timeout(self, provider_config: dict[str, Any]) -> float:
+        raw_value = provider_config.get("embedding_timeout", provider_config.get("timeout", 60))
+        try:
+            timeout = float(raw_value or 60)
+        except (TypeError, ValueError):
+            return 60.0
+        return timeout if timeout > 0 else 60.0
+
+    def _embedding_retry_delay(self, attempt_index: int, *, exponential_backoff: bool) -> float:
+        base_delay = 0.5
+        if not exponential_backoff:
+            return base_delay
+        return min(base_delay * (2 ** max(attempt_index - 1, 0)), 8.0)
 
     def generate_text(
         self,
@@ -134,21 +156,39 @@ class OpenAICompatibleProvider(ChatProvider, EmbeddingProvider):
             raise ValueError("Provider base_url is required for openai_compatible providers")
         if not api_key:
             raise ValueError("Provider API key is required for openai_compatible providers")
-        timeout = float(provider_config.get("timeout", 60))
-        with httpx.Client(timeout=timeout) as client:
-            response = client.post(
-                f"{base_url.rstrip('/')}/embeddings",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": model_name,
-                    "input": texts,
-                },
-            )
-            response.raise_for_status()
-            data = response.json()
+        timeout = self._embedding_timeout(provider_config)
+        max_retries = self._embedding_retry_count(provider_config)
+        exponential_backoff = bool(provider_config.get("embedding_exponential_backoff", False))
+        for attempt in range(max_retries + 1):
+            try:
+                with httpx.Client(timeout=timeout) as client:
+                    response = client.post(
+                        f"{base_url.rstrip('/')}/embeddings",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "model": model_name,
+                            "input": texts,
+                        },
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                break
+            except httpx.HTTPError:
+                if attempt >= max_retries:
+                    raise
+                delay = self._embedding_retry_delay(attempt + 1, exponential_backoff=exponential_backoff)
+                self.logger.warning(
+                    "OpenAI-compatible embedding request failed; retrying model=%s attempt=%s max_retries=%s delay_seconds=%s",
+                    model_name,
+                    attempt + 1,
+                    max_retries,
+                    delay,
+                    exc_info=True,
+                )
+                time.sleep(delay)
         items = data.get("data", []) if isinstance(data, dict) else []
         vectors = [[float(value) for value in item.get("embedding", [])] for item in items]
         usage_payload = data.get("usage", {}) if isinstance(data, dict) else {}

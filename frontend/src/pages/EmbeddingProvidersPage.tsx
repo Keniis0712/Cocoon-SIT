@@ -24,9 +24,28 @@ const EMPTY_FORM: EmbeddingProviderPayload = {
   model_name: "",
   local_model_name: "",
   device: "cpu",
+  embedding_timeout: null,
+  embedding_max_retries: 0,
+  embedding_exponential_backoff: false,
   is_enabled: true,
   is_default: false,
 };
+
+function parseOptionalNumber(value: string): number | null {
+  if (!value.trim()) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseNonNegativeInteger(value: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(parsed));
+}
 
 export default function EmbeddingProvidersPage() {
   const { t } = useTranslation(["providers", "common"]);
@@ -69,6 +88,9 @@ export default function EmbeddingProvidersPage() {
       model_name: item.model_name || "",
       local_model_name: item.local_model_name || "",
       device: item.device,
+      embedding_timeout: item.embedding_timeout,
+      embedding_max_retries: item.embedding_max_retries,
+      embedding_exponential_backoff: item.embedding_exponential_backoff,
       is_enabled: item.is_enabled,
       is_default: item.is_default,
     });
@@ -132,6 +154,17 @@ export default function EmbeddingProvidersPage() {
                 <div className="text-muted-foreground">{t("providers:remoteModelValue", { value: item.model_name || "-" })}</div>
                 <div className="text-muted-foreground">{t("providers:localModelValue", { value: item.local_model_name || "-" })}</div>
                 <div className="text-muted-foreground">{t("providers:deviceValue", { value: item.device })}</div>
+                {item.kind === "openai_compatible" ? (
+                  <div className="text-muted-foreground">
+                    {t("providers:embeddingRuntimeValue", {
+                      timeout: item.embedding_timeout ?? "-",
+                      retries: item.embedding_max_retries,
+                      backoff: item.embedding_exponential_backoff
+                        ? t("providers:embeddingBackoffOn")
+                        : t("providers:embeddingBackoffOff"),
+                    })}
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           ))
@@ -183,6 +216,39 @@ export default function EmbeddingProvidersPage() {
               <Label>{t("providers:device")}</Label>
               <Input value={form.device || "cpu"} onChange={(event) => setForm((prev) => ({ ...prev, device: event.target.value }))} />
             </div>
+            {form.kind === "openai_compatible" ? (
+              <div className="grid gap-4 rounded-lg border border-border/70 p-3">
+                <div className="grid gap-2 md:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label>{t("providers:embeddingTimeout")}</Label>
+                    <Input
+                      min={1}
+                      step={1}
+                      type="number"
+                      value={form.embedding_timeout ?? ""}
+                      onChange={(event) => setForm((prev) => ({ ...prev, embedding_timeout: parseOptionalNumber(event.target.value) }))}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{t("providers:embeddingMaxRetries")}</Label>
+                    <Input
+                      min={0}
+                      step={1}
+                      type="number"
+                      value={form.embedding_max_retries ?? 0}
+                      onChange={(event) => setForm((prev) => ({ ...prev, embedding_max_retries: parseNonNegativeInteger(event.target.value) }))}
+                    />
+                  </div>
+                </div>
+                <label className="flex items-center gap-3 text-sm">
+                  <Checkbox
+                    checked={Boolean(form.embedding_exponential_backoff)}
+                    onCheckedChange={(checked) => setForm((prev) => ({ ...prev, embedding_exponential_backoff: Boolean(checked) }))}
+                  />
+                  <span>{t("providers:embeddingExponentialBackoff")}</span>
+                </label>
+              </div>
+            ) : null}
             <label className="flex items-center gap-3 rounded-lg border border-border/70 px-3 py-3 text-sm">
               <Checkbox checked={form.is_enabled} onCheckedChange={(checked) => setForm((prev) => ({ ...prev, is_enabled: Boolean(checked) }))} />
               <span>{t("providers:enableEmbeddingProvider")}</span>

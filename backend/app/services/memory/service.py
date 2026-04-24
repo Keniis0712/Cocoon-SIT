@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 
 from sqlalchemy import Float, bindparam, cast, select
 from sqlalchemy.orm import Session
@@ -33,6 +34,8 @@ class MemoryRetrievalHit:
 
 class MemoryService:
     """Loads visible memory chunks for a cocoon and indexes vector memories when supported."""
+
+    logger = logging.getLogger(__name__)
 
     def __init__(self, provider_registry: ProviderRegistry | None = None) -> None:
         self.provider_registry = provider_registry
@@ -129,11 +132,26 @@ class MemoryService:
                 for memory in candidates[:limit]
             ]
         provider, embedding_provider, runtime_config = resolved
-        embedding_response = provider.embed_texts(
-            [query_text],
-            model_name=embedding_provider.model_name,
-            provider_config=runtime_config,
-        )
+        try:
+            embedding_response = provider.embed_texts(
+                [query_text],
+                model_name=embedding_provider.model_name,
+                provider_config=runtime_config,
+            )
+        except Exception:
+            self.logger.warning(
+                "Memory vector retrieval embedding failed; falling back to recent memories",
+                exc_info=True,
+            )
+            return [
+                MemoryRetrievalHit(
+                    memory=memory,
+                    similarity_score=None,
+                    matched_tags=sorted(set(memory.tags_json).intersection(active_tags)),
+                    embedding_provider_id=None,
+                )
+                for memory in candidates[:limit]
+            ]
         if not embedding_response.vectors:
             return []
 
@@ -234,11 +252,19 @@ class MemoryService:
         if resolved is None:
             return None
         provider, embedding_provider, runtime_config = resolved
-        response = provider.embed_texts(
-            [source_text or memory_chunk.summary or memory_chunk.content],
-            model_name=embedding_provider.model_name,
-            provider_config=runtime_config,
-        )
+        try:
+            response = provider.embed_texts(
+                [source_text or memory_chunk.summary or memory_chunk.content],
+                model_name=embedding_provider.model_name,
+                provider_config=runtime_config,
+            )
+        except Exception:
+            self.logger.warning(
+                "Memory chunk embedding failed; skipping vector index memory_chunk_id=%s",
+                memory_chunk.id,
+                exc_info=True,
+            )
+            return None
         if not response.vectors:
             return None
 

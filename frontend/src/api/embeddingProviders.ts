@@ -16,6 +16,23 @@ function makePage<T>(items: T[], page: number, pageSize: number): PageResp<T> {
   };
 }
 
+function numberConfig(config: Record<string, unknown>, key: string, fallback: number | null): number | null {
+  const value = config[key];
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+}
+
+function booleanConfig(config: Record<string, unknown>, key: string, fallback = false): boolean {
+  const value = config[key];
+  return typeof value === "boolean" ? value : fallback;
+}
+
 function mapEmbeddingProvider(item: {
   id: string;
   name: string;
@@ -34,6 +51,9 @@ function mapEmbeddingProvider(item: {
     model_name: item.kind === "openai_compatible" ? item.model_name : null,
     local_model_name: item.kind === "openai_compatible" ? null : item.model_name,
     device: typeof item.config_json.device === "string" ? item.config_json.device : "cpu",
+    embedding_timeout: numberConfig(item.config_json, "embedding_timeout", null),
+    embedding_max_retries: numberConfig(item.config_json, "embedding_max_retries", 0) ?? 0,
+    embedding_exponential_backoff: booleanConfig(item.config_json, "embedding_exponential_backoff", false),
     is_enabled: item.is_enabled,
     is_default: Boolean(item.config_json.is_default),
     created_at: item.created_at,
@@ -61,6 +81,9 @@ export function createEmbeddingProvider(payload: EmbeddingProviderPayload) {
       config_json: {
         base_url: payload.base_url || null,
         device: payload.device || "cpu",
+        embedding_timeout: payload.embedding_timeout ?? null,
+        embedding_max_retries: Math.max(0, Math.floor(payload.embedding_max_retries ?? 0)),
+        embedding_exponential_backoff: payload.embedding_exponential_backoff ?? false,
         is_default: payload.is_default ?? false,
       },
       api_key: payload.api_key?.trim() || null,
@@ -83,6 +106,9 @@ export function updateEmbeddingProvider(providerId: number, payload: Partial<Emb
       config_json: {
         base_url: payload.base_url || null,
         device: payload.device || "cpu",
+        embedding_timeout: payload.embedding_timeout ?? null,
+        embedding_max_retries: Math.max(0, Math.floor(payload.embedding_max_retries ?? 0)),
+        embedding_exponential_backoff: payload.embedding_exponential_backoff ?? false,
         is_default: payload.is_default ?? false,
       },
       api_key: payload.api_key?.trim() || null,

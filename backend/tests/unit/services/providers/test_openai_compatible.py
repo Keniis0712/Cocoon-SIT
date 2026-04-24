@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from app.services.providers.openai_compatible import OpenAICompatibleProvider
@@ -171,3 +172,65 @@ def test_embed_texts_normalizes_vectors_and_usage(monkeypatch):
             },
         }
     ]
+
+
+def test_embed_texts_uses_embedding_timeout_override(monkeypatch):
+    provider = OpenAICompatibleProvider()
+    timeouts = []
+    fake_client = _FakeClient(payload={"data": [], "usage": {}})
+
+    def _client(timeout):
+        timeouts.append(timeout)
+        return fake_client
+
+    monkeypatch.setattr("app.services.providers.openai_compatible.httpx.Client", _client)
+
+    provider.embed_texts(
+        ["alpha"],
+        "text-embedding-test",
+        {
+            "base_url": "https://example.com/",
+            "api_key": "secret",
+            "timeout": 60,
+            "embedding_timeout": 8,
+        },
+    )
+
+    assert timeouts == [8.0]
+
+
+def test_embed_texts_retries_with_exponential_backoff(monkeypatch):
+    provider = OpenAICompatibleProvider()
+    attempts = []
+    sleeps = []
+
+    class _FlakyClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def post(self, *args, **kwargs):
+            attempts.append(kwargs)
+            if len(attempts) < 3:
+                raise httpx.ConnectTimeout("slow")
+            return _FakeResponse({"data": [{"embedding": [0.1, 0.2]}], "usage": {"prompt_tokens": 1}})
+
+    monkeypatch.setattr("app.services.providers.openai_compatible.httpx.Client", lambda timeout: _FlakyClient())
+    monkeypatch.setattr("app.services.providers.openai_compatible.time.sleep", lambda delay: sleeps.append(delay))
+
+    response = provider.embed_texts(
+        ["alpha"],
+        "text-embedding-test",
+        {
+            "base_url": "https://example.com/",
+            "api_key": "secret",
+            "embedding_max_retries": 2,
+            "embedding_exponential_backoff": True,
+        },
+    )
+
+    assert response.vectors == [[0.1, 0.2]]
+    assert len(attempts) == 3
+    assert sleeps == [0.5, 1.0]

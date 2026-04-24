@@ -60,6 +60,9 @@ export interface EmbeddingProviderRead {
   model_name: string | null;
   local_model_name: string | null;
   device: string;
+  embedding_timeout: number | null;
+  embedding_max_retries: number;
+  embedding_exponential_backoff: boolean;
   is_enabled: boolean;
   is_default: boolean;
   created_at: string;
@@ -74,6 +77,9 @@ export interface EmbeddingProviderPayload {
   model_name?: string | null;
   local_model_name?: string | null;
   device?: string;
+  embedding_timeout?: number | null;
+  embedding_max_retries?: number;
+  embedding_exponential_backoff?: boolean;
   is_enabled?: boolean;
   is_default?: boolean;
 }

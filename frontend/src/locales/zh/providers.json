@@ -40,12 +40,18 @@
   "remoteModelValue": "远端模型：{{value}}",
   "localModelValue": "本地模型：{{value}}",
   "deviceValue": "设备：{{value}}",
+  "embeddingRuntimeValue": "Embedding 超时：{{timeout}} 秒 · 重试：{{retries}} 次 · 退避：{{backoff}}",
   "editEmbeddingProvider": "编辑 Embedding 提供方",
   "embeddingDialogDescription": "远端模式需要兼容 OpenAI 的接口；本地模式默认使用 CPU。启用当前条目时，后端可能会禁用其他 embedding 提供方。",
   "kind": "类型",
   "remoteModel": "远端模型",
   "localModel": "本地模型",
   "device": "设备",
+  "embeddingTimeout": "Embedding 超时（秒）",
+  "embeddingMaxRetries": "Embedding 重试次数",
+  "embeddingExponentialBackoff": "重试时使用指数退避",
+  "embeddingBackoffOn": "开启",
+  "embeddingBackoffOff": "关闭",
   "enableEmbeddingProvider": "启用这个 Embedding 提供方",
   "setAsDefault": "设为默认"
 }

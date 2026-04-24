@@ -97,6 +97,32 @@ def test_memory_service_retrieve_visible_memories_with_vector_rows_and_backfill(
     assert hits[1].similarity_score is None
 
 
+def test_memory_service_retrieve_visible_memories_falls_back_when_embedding_fails():
+    memories = [
+        MemoryChunk(id="m1", scope="dialogue", content="one", tags_json=["focus"]),
+        MemoryChunk(id="m2", scope="dialogue", content="two", tags_json=[]),
+    ]
+    provider = SimpleNamespace(embed_texts=lambda *args, **kwargs: (_ for _ in ()).throw(TimeoutError("slow")))
+    provider_record = SimpleNamespace(id="embed-1", model_name="embed-model")
+    provider_registry = SimpleNamespace(
+        resolve_embedding_provider=lambda current_session: (provider, provider_record, {"api_key": "secret"})
+    )
+    service = MemoryService(provider_registry=provider_registry)
+    service._supports_vector_search = lambda current_session: True  # type: ignore[method-assign]
+    service._load_candidate_memories = lambda *args, **kwargs: memories  # type: ignore[method-assign]
+
+    hits = service.retrieve_visible_memories(
+        session=object(),
+        active_tags=["focus"],
+        cocoon_id="c1",
+        query_text="hello",
+        limit=2,
+    )
+
+    assert [item.memory.id for item in hits] == ["m1", "m2"]
+    assert all(item.similarity_score is None for item in hits)
+
+
 def test_memory_service_index_memory_chunk_handles_disabled_and_missing_providers():
     memory_chunk = MemoryChunk(id="memory-1", scope="dialogue", content="hello")
     service = MemoryService(provider_registry=None)
@@ -107,6 +133,20 @@ def test_memory_service_index_memory_chunk_handles_disabled_and_missing_provider
     service = MemoryService(provider_registry=SimpleNamespace(resolve_embedding_provider=lambda session: None))
     service._supports_vector_search = lambda session: True  # type: ignore[method-assign]
     assert service.index_memory_chunk(session=session, memory_chunk=memory_chunk) is None
+
+
+def test_memory_service_index_memory_chunk_skips_vector_when_embedding_fails():
+    provider = SimpleNamespace(embed_texts=lambda *args, **kwargs: (_ for _ in ()).throw(TimeoutError("slow")))
+    provider_record = EmbeddingProvider(id="embed-1", name="embed", model_name="embed-model", config_json={}, is_enabled=True)
+    provider_registry = SimpleNamespace(
+        resolve_embedding_provider=lambda session: (provider, provider_record, {"api_key": "secret"})
+    )
+    service = MemoryService(provider_registry=provider_registry)
+    service._supports_vector_search = lambda session: True  # type: ignore[method-assign]
+    memory_chunk = MemoryChunk(id="memory-1", scope="dialogue", content="hello", summary="summary")
+
+    assert service.index_memory_chunk(session=object(), memory_chunk=memory_chunk) is None
+    assert memory_chunk.embedding_ref is None
 
 
 def test_memory_service_index_memory_chunk_creates_and_updates_embedding_records():

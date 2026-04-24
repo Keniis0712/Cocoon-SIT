@@ -40,12 +40,18 @@
   "remoteModelValue": "Remote model: {{value}}",
   "localModelValue": "Local model: {{value}}",
   "deviceValue": "Device: {{value}}",
+  "embeddingRuntimeValue": "Embedding timeout: {{timeout}}s · retries: {{retries}} · backoff: {{backoff}}",
   "editEmbeddingProvider": "Edit Embedding Provider",
   "embeddingDialogDescription": "Remote mode expects an OpenAI-compatible endpoint. Local mode defaults to CPU. Enabling the current entry may disable other embedding providers on the backend.",
   "kind": "Kind",
   "remoteModel": "Remote Model",
   "localModel": "Local Model",
   "device": "Device",
+  "embeddingTimeout": "Embedding timeout (seconds)",
+  "embeddingMaxRetries": "Embedding retry count",
+  "embeddingExponentialBackoff": "Use exponential backoff for retries",
+  "embeddingBackoffOn": "on",
+  "embeddingBackoffOff": "off",
   "enableEmbeddingProvider": "Enable this embedding provider",
   "setAsDefault": "Set as default"
 }
