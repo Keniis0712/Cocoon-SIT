@@ -1,6 +1,6 @@
 """bind invites to groups and add root-group metadata
 
-Revision ID: 0018_invite_group_binding_and_root_groups
+Revision ID: 0018_invite_group_bindings
 Revises: 0017_user_permission_overrides
 Create Date: 2026-04-25 00:00:00.000000
 """
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0018_invite_group_binding_and_root_groups"
+revision = "0018_invite_group_bindings"
 down_revision = "0017_user_permission_overrides"
 branch_labels = None
 depends_on = None
