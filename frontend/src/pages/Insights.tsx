@@ -2,14 +2,22 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, BrainCircuit, Database, TimerReset } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { getInsightsOverview, getMemoryInsights, getRuntimeInsights, getTokenUsage } from "@/api/insights";
-import type { InsightsOverview, MemoryInsights, NamedMetric, RuntimeInsights, TokenUsageSeries } from "@/api/types/insights";
+import { showErrorToast } from "@/api/client";
+import { getInsightsDashboard } from "@/api/insights";
+import type {
+  InsightsDashboard,
+  InsightsRange,
+  NamedMetric,
+  RankedCocoonMetric,
+  TimeSeriesPoint,
+} from "@/api/types/insights";
 import AccessCard from "@/components/AccessCard";
 import EChart from "@/components/charts/EChart";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { hasPermission } from "@/lib/permissions";
 import { useUserStore } from "@/store/useUserStore";
 
 function metricOption(items: NamedMetric[]) {
@@ -20,7 +28,7 @@ function metricOption(items: NamedMetric[]) {
   };
 }
 
-function seriesOption(points: { bucket: string; value: number }[], color = "#2563eb") {
+function seriesOption(points: TimeSeriesPoint[], color = "#2563eb") {
   return {
     tooltip: { trigger: "axis" },
     xAxis: { type: "category", data: points.map((item) => item.bucket) },
@@ -38,7 +46,7 @@ function barOption(items: NamedMetric[]) {
   };
 }
 
-function topCocoonOption(items: { cocoon_name: string; value: number }[]) {
+function topCocoonOption(items: RankedCocoonMetric[]) {
   return {
     tooltip: { trigger: "axis" },
     xAxis: { type: "value" },
@@ -57,65 +65,83 @@ function SummaryCard({ title, value, hint }: { title: string; value: string | nu
   );
 }
 
+function EmptyChart({ message }: { message: string }) {
+  return <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">{message}</div>;
+}
+
+function hasMetricData(items: NamedMetric[]) {
+  return items.some((item) => Number(item.value) > 0);
+}
+
+function hasSeriesData(points: TimeSeriesPoint[]) {
+  return points.some((item) => Number(item.value) > 0);
+}
+
+function hasRankedData(items: RankedCocoonMetric[]) {
+  return items.some((item) => Number(item.value) > 0);
+}
+
+function formatPercent(value: number) {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatNumber(value: number) {
+  return Math.round(value).toLocaleString();
+}
+
 export default function InsightsPage() {
   const { t } = useTranslation();
   const userInfo = useUserStore((state) => state.userInfo);
-  const canView = Boolean(userInfo?.can_manage_system);
-  const [range, setRange] = useState("30d");
-  const [overview, setOverview] = useState<InsightsOverview | null>(null);
-  const [tokenUsage, setTokenUsage] = useState<TokenUsageSeries | null>(null);
-  const [memoryInsights, setMemoryInsights] = useState<MemoryInsights | null>(null);
-  const [runtimeInsights, setRuntimeInsights] = useState<RuntimeInsights | null>(null);
+  const canView = hasPermission(userInfo, "insights:read");
+  const [range, setRange] = useState<InsightsRange>("30d");
+  const [dashboard, setDashboard] = useState<InsightsDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     if (!canView) return;
     async function loadData() {
       setIsLoading(true);
+      setLoadFailed(false);
       try {
-        const interval = range === "24h" ? "hour" : "day";
-        const [overviewResp, tokenResp, memoryResp, runtimeResp] = await Promise.all([
-          getInsightsOverview({ range }),
-          getTokenUsage({ range, interval }),
-          getMemoryInsights({ range }),
-          getRuntimeInsights({ range, interval }),
-        ]);
-        setOverview(overviewResp);
-        setTokenUsage(tokenResp);
-        setMemoryInsights(memoryResp);
-        setRuntimeInsights(runtimeResp);
+        const response = await getInsightsDashboard({ range, interval: "auto" });
+        setDashboard(response);
+      } catch (error) {
+        setDashboard(null);
+        setLoadFailed(true);
+        showErrorToast(error, t("insights.loadFailed"));
       } finally {
         setIsLoading(false);
       }
     }
     void loadData();
-  }, [canView, range]);
+  }, [canView, range, t]);
 
   const summary = useMemo(() => {
-    if (!overview || !runtimeInsights) return null;
+    if (!dashboard) return [];
     return [
       {
         title: t("insights.summary.totalTokens.title"),
-        value: overview.total_tokens.toLocaleString(),
+        value: dashboard.summary.total_tokens.toLocaleString(),
         hint: t("insights.summary.totalTokens.hint"),
       },
       {
         title: t("insights.summary.auditRuns.title"),
-        value: overview.total_runs.toLocaleString(),
-        hint: t("insights.summary.auditRuns.hint", { value: runtimeInsights.silence_rate }),
+        value: dashboard.summary.total_runs.toLocaleString(),
+        hint: t("insights.summary.auditRuns.hint", { value: formatPercent(dashboard.runtime.silence_rate) }),
       },
       {
         title: t("insights.summary.memories.title"),
-        value: memoryInsights?.total_memories.toLocaleString() || "0",
+        value: dashboard.memory.total_memories.toLocaleString(),
         hint: t("insights.summary.memories.hint"),
       },
       {
         title: t("insights.summary.avgLatency.title"),
-        value: `${overview.average_latency_ms} ms`,
-        hint: t("insights.summary.avgLatency.hint", { value: runtimeInsights.latency_p95_ms }),
+        value: `${formatNumber(dashboard.summary.average_latency_ms)} ms`,
+        hint: t("insights.summary.avgLatency.hint", { value: formatNumber(dashboard.runtime.latency_p95_ms) }),
       },
     ];
-  }, [memoryInsights, overview, runtimeInsights, t]);
+  }, [dashboard, t]);
 
   if (!canView) return <AccessCard description={t("insights.noPermission")} />;
 
@@ -126,7 +152,7 @@ export default function InsightsPage() {
       actions={
         <div className="flex items-center gap-3">
           <Badge variant="outline">{t("insights.sqlBadge")}</Badge>
-          <Select value={range} onValueChange={setRange}>
+          <Select value={range} onValueChange={(value) => setRange(value as InsightsRange)}>
             <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="24h">{t("insights.ranges.24h")}</SelectItem>
@@ -138,74 +164,76 @@ export default function InsightsPage() {
         </div>
       }
     >
-      {isLoading || !overview || !tokenUsage || !memoryInsights || !runtimeInsights ? (
+      {isLoading ? (
         <Card><CardContent className="p-8 text-sm text-muted-foreground">{t("insights.loading")}</CardContent></Card>
+      ) : loadFailed || !dashboard ? (
+        <Card><CardContent className="p-8 text-sm text-muted-foreground">{t("insights.loadFailed")}</CardContent></Card>
       ) : (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {summary?.map((item) => <SummaryCard key={item.title} title={item.title} value={item.value} hint={item.hint} />)}
+            {summary.map((item) => <SummaryCard key={item.title} title={item.title} value={item.value} hint={item.hint} />)}
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Activity className="size-4 text-primary" />{t("insights.cards.tokenTrend.title")}</CardTitle><CardDescription>{t("insights.cards.tokenTrend.description")}</CardDescription></CardHeader>
-              <CardContent><EChart option={seriesOption(tokenUsage.series)} /></CardContent>
+              <CardContent>{hasSeriesData(dashboard.token_usage.series) ? <EChart option={seriesOption(dashboard.token_usage.series)} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2 text-base"><BrainCircuit className="size-4 text-primary" />{t("insights.cards.tokenByOperation.title")}</CardTitle><CardDescription>{t("insights.cards.tokenByOperation.description")}</CardDescription></CardHeader>
-              <CardContent><EChart option={barOption(tokenUsage.by_operation)} /></CardContent>
+              <CardContent>{hasMetricData(dashboard.token_usage.by_operation) ? <EChart option={barOption(dashboard.token_usage.by_operation)} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-3">
             <Card>
               <CardHeader><CardTitle className="text-base">{t("insights.cards.providerShare.title")}</CardTitle></CardHeader>
-              <CardContent><EChart option={metricOption(tokenUsage.by_provider)} height={280} /></CardContent>
+              <CardContent>{hasMetricData(dashboard.token_usage.by_provider) ? <EChart option={metricOption(dashboard.token_usage.by_provider)} height={280} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="text-base">{t("insights.cards.memorySources.title")}</CardTitle></CardHeader>
-              <CardContent><EChart option={metricOption(memoryInsights.by_source_kind)} height={280} /></CardContent>
+              <CardContent>{hasMetricData(dashboard.memory.by_source_kind) ? <EChart option={metricOption(dashboard.memory.by_source_kind)} height={280} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="text-base">{t("insights.cards.runtimeDecisions.title")}</CardTitle></CardHeader>
-              <CardContent><EChart option={metricOption(runtimeInsights.decision_distribution)} height={280} /></CardContent>
+              <CardContent>{hasMetricData(dashboard.runtime.decision_distribution) ? <EChart option={metricOption(dashboard.runtime.decision_distribution)} height={280} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Database className="size-4 text-primary" />{t("insights.cards.memoryGrowth.title")}</CardTitle><CardDescription>{t("insights.cards.memoryGrowth.description")}</CardDescription></CardHeader>
-              <CardContent><EChart option={seriesOption(memoryInsights.growth, "#16a34a")} /></CardContent>
+              <CardContent>{hasSeriesData(dashboard.memory.growth) ? <EChart option={seriesOption(dashboard.memory.growth, "#16a34a")} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2 text-base"><TimerReset className="size-4 text-primary" />{t("insights.cards.runtimeThroughput.title")}</CardTitle><CardDescription>{t("insights.cards.runtimeThroughput.description")}</CardDescription></CardHeader>
-              <CardContent><EChart option={seriesOption(runtimeInsights.request_series, "#ea580c")} /></CardContent>
+              <CardContent>{hasSeriesData(dashboard.runtime.request_series) ? <EChart option={seriesOption(dashboard.runtime.request_series, "#ea580c")} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
             <Card>
               <CardHeader><CardTitle className="text-base">{t("insights.cards.topCocoonsByMemory.title")}</CardTitle></CardHeader>
-              <CardContent><EChart option={topCocoonOption(memoryInsights.top_cocoons)} /></CardContent>
+              <CardContent>{hasRankedData(dashboard.memory.top_cocoons) ? <EChart option={topCocoonOption(dashboard.memory.top_cocoons)} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="text-base">{t("insights.cards.topCocoonsByErrors.title")}</CardTitle></CardHeader>
-              <CardContent><EChart option={topCocoonOption(runtimeInsights.top_error_cocoons)} /></CardContent>
+              <CardContent>{hasRankedData(dashboard.runtime.top_error_cocoons) ? <EChart option={topCocoonOption(dashboard.runtime.top_error_cocoons)} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-3">
             <Card>
               <CardHeader><CardTitle className="text-base">{t("insights.cards.runtimeStatus.title")}</CardTitle></CardHeader>
-              <CardContent><EChart option={metricOption(runtimeInsights.status_distribution)} height={280} /></CardContent>
+              <CardContent>{hasMetricData(dashboard.runtime.status_distribution) ? <EChart option={metricOption(dashboard.runtime.status_distribution)} height={280} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="text-base">{t("insights.cards.nodeLatency.title")}</CardTitle></CardHeader>
-              <CardContent><EChart option={barOption(runtimeInsights.node_latency)} height={280} /></CardContent>
+              <CardContent>{hasMetricData(dashboard.runtime.node_latency) ? <EChart option={barOption(dashboard.runtime.node_latency)} height={280} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="text-base">{t("insights.cards.memoryTypes.title")}</CardTitle></CardHeader>
-              <CardContent><EChart option={metricOption(memoryInsights.by_memory_type)} height={280} /></CardContent>
+              <CardContent>{hasMetricData(dashboard.memory.by_memory_type) ? <EChart option={metricOption(dashboard.memory.by_memory_type)} height={280} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
           </div>
         </div>

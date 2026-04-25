@@ -150,7 +150,10 @@ def wire_observability_services(container) -> None:
         container.artifact_store,
     )
     container.artifact_admin_service = ArtifactAdminService(container.artifact_store)
-    container.insight_query_service = InsightQueryService(container.authorization_service)
+    container.insight_query_service = InsightQueryService(
+        container.authorization_service,
+        container.artifact_store,
+    )
 
 
 def wire_runtime_services(container) -> None:

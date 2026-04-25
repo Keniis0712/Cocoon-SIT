@@ -2,7 +2,7 @@ import pytest
 from app.models import ActionDispatch
 from app.schemas.observability.artifacts import ArtifactCleanupResult
 from app.schemas.observability.audits import AuditRunDetail, AuditRunOut
-from app.schemas.observability.insights import InsightsSummary
+from app.schemas.observability.insights import InsightsDashboard
 
 pytestmark = pytest.mark.integration
 
@@ -74,7 +74,7 @@ def test_artifact_admin_service_lists_and_cleans_artifacts(client, default_cocoo
         assert stored.deleted_at is not None
 
 
-def test_insight_query_service_returns_typed_summary(client, default_cocoon_id):
+def test_insight_query_service_returns_dashboard(client, default_cocoon_id):
     container = client.app.state.container
 
     with container.session_factory() as session:
@@ -82,7 +82,10 @@ def test_insight_query_service_returns_typed_summary(client, default_cocoon_id):
         session.commit()
 
     with container.session_factory() as session:
-        summary = container.insight_query_service.summary(session)
-        assert isinstance(summary, InsightsSummary)
-        metric_names = {item.name for item in summary.metrics}
-        assert {"users", "messages", "memory_chunks", "audit_runs"} <= metric_names
+        dashboard = container.insight_query_service.dashboard(session)
+        assert isinstance(dashboard, InsightsDashboard)
+        assert dashboard.summary.total_runs >= 0
+        assert dashboard.summary.total_messages >= 0
+        assert isinstance(dashboard.token_usage.series, list)
+        assert isinstance(dashboard.memory.growth, list)
+        assert isinstance(dashboard.runtime.status_distribution, list)

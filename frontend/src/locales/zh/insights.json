@@ -1,9 +1,11 @@
 {
   "title": "洞察看板",
-  "description": "供管理员查看记忆、Token 用量、运行状态与系统健康度的全局面板。",
+  "description": "用于查看 Token 消耗、记忆增长、运行决策和系统健康状态的运营看板。",
   "noPermission": "当前账号没有查看系统洞察的权限。",
   "loading": "正在加载洞察数据...",
-  "sqlBadge": "基于 SQL 统计",
+  "loadFailed": "暂时无法加载洞察数据。",
+  "noData": "所选时间范围内暂无数据。",
+  "sqlBadge": "实时统计",
   "ranges": {
     "24h": "最近 24 小时",
     "7d": "最近 7 天",
@@ -13,15 +15,15 @@
   "summary": {
     "totalTokens": {
       "title": "总 Token",
-      "hint": "统计范围内已观测到的用量"
+      "hint": "统计范围内观测到的总消耗"
     },
     "auditRuns": {
-      "title": "审计轮次",
-      "hint": "沉默率 {{value}}%"
+      "title": "运行轮次",
+      "hint": "沉默率 {{value}}"
     },
     "memories": {
-      "title": "记忆数",
-      "hint": "基于 SQL 存储的记忆片段"
+      "title": "新增记忆",
+      "hint": "统计范围内创建的记忆片段"
     },
     "avgLatency": {
       "title": "平均延迟",
@@ -31,11 +33,11 @@
   "cards": {
     "tokenTrend": {
       "title": "Token 趋势",
-      "description": "展示 prompt 和 completion 的时间变化。"
+      "description": "按时间查看总 Token 消耗。"
     },
     "tokenByOperation": {
       "title": "按操作类型统计 Token",
-      "description": "查看消耗主要集中在哪些运行路径。"
+      "description": "查看主要消耗集中在哪些运行路径。"
     },
     "providerShare": {
       "title": "提供方占比"
@@ -48,17 +50,17 @@
     },
     "memoryGrowth": {
       "title": "记忆增长",
-      "description": "按天统计新建记忆片段数量。"
+      "description": "按时间统计新建记忆片段数量。"
     },
     "runtimeThroughput": {
       "title": "运行吞吐",
-      "description": "按时间统计审计轮次数量。"
+      "description": "按时间统计运行轮次数量。"
     },
     "topCocoonsByMemory": {
-      "title": "记忆量最高的茧"
+      "title": "记忆最多的 Cocoon"
     },
     "topCocoonsByErrors": {
-      "title": "错误最多的茧"
+      "title": "错误最多的 Cocoon"
     },
     "runtimeStatus": {
       "title": "运行状态"

@@ -300,10 +300,12 @@ def test_wakeup_pull_merge_rollback_compaction_and_insights(
     assert compact.status_code == 200, compact.text
     assert _process_one_durable_job(worker_runtime) is True
 
-    insights = client.get("/api/v1/insights/summary", headers=auth_headers)
+    insights = client.get("/api/v1/insights/dashboard?range=30d&interval=day", headers=auth_headers)
     assert insights.status_code == 200, insights.text
-    names = {item["name"] for item in insights.json()["metrics"]}
-    assert {"users", "messages", "memory_chunks", "audit_runs"} <= names
+    payload = insights.json()
+    assert payload["summary"]["total_runs"] >= 1
+    assert "decision_distribution" in payload["runtime"]
+    assert "by_operation" in payload["token_usage"]
 
     audits = client.get("/api/v1/audits", headers=auth_headers)
     assert audits.status_code == 200, audits.text

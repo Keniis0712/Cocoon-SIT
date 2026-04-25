@@ -55,20 +55,24 @@ def test_audit_artifact_and_insight_routes_cover_summary_and_manual_cleanup(clie
     assert manual_cleanup.json()["job_type"] == "artifact_cleanup"
     assert manual_cleanup.json()["payload_json"] == {"mode": "manual", "artifact_ids": [artifact_id]}
 
-    summary = client.get("/api/v1/insights/summary", headers=auth_headers)
-    assert summary.status_code == 200, summary.text
-    payload = summary.json()
+    dashboard = client.get("/api/v1/insights/dashboard?range=30d&interval=day", headers=auth_headers)
+    assert dashboard.status_code == 200, dashboard.text
+    payload = dashboard.json()
     assert {
-        "metrics",
-        "action_status_counts",
-        "durable_job_status_counts",
-        "operation_counts",
-        "model_usage",
-        "workflow_metrics",
-        "failed_rounds",
-        "relation_score_timeline",
+        "generated_at",
+        "range",
+        "interval",
+        "summary",
+        "token_usage",
+        "memory",
+        "runtime",
     } == set(payload.keys())
-    assert any(item["name"] == "users" for item in payload["metrics"])
+    assert payload["range"] == "30d"
+    assert payload["interval"] == "day"
+    assert {"total_messages", "total_runs", "total_tokens", "error_rate", "average_latency_ms", "active_cocoons", "pending_wakeup_count"} == set(payload["summary"].keys())
+    assert {"series", "by_provider", "by_model", "by_operation"} == set(payload["token_usage"].keys())
+    assert {"total_memories", "growth", "by_source_kind", "by_memory_type", "top_cocoons"} == set(payload["memory"].keys())
+    assert {"request_series", "decision_distribution", "status_distribution", "node_latency", "latency_p50_ms", "latency_p95_ms", "silence_rate", "wakeup_rate", "error_rate", "top_error_cocoons"} == set(payload["runtime"].keys())
 
 
 def test_audit_detail_returns_404_for_unknown_run(client, auth_headers):

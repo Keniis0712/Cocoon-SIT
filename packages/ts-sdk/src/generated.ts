@@ -106,6 +106,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/me/im-bind-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Im Bind Token */
+        post: operations["create_im_bind_token_api_v1_auth_me_im_bind_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/features": {
         parameters: {
             query?: never;
@@ -241,6 +258,23 @@ export interface paths {
         /** Create Invite Grant */
         post: operations["create_invite_grant_api_v1_invites_grants_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invites/grants/{grant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Invite Grant */
+        delete: operations["revoke_invite_grant_api_v1_invites_grants__grant_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -633,6 +667,24 @@ export interface paths {
         patch: operations["update_tag_api_v1_tags__tag_id__patch"];
         trace?: never;
     };
+    "/api/v1/tags/{tag_id}/chat-groups/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Tag Chat Group Visibility */
+        get: operations["get_tag_chat_group_visibility_api_v1_tags__tag_id__chat_groups_visibility_get"];
+        /** Update Tag Chat Group Visibility */
+        put: operations["update_tag_chat_group_visibility_api_v1_tags__tag_id__chat_groups_visibility_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings": {
         parameters: {
             query?: never;
@@ -933,6 +985,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chat-groups/{room_id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Chat Group Tags */
+        get: operations["list_chat_group_tags_api_v1_chat_groups__room_id__tags_get"];
+        put?: never;
+        /** Bind Chat Group Tag */
+        post: operations["bind_chat_group_tag_api_v1_chat_groups__room_id__tags_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat-groups/{room_id}/tags/{tag_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unbind Chat Group Tag */
+        delete: operations["unbind_chat_group_tag_api_v1_chat_groups__room_id__tags__tag_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cocoons/{cocoon_id}/messages": {
         parameters: {
             query?: never;
@@ -1088,6 +1175,246 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plugins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Plugins For User */
+        get: operations["list_plugins_for_user_api_v1_plugins_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Plugin For User */
+        get: operations["get_plugin_for_user_api_v1_plugins__plugin_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enable Plugin For User */
+        post: operations["enable_plugin_for_user_api_v1_plugins__plugin_id__enable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable Plugin For User */
+        post: operations["disable_plugin_for_user_api_v1_plugins__plugin_id__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update User Plugin Config */
+        patch: operations["update_user_plugin_config_api_v1_plugins__plugin_id__config_patch"];
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate User Plugin Config */
+        post: operations["validate_user_plugin_config_api_v1_plugins__plugin_id__validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}/clear-error": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Clear User Plugin Error */
+        post: operations["clear_user_plugin_error_api_v1_plugins__plugin_id__clear_error_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}/chat-groups/{chat_group_id}/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chat Group Plugin Config */
+        get: operations["get_chat_group_plugin_config_api_v1_plugins__plugin_id__chat_groups__chat_group_id__config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Chat Group Plugin Config */
+        patch: operations["update_chat_group_plugin_config_api_v1_plugins__plugin_id__chat_groups__chat_group_id__config_patch"];
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}/chat-groups/{chat_group_id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enable Chat Group Plugin */
+        post: operations["enable_chat_group_plugin_api_v1_plugins__plugin_id__chat_groups__chat_group_id__enable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}/chat-groups/{chat_group_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable Chat Group Plugin */
+        post: operations["disable_chat_group_plugin_api_v1_plugins__plugin_id__chat_groups__chat_group_id__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}/chat-groups/{chat_group_id}/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate Chat Group Plugin Config */
+        post: operations["validate_chat_group_plugin_config_api_v1_plugins__plugin_id__chat_groups__chat_group_id__validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}/chat-groups/{chat_group_id}/clear-error": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Clear Chat Group Plugin Error */
+        post: operations["clear_chat_group_plugin_error_api_v1_plugins__plugin_id__chat_groups__chat_group_id__clear_error_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Plugin Target Bindings For User */
+        get: operations["list_plugin_target_bindings_for_user_api_v1_plugins__plugin_id__targets_get"];
+        put?: never;
+        /** Add Plugin Target Binding For User */
+        post: operations["add_plugin_target_binding_for_user_api_v1_plugins__plugin_id__targets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{plugin_id}/targets/{binding_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Plugin Target Binding For User */
+        delete: operations["delete_plugin_target_binding_for_user_api_v1_plugins__plugin_id__targets__binding_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/pulls": {
         parameters: {
             query?: never;
@@ -1209,15 +1536,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/insights/summary": {
+    "/api/v1/insights/dashboard": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Summary */
-        get: operations["summary_api_v1_insights_summary_get"];
+        /** Dashboard */
+        get: operations["dashboard_api_v1_insights_dashboard_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1414,6 +1741,23 @@ export interface paths {
         patch: operations["update_plugin_config_api_v1_admin_plugins__plugin_id__config_patch"];
         trace?: never;
     };
+    "/api/v1/admin/plugins/{plugin_id}/config/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate Plugin Config */
+        post: operations["validate_plugin_config_api_v1_admin_plugins__plugin_id__config_validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/config": {
         parameters: {
             query?: never;
@@ -1429,6 +1773,40 @@ export interface paths {
         head?: never;
         /** Update Event Config */
         patch: operations["update_event_config_api_v1_admin_plugins__plugin_id__events__event_name__config_patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Event Schedule */
+        patch: operations["update_event_schedule_api_v1_admin_plugins__plugin_id__events__event_name__schedule_patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Event Now */
+        post: operations["run_event_now_api_v1_admin_plugins__plugin_id__events__event_name__run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/enable": {
@@ -1459,6 +1837,57 @@ export interface paths {
         put?: never;
         /** Disable Event */
         post: operations["disable_event_api_v1_admin_plugins__plugin_id__events__event_name__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set Global Visibility */
+        patch: operations["set_global_visibility_api_v1_admin_plugins__plugin_id__visibility_patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}/groups/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Group Visibility */
+        get: operations["list_group_visibility_api_v1_admin_plugins__plugin_id__groups_visibility_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plugins/{plugin_id}/groups/{group_id}/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Group Visibility */
+        put: operations["set_group_visibility_api_v1_admin_plugins__plugin_id__groups__group_id__visibility_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1776,6 +2205,38 @@ export interface components {
             /** Member Role */
             member_role: string;
         };
+        /** ChatGroupPluginConfigOut */
+        ChatGroupPluginConfigOut: {
+            /** Plugin Id */
+            plugin_id: string;
+            /** Chat Group Id */
+            chat_group_id: string;
+            /** Is Enabled */
+            is_enabled: boolean;
+            /** Config Schema Json */
+            config_schema_json: {
+                [key: string]: unknown;
+            };
+            /** Default Config Json */
+            default_config_json: {
+                [key: string]: unknown;
+            };
+            /** Config Json */
+            config_json: {
+                [key: string]: unknown;
+            };
+            /** Error Text */
+            error_text: string | null;
+            /** Error At */
+            error_at: string | null;
+        };
+        /** ChatGroupPluginConfigUpdate */
+        ChatGroupPluginConfigUpdate: {
+            /** Config Json */
+            config_json?: {
+                [key: string]: unknown;
+            };
+        };
         /** ChatGroupRoomCreate */
         ChatGroupRoomCreate: {
             /** Name */
@@ -1868,6 +2329,25 @@ export interface components {
             active_tags_json: string[];
             /** Current Wakeup Task Id */
             current_wakeup_task_id: string | null;
+        };
+        /** ChatGroupTagBindResult */
+        ChatGroupTagBindResult: {
+            /** Binding Id */
+            binding_id: string;
+            /** Tag Id */
+            tag_id: string;
+        };
+        /** ChatGroupTagBindingOut */
+        ChatGroupTagBindingOut: {
+            /** Id */
+            id: string;
+            /** Tag Id */
+            tag_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** ChatMessageCreate */
         ChatMessageCreate: {
@@ -2044,6 +2524,34 @@ export interface components {
             /** Auto Compaction Enabled */
             auto_compaction_enabled?: boolean | null;
         };
+        /** CurrentUserOut */
+        CurrentUserOut: {
+            /** Id */
+            id: string;
+            /** Username */
+            username: string;
+            /** Email */
+            email: string | null;
+            /** Role Id */
+            role_id: string | null;
+            /** Permissions Json */
+            permissions_json?: {
+                [key: string]: boolean;
+            };
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Role Name */
+            role_name?: string | null;
+            /** Permissions */
+            permissions?: {
+                [key: string]: boolean;
+            };
+        };
         /** DurableJobOut */
         DurableJobOut: {
             /** Id */
@@ -2146,19 +2654,14 @@ export interface components {
             /** Is Enabled */
             is_enabled?: boolean | null;
         };
-        /** FailedRoundMetric */
-        FailedRoundMetric: {
-            /** Event Type */
-            event_type: string;
-            /** Reason */
-            reason: string;
-            /** Count */
-            count: number;
-        };
         /** GroupCreate */
         GroupCreate: {
             /** Name */
             name: string;
+            /** Parent Group Id */
+            parent_group_id?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /** GroupMemberCreate */
         GroupMemberCreate: {
@@ -2194,16 +2697,31 @@ export interface components {
             name: string;
             /** Owner User Id */
             owner_user_id: string | null;
+            /** Parent Group Id */
+            parent_group_id: string | null;
+            /** Group Path */
+            group_path: string;
+            /** Description */
+            description: string | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** GroupUpdate */
         GroupUpdate: {
             /** Name */
             name?: string | null;
+            /** Parent Group Id */
+            parent_group_id?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2222,36 +2740,77 @@ export interface components {
              */
             now: string;
         };
-        /** InsightMetric */
-        InsightMetric: {
-            /** Name */
-            name: string;
-            /** Value */
-            value: number;
+        /** ImBindTokenOut */
+        ImBindTokenOut: {
+            /** Token */
+            token: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Expires In Seconds */
+            expires_in_seconds: number;
+        };
+        /** InsightsDashboard */
+        InsightsDashboard: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /**
+             * Range
+             * @enum {string}
+             */
+            range: "24h" | "7d" | "30d" | "90d";
+            /**
+             * Interval
+             * @enum {string}
+             */
+            interval: "hour" | "day";
+            summary: components["schemas"]["InsightsSummary"];
+            token_usage: components["schemas"]["TokenUsageInsights"];
+            memory: components["schemas"]["MemoryInsights"];
+            runtime: components["schemas"]["RuntimeInsights"];
         };
         /** InsightsSummary */
         InsightsSummary: {
-            /** Metrics */
-            metrics: components["schemas"]["InsightMetric"][];
-            /** Action Status Counts */
-            action_status_counts: {
-                [key: string]: number;
-            };
-            /** Durable Job Status Counts */
-            durable_job_status_counts: {
-                [key: string]: number;
-            };
-            /** Operation Counts */
-            operation_counts: {
-                [key: string]: number;
-            };
-            /** Model Usage */
-            model_usage: components["schemas"]["ModelUsageMetric"][];
-            workflow_metrics: components["schemas"]["WorkflowMetrics"];
-            /** Failed Rounds */
-            failed_rounds: components["schemas"]["FailedRoundMetric"][];
-            /** Relation Score Timeline */
-            relation_score_timeline: components["schemas"]["RelationScorePoint"][];
+            /**
+             * Total Messages
+             * @default 0
+             */
+            total_messages: number;
+            /**
+             * Total Runs
+             * @default 0
+             */
+            total_runs: number;
+            /**
+             * Total Tokens
+             * @default 0
+             */
+            total_tokens: number;
+            /**
+             * Error Rate
+             * @default 0
+             */
+            error_rate: number;
+            /**
+             * Average Latency Ms
+             * @default 0
+             */
+            average_latency_ms: number;
+            /**
+             * Active Cocoons
+             * @default 0
+             */
+            active_cocoons: number;
+            /**
+             * Pending Wakeup Count
+             * @default 0
+             */
+            pending_wakeup_count: number;
         };
         /** InviteCreate */
         InviteCreate: {
@@ -2268,6 +2827,8 @@ export interface components {
             expires_at?: string | null;
             /** Created For User Id */
             created_for_user_id?: string | null;
+            /** Registration Group Id */
+            registration_group_id: string;
             /**
              * Source Type
              * @default ADMIN_OVERRIDE
@@ -2322,6 +2883,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Revoked At */
+            revoked_at: string | null;
         };
         /** InviteOut */
         InviteOut: {
@@ -2333,6 +2896,8 @@ export interface components {
             created_by_user_id: string | null;
             /** Created For User Id */
             created_for_user_id: string | null;
+            /** Registration Group Id */
+            registration_group_id: string | null;
             /** Source Type */
             source_type: string;
             /** Source Id */
@@ -2403,6 +2968,34 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** ManagedUserOut */
+        ManagedUserOut: {
+            /** Id */
+            id: string;
+            /** Username */
+            username: string;
+            /** Email */
+            email: string | null;
+            /** Role Id */
+            role_id: string | null;
+            /** Permissions Json */
+            permissions_json?: {
+                [key: string]: boolean;
+            };
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Role Name */
+            role_name?: string | null;
+            /** Effective Permissions */
+            effective_permissions?: {
+                [key: string]: boolean;
+            };
+        };
         /** MemoryChunkOut */
         MemoryChunkOut: {
             /** Id */
@@ -2425,6 +3018,22 @@ export interface components {
         MemoryCompactionRequest: {
             /** Before Message Id */
             before_message_id?: string | null;
+        };
+        /** MemoryInsights */
+        MemoryInsights: {
+            /**
+             * Total Memories
+             * @default 0
+             */
+            total_memories: number;
+            /** Growth */
+            growth: components["schemas"]["TimeSeriesPoint"][];
+            /** By Source Kind */
+            by_source_kind: components["schemas"]["NamedMetric"][];
+            /** By Memory Type */
+            by_memory_type: components["schemas"]["NamedMetric"][];
+            /** Top Cocoons */
+            top_cocoons: components["schemas"]["RankedCocoonMetric"][];
         };
         /** MergeEnqueueResult */
         MergeEnqueueResult: {
@@ -2520,20 +3129,12 @@ export interface components {
              */
             created_at: string;
         };
-        /** ModelUsageMetric */
-        ModelUsageMetric: {
-            /** Provider Kind */
-            provider_kind: string;
-            /** Model Name */
-            model_name: string;
-            /** Call Count */
-            call_count: number;
-            /** Prompt Tokens */
-            prompt_tokens: number;
-            /** Completion Tokens */
-            completion_tokens: number;
-            /** Total Tokens */
-            total_tokens: number;
+        /** NamedMetric */
+        NamedMetric: {
+            /** Name */
+            name: string;
+            /** Value */
+            value: number;
         };
         /** PluginConfigUpdate */
         PluginConfigUpdate: {
@@ -2574,6 +3175,18 @@ export interface components {
             config_json: {
                 [key: string]: unknown;
             };
+            /** User Config Schema Json */
+            user_config_schema_json: {
+                [key: string]: unknown;
+            };
+            /** User Default Config Json */
+            user_default_config_json: {
+                [key: string]: unknown;
+            };
+            /** Settings Validation Function Name */
+            settings_validation_function_name: string | null;
+            /** Is Globally Visible */
+            is_globally_visible: boolean;
             /** Active Version Id */
             active_version_id: string | null;
             /**
@@ -2626,6 +3239,50 @@ export interface components {
             };
             /** Is Enabled */
             is_enabled: boolean;
+            /** Schedule Mode */
+            schedule_mode: string;
+            /** Schedule Interval Seconds */
+            schedule_interval_seconds: number | null;
+            /** Schedule Cron */
+            schedule_cron: string | null;
+        };
+        /** PluginEventScheduleUpdate */
+        PluginEventScheduleUpdate: {
+            /**
+             * Schedule Mode
+             * @enum {string}
+             */
+            schedule_mode: "manual" | "interval" | "cron";
+            /** Schedule Interval Seconds */
+            schedule_interval_seconds?: number | null;
+            /** Schedule Cron */
+            schedule_cron?: string | null;
+        };
+        /** PluginGroupVisibilityOut */
+        PluginGroupVisibilityOut: {
+            /** Id */
+            id: string;
+            /** Plugin Id */
+            plugin_id: string;
+            /** Group Id */
+            group_id: string;
+            /** Is Visible */
+            is_visible: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** PluginGroupVisibilityUpdate */
+        PluginGroupVisibilityUpdate: {
+            /** Is Visible */
+            is_visible: boolean;
         };
         /** PluginListItemOut */
         PluginListItemOut: {
@@ -2659,6 +3316,18 @@ export interface components {
             config_json: {
                 [key: string]: unknown;
             };
+            /** User Config Schema Json */
+            user_config_schema_json: {
+                [key: string]: unknown;
+            };
+            /** User Default Config Json */
+            user_default_config_json: {
+                [key: string]: unknown;
+            };
+            /** Settings Validation Function Name */
+            settings_validation_function_name: string | null;
+            /** Is Globally Visible */
+            is_globally_visible: boolean;
             /** Active Version Id */
             active_version_id: string | null;
             /**
@@ -2742,6 +3411,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** PluginVisibilityUpdate */
+        PluginVisibilityUpdate: {
+            /** Is Globally Visible */
+            is_globally_visible: boolean;
         };
         /** PromptTemplateDetail */
         PromptTemplateDetail: {
@@ -2947,6 +3621,15 @@ export interface components {
             /** Target Cocoon Id */
             target_cocoon_id: string;
         };
+        /** RankedCocoonMetric */
+        RankedCocoonMetric: {
+            /** Cocoon Id */
+            cocoon_id: string;
+            /** Cocoon Name */
+            cocoon_name: string;
+            /** Value */
+            value: number;
+        };
         /** RefreshRequest */
         RefreshRequest: {
             /** Refresh Token */
@@ -2962,20 +3645,6 @@ export interface components {
             email?: string | null;
             /** Invite Code */
             invite_code: string;
-        };
-        /** RelationScorePoint */
-        RelationScorePoint: {
-            /** Cocoon Id */
-            cocoon_id: string;
-            /** Action Id */
-            action_id: string | null;
-            /** Relation Score */
-            relation_score: number;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
         };
         /** RetryReplyRequest */
         RetryReplyRequest: {
@@ -3015,6 +3684,44 @@ export interface components {
         RollbackRequest: {
             /** Checkpoint Id */
             checkpoint_id: string;
+        };
+        /** RuntimeInsights */
+        RuntimeInsights: {
+            /** Request Series */
+            request_series: components["schemas"]["TimeSeriesPoint"][];
+            /** Decision Distribution */
+            decision_distribution: components["schemas"]["NamedMetric"][];
+            /** Status Distribution */
+            status_distribution: components["schemas"]["NamedMetric"][];
+            /** Node Latency */
+            node_latency: components["schemas"]["NamedMetric"][];
+            /**
+             * Latency P50 Ms
+             * @default 0
+             */
+            latency_p50_ms: number;
+            /**
+             * Latency P95 Ms
+             * @default 0
+             */
+            latency_p95_ms: number;
+            /**
+             * Silence Rate
+             * @default 0
+             */
+            silence_rate: number;
+            /**
+             * Wakeup Rate
+             * @default 0
+             */
+            wakeup_rate: number;
+            /**
+             * Error Rate
+             * @default 0
+             */
+            error_rate: number;
+            /** Top Error Cocoons */
+            top_error_cocoons: components["schemas"]["RankedCocoonMetric"][];
         };
         /** SessionStateOut */
         SessionStateOut: {
@@ -3089,6 +3796,18 @@ export interface components {
             /** Rollback Cleanup Interval Hours */
             rollback_cleanup_interval_hours?: number | null;
         };
+        /** TagChatGroupVisibilityOut */
+        TagChatGroupVisibilityOut: {
+            /** Tag Id */
+            tag_id: string;
+            /** Chat Group Ids */
+            chat_group_ids: string[];
+        };
+        /** TagChatGroupVisibilityUpdate */
+        TagChatGroupVisibilityUpdate: {
+            /** Chat Group Ids */
+            chat_group_ids?: string[];
+        };
         /** TagCreate */
         TagCreate: {
             /** Tag Id */
@@ -3109,6 +3828,8 @@ export interface components {
             meta_json?: {
                 [key: string]: unknown;
             };
+            /** Visible Chat Group Ids */
+            visible_chat_group_ids?: string[];
         };
         /** TagOut */
         TagOut: {
@@ -3122,10 +3843,14 @@ export interface components {
             visibility: string;
             /** Is Isolated */
             is_isolated: boolean;
+            /** Is System */
+            is_system: boolean;
             /** Meta Json */
             meta_json: {
                 [key: string]: unknown;
             };
+            /** Visible Chat Group Ids */
+            visible_chat_group_ids: string[];
             /**
              * Created At
              * Format: date-time
@@ -3144,6 +3869,15 @@ export interface components {
             meta_json?: {
                 [key: string]: unknown;
             } | null;
+            /** Visible Chat Group Ids */
+            visible_chat_group_ids?: string[] | null;
+        };
+        /** TimeSeriesPoint */
+        TimeSeriesPoint: {
+            /** Bucket */
+            bucket: string;
+            /** Value */
+            value: number;
         };
         /** TokenPair */
         TokenPair: {
@@ -3157,6 +3891,17 @@ export interface components {
              */
             token_type: string;
         };
+        /** TokenUsageInsights */
+        TokenUsageInsights: {
+            /** Series */
+            series: components["schemas"]["TimeSeriesPoint"][];
+            /** By Provider */
+            by_provider: components["schemas"]["NamedMetric"][];
+            /** By Model */
+            by_model: components["schemas"]["NamedMetric"][];
+            /** By Operation */
+            by_operation: components["schemas"]["NamedMetric"][];
+        };
         /** UserCreate */
         UserCreate: {
             /** Username */
@@ -3167,6 +3912,10 @@ export interface components {
             password: string;
             /** Role Id */
             role_id?: string | null;
+            /** Permissions Json */
+            permissions_json?: {
+                [key: string]: boolean;
+            };
             /**
              * Is Active
              * @default true
@@ -3180,23 +3929,89 @@ export interface components {
             /** Content */
             content: string;
         };
-        /** UserOut */
-        UserOut: {
+        /** UserPluginConfigUpdate */
+        UserPluginConfigUpdate: {
+            /** Config Json */
+            config_json?: {
+                [key: string]: unknown;
+            };
+        };
+        /** UserPluginOut */
+        UserPluginOut: {
             /** Id */
             id: string;
-            /** Username */
-            username: string;
-            /** Email */
-            email: string | null;
-            /** Role Id */
-            role_id: string | null;
-            /** Is Active */
-            is_active: boolean;
+            /** Name */
+            name: string;
+            /** Display Name */
+            display_name: string;
+            /** Plugin Type */
+            plugin_type: string;
+            /** Status */
+            status: string;
+            /** Is Globally Visible */
+            is_globally_visible: boolean;
+            /** Is Visible */
+            is_visible: boolean;
+            /** Is Enabled */
+            is_enabled: boolean;
+            /** Config Schema Json */
+            config_schema_json: {
+                [key: string]: unknown;
+            };
+            /** Default Config Json */
+            default_config_json: {
+                [key: string]: unknown;
+            };
+            /** User Config Schema Json */
+            user_config_schema_json: {
+                [key: string]: unknown;
+            };
+            /** User Default Config Json */
+            user_default_config_json: {
+                [key: string]: unknown;
+            };
+            /** User Config Json */
+            user_config_json: {
+                [key: string]: unknown;
+            };
+            /** User Error Text */
+            user_error_text: string | null;
+            /** User Error At */
+            user_error_at: string | null;
+        };
+        /** UserPluginTargetBindingCreate */
+        UserPluginTargetBindingCreate: {
+            /** Target Type */
+            target_type: string;
+            /** Target Id */
+            target_id: string;
+        };
+        /** UserPluginTargetBindingOut */
+        UserPluginTargetBindingOut: {
+            /** Id */
+            id: string;
+            /** Plugin Id */
+            plugin_id: string;
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: string;
+            /** Target Type */
+            target_type: string;
+            /** Target Id */
+            target_id: string;
+            /** Target Name */
+            target_name: string;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** UserUpdate */
         UserUpdate: {
@@ -3206,6 +4021,10 @@ export interface components {
             email?: string | null;
             /** Role Id */
             role_id?: string | null;
+            /** Permissions Json */
+            permissions_json?: {
+                [key: string]: boolean;
+            } | null;
             /** Is Active */
             is_active?: boolean | null;
             /** Password */
@@ -3258,44 +4077,6 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-        };
-        /** WorkflowMetrics */
-        WorkflowMetrics: {
-            /**
-             * Wakeup Runs
-             * @default 0
-             */
-            wakeup_runs: number;
-            /**
-             * Pull Total
-             * @default 0
-             */
-            pull_total: number;
-            /**
-             * Pull Success Rate
-             * @default 0
-             */
-            pull_success_rate: number;
-            /**
-             * Merge Total
-             * @default 0
-             */
-            merge_total: number;
-            /**
-             * Merge Success Rate
-             * @default 0
-             */
-            merge_success_rate: number;
-            /**
-             * Compaction Runs
-             * @default 0
-             */
-            compaction_runs: number;
-            /**
-             * Artifact Cleanup Runs
-             * @default 0
-             */
-            artifact_cleanup_runs: number;
         };
         ApiValidationErrorData: {
             errors: components["schemas"]["ValidationError"][];
@@ -3518,7 +4299,33 @@ export interface operations {
                         code: string;
                         /** @example ok */
                         msg: string;
-                        data: components["schemas"]["UserOut"];
+                        data: components["schemas"]["CurrentUserOut"];
+                    };
+                };
+            };
+        };
+    };
+    create_im_bind_token_api_v1_auth_me_im_bind_token_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ImBindTokenOut"];
                     };
                 };
             };
@@ -3571,7 +4378,7 @@ export interface operations {
                         /** @example ok */
                         msg: string;
                         /** Response List Users Api V1 Users Get */
-                        data: components["schemas"]["UserOut"][];
+                        data: components["schemas"]["ManagedUserOut"][];
                     };
                 };
             };
@@ -3601,7 +4408,7 @@ export interface operations {
                         code: string;
                         /** @example ok */
                         msg: string;
-                        data: components["schemas"]["UserOut"];
+                        data: components["schemas"]["ManagedUserOut"];
                     };
                 };
             };
@@ -3642,7 +4449,7 @@ export interface operations {
                         code: string;
                         /** @example ok */
                         msg: string;
-                        data: components["schemas"]["UserOut"];
+                        data: components["schemas"]["ManagedUserOut"];
                     };
                 };
             };
@@ -3906,6 +4713,43 @@ export interface operations {
                 "application/json": components["schemas"]["InviteGrantCreate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["InviteGrantOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    revoke_invite_grant_api_v1_invites_grants__grant_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                grant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -5218,6 +6062,84 @@ export interface operations {
             };
         };
     };
+    get_tag_chat_group_visibility_api_v1_tags__tag_id__chat_groups_visibility_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tag_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["TagChatGroupVisibilityOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    update_tag_chat_group_visibility_api_v1_tags__tag_id__chat_groups_visibility_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tag_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TagChatGroupVisibilityUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["TagChatGroupVisibilityOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
     get_system_settings_api_v1_settings_get: {
         parameters: {
             query?: never;
@@ -6255,6 +7177,123 @@ export interface operations {
             };
         };
     };
+    list_chat_group_tags_api_v1_chat_groups__room_id__tags_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Chat Group Tags Api V1 Chat Groups  Room Id  Tags Get */
+                        data: components["schemas"]["ChatGroupTagBindingOut"][];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    bind_chat_group_tag_api_v1_chat_groups__room_id__tags_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CocoonTagBindRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupTagBindResult"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    unbind_chat_group_tag_api_v1_chat_groups__room_id__tags__tag_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                room_id: string;
+                tag_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupTagBindResult"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
     list_messages_api_v1_cocoons__cocoon_id__messages_get: {
         parameters: {
             query?: {
@@ -6694,6 +7733,611 @@ export interface operations {
             };
         };
     };
+    list_plugins_for_user_api_v1_plugins_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Plugins For User Api V1 Plugins Get */
+                        data: components["schemas"]["UserPluginOut"][];
+                    };
+                };
+            };
+        };
+    };
+    get_plugin_for_user_api_v1_plugins__plugin_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["UserPluginOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    enable_plugin_for_user_api_v1_plugins__plugin_id__enable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["UserPluginOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    disable_plugin_for_user_api_v1_plugins__plugin_id__disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["UserPluginOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    update_user_plugin_config_api_v1_plugins__plugin_id__config_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserPluginConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["UserPluginOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    validate_user_plugin_config_api_v1_plugins__plugin_id__validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["UserPluginOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    clear_user_plugin_error_api_v1_plugins__plugin_id__clear_error_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["UserPluginOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    get_chat_group_plugin_config_api_v1_plugins__plugin_id__chat_groups__chat_group_id__config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                chat_group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupPluginConfigOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    update_chat_group_plugin_config_api_v1_plugins__plugin_id__chat_groups__chat_group_id__config_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                chat_group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatGroupPluginConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupPluginConfigOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    enable_chat_group_plugin_api_v1_plugins__plugin_id__chat_groups__chat_group_id__enable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                chat_group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupPluginConfigOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    disable_chat_group_plugin_api_v1_plugins__plugin_id__chat_groups__chat_group_id__disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                chat_group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupPluginConfigOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    validate_chat_group_plugin_config_api_v1_plugins__plugin_id__chat_groups__chat_group_id__validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                chat_group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupPluginConfigOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    clear_chat_group_plugin_error_api_v1_plugins__plugin_id__chat_groups__chat_group_id__clear_error_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                chat_group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["ChatGroupPluginConfigOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    list_plugin_target_bindings_for_user_api_v1_plugins__plugin_id__targets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Plugin Target Bindings For User Api V1 Plugins  Plugin Id  Targets Get */
+                        data: components["schemas"]["UserPluginTargetBindingOut"][];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    add_plugin_target_binding_for_user_api_v1_plugins__plugin_id__targets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserPluginTargetBindingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["UserPluginTargetBindingOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    delete_plugin_target_binding_for_user_api_v1_plugins__plugin_id__targets__binding_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                binding_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response Delete Plugin Target Binding For User Api V1 Plugins  Plugin Id  Targets  Binding Id  Delete */
+                        data: {
+                            [key: string]: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
     list_pulls_api_v1_pulls_get: {
         parameters: {
             query?: never;
@@ -7009,9 +8653,12 @@ export interface operations {
             };
         };
     };
-    summary_api_v1_insights_summary_get: {
+    dashboard_api_v1_insights_dashboard_get: {
         parameters: {
-            query?: never;
+            query?: {
+                range?: "24h" | "7d" | "30d" | "90d";
+                interval?: "auto" | "hour" | "day";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -7029,8 +8676,17 @@ export interface operations {
                         code: string;
                         /** @example ok */
                         msg: string;
-                        data: components["schemas"]["InsightsSummary"];
+                        data: components["schemas"]["InsightsDashboard"];
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };
@@ -7453,6 +9109,47 @@ export interface operations {
             };
         };
     };
+    validate_plugin_config_api_v1_admin_plugins__plugin_id__config_validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
     update_event_config_api_v1_admin_plugins__plugin_id__events__event_name__config_patch: {
         parameters: {
             query?: never;
@@ -7468,6 +9165,86 @@ export interface operations {
                 "application/json": components["schemas"]["PluginEventConfigUpdate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    update_event_schedule_api_v1_admin_plugins__plugin_id__events__event_name__schedule_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                event_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginEventScheduleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    run_event_now_api_v1_admin_plugins__plugin_id__events__event_name__run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                event_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -7557,6 +9334,127 @@ export interface operations {
                         /** @example ok */
                         msg: string;
                         data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    set_global_visibility_api_v1_admin_plugins__plugin_id__visibility_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginVisibilityUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginDetailOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    list_group_visibility_api_v1_admin_plugins__plugin_id__groups_visibility_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Group Visibility Api V1 Admin Plugins  Plugin Id  Groups Visibility Get */
+                        data: components["schemas"]["PluginGroupVisibilityOut"][];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    set_group_visibility_api_v1_admin_plugins__plugin_id__groups__group_id__visibility_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginGroupVisibilityUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["PluginGroupVisibilityOut"];
                     };
                 };
             };

@@ -17,7 +17,7 @@ export interface TimeSeriesPoint {
 }
 
 export interface RankedCocoonMetric {
-  cocoon_id: number;
+  cocoon_id: string;
   cocoon_name: string;
   value: number;
 }

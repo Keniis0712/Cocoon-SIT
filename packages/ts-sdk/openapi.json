@@ -310,7 +310,51 @@
                       "example": "ok"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/UserOut"
+                      "$ref": "#/components/schemas/CurrentUserOut"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/me/im-bind-token": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Create Im Bind Token",
+        "operationId": "create_im_bind_token_api_v1_auth_me_im_bind_token_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ImBindTokenOut"
                     }
                   }
                 }
@@ -394,7 +438,7 @@
                     },
                     "data": {
                       "items": {
-                        "$ref": "#/components/schemas/UserOut"
+                        "$ref": "#/components/schemas/ManagedUserOut"
                       },
                       "type": "array",
                       "title": "Response List Users Api V1 Users Get"
@@ -449,7 +493,7 @@
                       "example": "ok"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/UserOut"
+                      "$ref": "#/components/schemas/ManagedUserOut"
                     }
                   }
                 }
@@ -529,7 +573,7 @@
                       "example": "ok"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/UserOut"
+                      "$ref": "#/components/schemas/ManagedUserOut"
                     }
                   }
                 }
@@ -1017,6 +1061,71 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/invites/grants/{grant_id}": {
+      "delete": {
+        "tags": [
+          "invites"
+        ],
+        "summary": "Revoke Invite Grant",
+        "operationId": "revoke_invite_grant_api_v1_invites_grants__grant_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "grant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Grant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/InviteGrantOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/invites/summary/me": {
@@ -3279,6 +3388,144 @@
         }
       }
     },
+    "/api/v1/tags/{tag_id}/chat-groups/visibility": {
+      "get": {
+        "tags": [
+          "tags"
+        ],
+        "summary": "Get Tag Chat Group Visibility",
+        "operationId": "get_tag_chat_group_visibility_api_v1_tags__tag_id__chat_groups_visibility_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tag Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TagChatGroupVisibilityOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "tags"
+        ],
+        "summary": "Update Tag Chat Group Visibility",
+        "operationId": "update_tag_chat_group_visibility_api_v1_tags__tag_id__chat_groups_visibility_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tag Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagChatGroupVisibilityUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TagChatGroupVisibilityOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "tags": [
@@ -5204,6 +5451,222 @@
         }
       }
     },
+    "/api/v1/chat-groups/{room_id}/tags": {
+      "get": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "List Chat Group Tags",
+        "operationId": "list_chat_group_tags_api_v1_chat_groups__room_id__tags_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChatGroupTagBindingOut"
+                      },
+                      "title": "Response List Chat Group Tags Api V1 Chat Groups  Room Id  Tags Get"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "Bind Chat Group Tag",
+        "operationId": "bind_chat_group_tag_api_v1_chat_groups__room_id__tags_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CocoonTagBindRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChatGroupTagBindResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat-groups/{room_id}/tags/{tag_id}": {
+      "delete": {
+        "tags": [
+          "chat-groups"
+        ],
+        "summary": "Unbind Chat Group Tag",
+        "operationId": "unbind_chat_group_tag_api_v1_chat_groups__room_id__tags__tag_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "room_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Room Id"
+            }
+          },
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tag Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChatGroupTagBindResult"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/cocoons/{cocoon_id}/messages": {
       "get": {
         "tags": [
@@ -6039,6 +6502,1126 @@
         }
       }
     },
+    "/api/v1/plugins": {
+      "get": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "List Plugins For User",
+        "operationId": "list_plugins_for_user_api_v1_plugins_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/UserPluginOut"
+                      },
+                      "type": "array",
+                      "title": "Response List Plugins For User Api V1 Plugins Get"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/plugins/{plugin_id}": {
+      "get": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Get Plugin For User",
+        "operationId": "get_plugin_for_user_api_v1_plugins__plugin_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserPluginOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{plugin_id}/enable": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Enable Plugin For User",
+        "operationId": "enable_plugin_for_user_api_v1_plugins__plugin_id__enable_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserPluginOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{plugin_id}/disable": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Disable Plugin For User",
+        "operationId": "disable_plugin_for_user_api_v1_plugins__plugin_id__disable_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserPluginOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{plugin_id}/config": {
+      "patch": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Update User Plugin Config",
+        "operationId": "update_user_plugin_config_api_v1_plugins__plugin_id__config_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserPluginConfigUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserPluginOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{plugin_id}/validate": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Validate User Plugin Config",
+        "operationId": "validate_user_plugin_config_api_v1_plugins__plugin_id__validate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserPluginOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{plugin_id}/clear-error": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Clear User Plugin Error",
+        "operationId": "clear_user_plugin_error_api_v1_plugins__plugin_id__clear_error_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserPluginOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{plugin_id}/chat-groups/{chat_group_id}/config": {
+      "get": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Get Chat Group Plugin Config",
+        "operationId": "get_chat_group_plugin_config_api_v1_plugins__plugin_id__chat_groups__chat_group_id__config_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          },
+          {
+            "name": "chat_group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Group Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChatGroupPluginConfigOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Update Chat Group Plugin Config",
+        "operationId": "update_chat_group_plugin_config_api_v1_plugins__plugin_id__chat_groups__chat_group_id__config_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          },
+          {
+            "name": "chat_group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Group Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatGroupPluginConfigUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChatGroupPluginConfigOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{plugin_id}/chat-groups/{chat_group_id}/enable": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Enable Chat Group Plugin",
+        "operationId": "enable_chat_group_plugin_api_v1_plugins__plugin_id__chat_groups__chat_group_id__enable_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          },
+          {
+            "name": "chat_group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Group Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChatGroupPluginConfigOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{plugin_id}/chat-groups/{chat_group_id}/disable": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Disable Chat Group Plugin",
+        "operationId": "disable_chat_group_plugin_api_v1_plugins__plugin_id__chat_groups__chat_group_id__disable_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          },
+          {
+            "name": "chat_group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Group Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChatGroupPluginConfigOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{plugin_id}/chat-groups/{chat_group_id}/validate": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Validate Chat Group Plugin Config",
+        "operationId": "validate_chat_group_plugin_config_api_v1_plugins__plugin_id__chat_groups__chat_group_id__validate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          },
+          {
+            "name": "chat_group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Group Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChatGroupPluginConfigOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{plugin_id}/chat-groups/{chat_group_id}/clear-error": {
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Clear Chat Group Plugin Error",
+        "operationId": "clear_chat_group_plugin_error_api_v1_plugins__plugin_id__chat_groups__chat_group_id__clear_error_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          },
+          {
+            "name": "chat_group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Group Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChatGroupPluginConfigOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{plugin_id}/targets": {
+      "get": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "List Plugin Target Bindings For User",
+        "operationId": "list_plugin_target_bindings_for_user_api_v1_plugins__plugin_id__targets_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/UserPluginTargetBindingOut"
+                      },
+                      "title": "Response List Plugin Target Bindings For User Api V1 Plugins  Plugin Id  Targets Get"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Add Plugin Target Binding For User",
+        "operationId": "add_plugin_target_binding_for_user_api_v1_plugins__plugin_id__targets_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserPluginTargetBindingCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserPluginTargetBindingOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/{plugin_id}/targets/{binding_id}": {
+      "delete": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Delete Plugin Target Binding For User",
+        "operationId": "delete_plugin_target_binding_for_user_api_v1_plugins__plugin_id__targets__binding_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          },
+          {
+            "name": "binding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Binding Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "boolean"
+                      },
+                      "title": "Response Delete Plugin Target Binding For User Api V1 Plugins  Plugin Id  Targets  Binding Id  Delete"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/pulls": {
       "get": {
         "tags": [
@@ -6639,13 +8222,51 @@
         }
       }
     },
-    "/api/v1/insights/summary": {
+    "/api/v1/insights/dashboard": {
       "get": {
         "tags": [
           "insights"
         ],
-        "summary": "Summary",
-        "operationId": "summary_api_v1_insights_summary_get",
+        "summary": "Dashboard",
+        "operationId": "dashboard_api_v1_insights_dashboard_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "24h",
+                "7d",
+                "30d",
+                "90d"
+              ],
+              "type": "string",
+              "default": "30d",
+              "title": "Range"
+            }
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "auto",
+                "hour",
+                "day"
+              ],
+              "type": "string",
+              "default": "auto",
+              "title": "Interval"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -6668,19 +8289,24 @@
                       "example": "ok"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/InsightsSummary"
+                      "$ref": "#/components/schemas/InsightsDashboard"
                     }
                   }
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/admin/artifacts": {
@@ -7411,6 +9037,81 @@
         }
       }
     },
+    "/api/v1/admin/plugins/{plugin_id}/config/validate": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Validate Plugin Config",
+        "operationId": "validate_plugin_config_api_v1_admin_plugins__plugin_id__config_validate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginConfigUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PluginDetailOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/config": {
       "patch": {
         "tags": [
@@ -7453,6 +9154,164 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PluginDetailOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/schedule": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Update Event Schedule",
+        "operationId": "update_event_schedule_api_v1_admin_plugins__plugin_id__events__event_name__schedule_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          },
+          {
+            "name": "event_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Event Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginEventScheduleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PluginDetailOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/run": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Run Event Now",
+        "operationId": "run_event_now_api_v1_admin_plugins__plugin_id__events__event_name__run_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          },
+          {
+            "name": "event_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Event Name"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -7624,6 +9483,234 @@
                     },
                     "data": {
                       "$ref": "#/components/schemas/PluginDetailOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{plugin_id}/visibility": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Set Global Visibility",
+        "operationId": "set_global_visibility_api_v1_admin_plugins__plugin_id__visibility_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginVisibilityUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PluginDetailOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{plugin_id}/groups/visibility": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Group Visibility",
+        "operationId": "list_group_visibility_api_v1_admin_plugins__plugin_id__groups_visibility_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PluginGroupVisibilityOut"
+                      },
+                      "title": "Response List Group Visibility Api V1 Admin Plugins  Plugin Id  Groups Visibility Get"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/plugins/{plugin_id}/groups/{group_id}/visibility": {
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Set Group Visibility",
+        "operationId": "set_group_visibility_api_v1_admin_plugins__plugin_id__groups__group_id__visibility_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          },
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginGroupVisibilityUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PluginGroupVisibilityOut"
                     }
                   }
                 }
@@ -8442,6 +10529,83 @@
         ],
         "title": "ChatGroupMemberUpdate"
       },
+      "ChatGroupPluginConfigOut": {
+        "properties": {
+          "plugin_id": {
+            "type": "string",
+            "title": "Plugin Id"
+          },
+          "chat_group_id": {
+            "type": "string",
+            "title": "Chat Group Id"
+          },
+          "is_enabled": {
+            "type": "boolean",
+            "title": "Is Enabled"
+          },
+          "config_schema_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config Schema Json"
+          },
+          "default_config_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Default Config Json"
+          },
+          "config_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config Json"
+          },
+          "error_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Text"
+          },
+          "error_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plugin_id",
+          "chat_group_id",
+          "is_enabled",
+          "config_schema_json",
+          "default_config_json",
+          "config_json",
+          "error_text",
+          "error_at"
+        ],
+        "title": "ChatGroupPluginConfigOut"
+      },
+      "ChatGroupPluginConfigUpdate": {
+        "properties": {
+          "config_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config Json"
+          }
+        },
+        "type": "object",
+        "title": "ChatGroupPluginConfigUpdate"
+      },
       "ChatGroupRoomCreate": {
         "properties": {
           "name": {
@@ -8796,6 +10960,48 @@
           "current_wakeup_task_id"
         ],
         "title": "ChatGroupStateOut"
+      },
+      "ChatGroupTagBindResult": {
+        "properties": {
+          "binding_id": {
+            "type": "string",
+            "title": "Binding Id"
+          },
+          "tag_id": {
+            "type": "string",
+            "title": "Tag Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "binding_id",
+          "tag_id"
+        ],
+        "title": "ChatGroupTagBindResult"
+      },
+      "ChatGroupTagBindingOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "tag_id": {
+            "type": "string",
+            "title": "Tag Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tag_id",
+          "created_at"
+        ],
+        "title": "ChatGroupTagBindingOut"
       },
       "ChatMessageCreate": {
         "properties": {
@@ -9382,6 +11588,84 @@
         "type": "object",
         "title": "CocoonUpdate"
       },
+      "CurrentUserOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "role_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Id"
+          },
+          "permissions_json": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Permissions Json"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "role_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Name"
+          },
+          "permissions": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Permissions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "email",
+          "role_id",
+          "is_active",
+          "created_at"
+        ],
+        "title": "CurrentUserOut"
+      },
       "DurableJobOut": {
         "properties": {
           "id": {
@@ -9702,35 +11986,34 @@
         "type": "object",
         "title": "EmbeddingProviderUpdate"
       },
-      "FailedRoundMetric": {
-        "properties": {
-          "event_type": {
-            "type": "string",
-            "title": "Event Type"
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
-          },
-          "count": {
-            "type": "integer",
-            "title": "Count"
-          }
-        },
-        "type": "object",
-        "required": [
-          "event_type",
-          "reason",
-          "count"
-        ],
-        "title": "FailedRoundMetric"
-      },
       "GroupCreate": {
         "properties": {
           "name": {
             "type": "string",
             "minLength": 1,
             "title": "Name"
+          },
+          "parent_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Group Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           }
         },
         "type": "object",
@@ -9812,10 +12095,41 @@
             ],
             "title": "Owner User Id"
           },
+          "parent_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Group Id"
+          },
+          "group_path": {
+            "type": "string",
+            "title": "Group Path"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
           }
         },
         "type": "object",
@@ -9823,7 +12137,11 @@
           "id",
           "name",
           "owner_user_id",
-          "created_at"
+          "parent_group_id",
+          "group_path",
+          "description",
+          "created_at",
+          "updated_at"
         ],
         "title": "GroupOut"
       },
@@ -9840,6 +12158,28 @@
               }
             ],
             "title": "Name"
+          },
+          "parent_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Group Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           }
         },
         "type": "object",
@@ -9882,97 +12222,119 @@
         ],
         "title": "HealthResponse"
       },
-      "InsightMetric": {
+      "ImBindTokenOut": {
         "properties": {
-          "name": {
+          "token": {
             "type": "string",
-            "title": "Name"
+            "title": "Token"
           },
-          "value": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "number"
-              }
-            ],
-            "title": "Value"
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "expires_in_seconds": {
+            "type": "integer",
+            "title": "Expires In Seconds"
           }
         },
         "type": "object",
         "required": [
-          "name",
-          "value"
+          "token",
+          "expires_at",
+          "expires_in_seconds"
         ],
-        "title": "InsightMetric"
+        "title": "ImBindTokenOut"
+      },
+      "InsightsDashboard": {
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "range": {
+            "type": "string",
+            "enum": [
+              "24h",
+              "7d",
+              "30d",
+              "90d"
+            ],
+            "title": "Range"
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "hour",
+              "day"
+            ],
+            "title": "Interval"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/InsightsSummary"
+          },
+          "token_usage": {
+            "$ref": "#/components/schemas/TokenUsageInsights"
+          },
+          "memory": {
+            "$ref": "#/components/schemas/MemoryInsights"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/RuntimeInsights"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "range",
+          "interval",
+          "summary",
+          "token_usage",
+          "memory",
+          "runtime"
+        ],
+        "title": "InsightsDashboard"
       },
       "InsightsSummary": {
         "properties": {
-          "metrics": {
-            "items": {
-              "$ref": "#/components/schemas/InsightMetric"
-            },
-            "type": "array",
-            "title": "Metrics"
+          "total_messages": {
+            "type": "integer",
+            "title": "Total Messages",
+            "default": 0
           },
-          "action_status_counts": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "type": "object",
-            "title": "Action Status Counts"
+          "total_runs": {
+            "type": "integer",
+            "title": "Total Runs",
+            "default": 0
           },
-          "durable_job_status_counts": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "type": "object",
-            "title": "Durable Job Status Counts"
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens",
+            "default": 0
           },
-          "operation_counts": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "type": "object",
-            "title": "Operation Counts"
+          "error_rate": {
+            "type": "number",
+            "title": "Error Rate",
+            "default": 0
           },
-          "model_usage": {
-            "items": {
-              "$ref": "#/components/schemas/ModelUsageMetric"
-            },
-            "type": "array",
-            "title": "Model Usage"
+          "average_latency_ms": {
+            "type": "number",
+            "title": "Average Latency Ms",
+            "default": 0
           },
-          "workflow_metrics": {
-            "$ref": "#/components/schemas/WorkflowMetrics"
+          "active_cocoons": {
+            "type": "integer",
+            "title": "Active Cocoons",
+            "default": 0
           },
-          "failed_rounds": {
-            "items": {
-              "$ref": "#/components/schemas/FailedRoundMetric"
-            },
-            "type": "array",
-            "title": "Failed Rounds"
-          },
-          "relation_score_timeline": {
-            "items": {
-              "$ref": "#/components/schemas/RelationScorePoint"
-            },
-            "type": "array",
-            "title": "Relation Score Timeline"
+          "pending_wakeup_count": {
+            "type": "integer",
+            "title": "Pending Wakeup Count",
+            "default": 0
           }
         },
         "type": "object",
-        "required": [
-          "metrics",
-          "action_status_counts",
-          "durable_job_status_counts",
-          "operation_counts",
-          "model_usage",
-          "workflow_metrics",
-          "failed_rounds",
-          "relation_score_timeline"
-        ],
         "title": "InsightsSummary"
       },
       "InviteCreate": {
@@ -10031,6 +12393,11 @@
             ],
             "title": "Created For User Id"
           },
+          "registration_group_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Registration Group Id"
+          },
           "source_type": {
             "type": "string",
             "minLength": 1,
@@ -10050,6 +12417,9 @@
           }
         },
         "type": "object",
+        "required": [
+          "registration_group_id"
+        ],
         "title": "InviteCreate"
       },
       "InviteGrantCreate": {
@@ -10168,6 +12538,18 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
           }
         },
         "type": "object",
@@ -10182,7 +12564,8 @@
           "quota",
           "is_unlimited",
           "note",
-          "created_at"
+          "created_at",
+          "revoked_at"
         ],
         "title": "InviteGrantOut"
       },
@@ -10217,6 +12600,17 @@
               }
             ],
             "title": "Created For User Id"
+          },
+          "registration_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration Group Id"
           },
           "source_type": {
             "type": "string",
@@ -10282,6 +12676,7 @@
           "code",
           "created_by_user_id",
           "created_for_user_id",
+          "registration_group_id",
           "source_type",
           "source_id",
           "quota_total",
@@ -10401,6 +12796,84 @@
         ],
         "title": "LoginRequest"
       },
+      "ManagedUserOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "role_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Id"
+          },
+          "permissions_json": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Permissions Json"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "role_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Name"
+          },
+          "effective_permissions": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Effective Permissions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "email",
+          "role_id",
+          "is_active",
+          "created_at"
+        ],
+        "title": "ManagedUserOut"
+      },
       "MemoryChunkOut": {
         "properties": {
           "id": {
@@ -10466,6 +12939,51 @@
         },
         "type": "object",
         "title": "MemoryCompactionRequest"
+      },
+      "MemoryInsights": {
+        "properties": {
+          "total_memories": {
+            "type": "integer",
+            "title": "Total Memories",
+            "default": 0
+          },
+          "growth": {
+            "items": {
+              "$ref": "#/components/schemas/TimeSeriesPoint"
+            },
+            "type": "array",
+            "title": "Growth"
+          },
+          "by_source_kind": {
+            "items": {
+              "$ref": "#/components/schemas/NamedMetric"
+            },
+            "type": "array",
+            "title": "By Source Kind"
+          },
+          "by_memory_type": {
+            "items": {
+              "$ref": "#/components/schemas/NamedMetric"
+            },
+            "type": "array",
+            "title": "By Memory Type"
+          },
+          "top_cocoons": {
+            "items": {
+              "$ref": "#/components/schemas/RankedCocoonMetric"
+            },
+            "type": "array",
+            "title": "Top Cocoons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "growth",
+          "by_source_kind",
+          "by_memory_type",
+          "top_cocoons"
+        ],
+        "title": "MemoryInsights"
       },
       "MergeEnqueueResult": {
         "properties": {
@@ -10707,43 +13225,30 @@
         ],
         "title": "ModelProviderOut"
       },
-      "ModelUsageMetric": {
+      "NamedMetric": {
         "properties": {
-          "provider_kind": {
+          "name": {
             "type": "string",
-            "title": "Provider Kind"
+            "title": "Name"
           },
-          "model_name": {
-            "type": "string",
-            "title": "Model Name"
-          },
-          "call_count": {
-            "type": "integer",
-            "title": "Call Count"
-          },
-          "prompt_tokens": {
-            "type": "integer",
-            "title": "Prompt Tokens"
-          },
-          "completion_tokens": {
-            "type": "integer",
-            "title": "Completion Tokens"
-          },
-          "total_tokens": {
-            "type": "integer",
-            "title": "Total Tokens"
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
           }
         },
         "type": "object",
         "required": [
-          "provider_kind",
-          "model_name",
-          "call_count",
-          "prompt_tokens",
-          "completion_tokens",
-          "total_tokens"
+          "name",
+          "value"
         ],
-        "title": "ModelUsageMetric"
+        "title": "NamedMetric"
       },
       "PluginConfigUpdate": {
         "properties": {
@@ -10816,6 +13321,31 @@
             "type": "object",
             "title": "Config Json"
           },
+          "user_config_schema_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "User Config Schema Json"
+          },
+          "user_default_config_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "User Default Config Json"
+          },
+          "settings_validation_function_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settings Validation Function Name"
+          },
+          "is_globally_visible": {
+            "type": "boolean",
+            "title": "Is Globally Visible"
+          },
           "active_version_id": {
             "anyOf": [
               {
@@ -10886,6 +13416,10 @@
           "config_schema_json",
           "default_config_json",
           "config_json",
+          "user_config_schema_json",
+          "user_default_config_json",
+          "settings_validation_function_name",
+          "is_globally_visible",
           "active_version_id",
           "created_at",
           "updated_at"
@@ -10943,6 +13477,32 @@
           "is_enabled": {
             "type": "boolean",
             "title": "Is Enabled"
+          },
+          "schedule_mode": {
+            "type": "string",
+            "title": "Schedule Mode"
+          },
+          "schedule_interval_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule Interval Seconds"
+          },
+          "schedule_cron": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule Cron"
           }
         },
         "type": "object",
@@ -10955,9 +13515,106 @@
           "config_schema_json",
           "default_config_json",
           "config_json",
-          "is_enabled"
+          "is_enabled",
+          "schedule_mode",
+          "schedule_interval_seconds",
+          "schedule_cron"
         ],
         "title": "PluginEventOut"
+      },
+      "PluginEventScheduleUpdate": {
+        "properties": {
+          "schedule_mode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "interval",
+              "cron"
+            ],
+            "title": "Schedule Mode"
+          },
+          "schedule_interval_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule Interval Seconds"
+          },
+          "schedule_cron": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule Cron"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schedule_mode"
+        ],
+        "title": "PluginEventScheduleUpdate"
+      },
+      "PluginGroupVisibilityOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "plugin_id": {
+            "type": "string",
+            "title": "Plugin Id"
+          },
+          "group_id": {
+            "type": "string",
+            "title": "Group Id"
+          },
+          "is_visible": {
+            "type": "boolean",
+            "title": "Is Visible"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "plugin_id",
+          "group_id",
+          "is_visible",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PluginGroupVisibilityOut"
+      },
+      "PluginGroupVisibilityUpdate": {
+        "properties": {
+          "is_visible": {
+            "type": "boolean",
+            "title": "Is Visible"
+          }
+        },
+        "type": "object",
+        "required": [
+          "is_visible"
+        ],
+        "title": "PluginGroupVisibilityUpdate"
       },
       "PluginListItemOut": {
         "properties": {
@@ -11019,6 +13676,31 @@
             "type": "object",
             "title": "Config Json"
           },
+          "user_config_schema_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "User Config Schema Json"
+          },
+          "user_default_config_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "User Default Config Json"
+          },
+          "settings_validation_function_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settings Validation Function Name"
+          },
+          "is_globally_visible": {
+            "type": "boolean",
+            "title": "Is Globally Visible"
+          },
           "active_version_id": {
             "anyOf": [
               {
@@ -11055,6 +13737,10 @@
           "config_schema_json",
           "default_config_json",
           "config_json",
+          "user_config_schema_json",
+          "user_default_config_json",
+          "settings_validation_function_name",
+          "is_globally_visible",
           "active_version_id",
           "created_at",
           "updated_at"
@@ -11260,6 +13946,19 @@
           "created_at"
         ],
         "title": "PluginVersionOut"
+      },
+      "PluginVisibilityUpdate": {
+        "properties": {
+          "is_globally_visible": {
+            "type": "boolean",
+            "title": "Is Globally Visible"
+          }
+        },
+        "type": "object",
+        "required": [
+          "is_globally_visible"
+        ],
+        "title": "PluginVisibilityUpdate"
       },
       "PromptTemplateDetail": {
         "properties": {
@@ -11701,6 +14400,36 @@
         ],
         "title": "PullRequest"
       },
+      "RankedCocoonMetric": {
+        "properties": {
+          "cocoon_id": {
+            "type": "string",
+            "title": "Cocoon Id"
+          },
+          "cocoon_name": {
+            "type": "string",
+            "title": "Cocoon Name"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cocoon_id",
+          "cocoon_name",
+          "value"
+        ],
+        "title": "RankedCocoonMetric"
+      },
       "RefreshRequest": {
         "properties": {
           "refresh_token": {
@@ -11751,42 +14480,6 @@
           "invite_code"
         ],
         "title": "RegisterRequest"
-      },
-      "RelationScorePoint": {
-        "properties": {
-          "cocoon_id": {
-            "type": "string",
-            "title": "Cocoon Id"
-          },
-          "action_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Action Id"
-          },
-          "relation_score": {
-            "type": "integer",
-            "title": "Relation Score"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "cocoon_id",
-          "action_id",
-          "relation_score",
-          "created_at"
-        ],
-        "title": "RelationScorePoint"
       },
       "RetryReplyRequest": {
         "properties": {
@@ -11895,6 +14588,79 @@
           "checkpoint_id"
         ],
         "title": "RollbackRequest"
+      },
+      "RuntimeInsights": {
+        "properties": {
+          "request_series": {
+            "items": {
+              "$ref": "#/components/schemas/TimeSeriesPoint"
+            },
+            "type": "array",
+            "title": "Request Series"
+          },
+          "decision_distribution": {
+            "items": {
+              "$ref": "#/components/schemas/NamedMetric"
+            },
+            "type": "array",
+            "title": "Decision Distribution"
+          },
+          "status_distribution": {
+            "items": {
+              "$ref": "#/components/schemas/NamedMetric"
+            },
+            "type": "array",
+            "title": "Status Distribution"
+          },
+          "node_latency": {
+            "items": {
+              "$ref": "#/components/schemas/NamedMetric"
+            },
+            "type": "array",
+            "title": "Node Latency"
+          },
+          "latency_p50_ms": {
+            "type": "number",
+            "title": "Latency P50 Ms",
+            "default": 0
+          },
+          "latency_p95_ms": {
+            "type": "number",
+            "title": "Latency P95 Ms",
+            "default": 0
+          },
+          "silence_rate": {
+            "type": "number",
+            "title": "Silence Rate",
+            "default": 0
+          },
+          "wakeup_rate": {
+            "type": "number",
+            "title": "Wakeup Rate",
+            "default": 0
+          },
+          "error_rate": {
+            "type": "number",
+            "title": "Error Rate",
+            "default": 0
+          },
+          "top_error_cocoons": {
+            "items": {
+              "$ref": "#/components/schemas/RankedCocoonMetric"
+            },
+            "type": "array",
+            "title": "Top Error Cocoons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_series",
+          "decision_distribution",
+          "status_distribution",
+          "node_latency",
+          "top_error_cocoons"
+        ],
+        "title": "RuntimeInsights"
       },
       "SessionStateOut": {
         "properties": {
@@ -12142,6 +14908,40 @@
         "type": "object",
         "title": "SystemSettingsUpdate"
       },
+      "TagChatGroupVisibilityOut": {
+        "properties": {
+          "tag_id": {
+            "type": "string",
+            "title": "Tag Id"
+          },
+          "chat_group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Chat Group Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tag_id",
+          "chat_group_ids"
+        ],
+        "title": "TagChatGroupVisibilityOut"
+      },
+      "TagChatGroupVisibilityUpdate": {
+        "properties": {
+          "chat_group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Chat Group Ids"
+          }
+        },
+        "type": "object",
+        "title": "TagChatGroupVisibilityUpdate"
+      },
       "TagCreate": {
         "properties": {
           "tag_id": {
@@ -12168,6 +14968,13 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Meta Json"
+          },
+          "visible_chat_group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Visible Chat Group Ids"
           }
         },
         "type": "object",
@@ -12199,10 +15006,21 @@
             "type": "boolean",
             "title": "Is Isolated"
           },
+          "is_system": {
+            "type": "boolean",
+            "title": "Is System"
+          },
           "meta_json": {
             "additionalProperties": true,
             "type": "object",
             "title": "Meta Json"
+          },
+          "visible_chat_group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Visible Chat Group Ids"
           },
           "created_at": {
             "type": "string",
@@ -12217,7 +15035,9 @@
           "brief",
           "visibility",
           "is_isolated",
+          "is_system",
           "meta_json",
+          "visible_chat_group_ids",
           "created_at"
         ],
         "title": "TagOut"
@@ -12268,10 +15088,49 @@
               }
             ],
             "title": "Meta Json"
+          },
+          "visible_chat_group_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visible Chat Group Ids"
           }
         },
         "type": "object",
         "title": "TagUpdate"
+      },
+      "TimeSeriesPoint": {
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "title": "Bucket"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bucket",
+          "value"
+        ],
+        "title": "TimeSeriesPoint"
       },
       "TokenPair": {
         "properties": {
@@ -12295,6 +15154,46 @@
           "refresh_token"
         ],
         "title": "TokenPair"
+      },
+      "TokenUsageInsights": {
+        "properties": {
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/TimeSeriesPoint"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "by_provider": {
+            "items": {
+              "$ref": "#/components/schemas/NamedMetric"
+            },
+            "type": "array",
+            "title": "By Provider"
+          },
+          "by_model": {
+            "items": {
+              "$ref": "#/components/schemas/NamedMetric"
+            },
+            "type": "array",
+            "title": "By Model"
+          },
+          "by_operation": {
+            "items": {
+              "$ref": "#/components/schemas/NamedMetric"
+            },
+            "type": "array",
+            "title": "By Operation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "series",
+          "by_provider",
+          "by_model",
+          "by_operation"
+        ],
+        "title": "TokenUsageInsights"
       },
       "UserCreate": {
         "properties": {
@@ -12331,6 +15230,13 @@
             ],
             "title": "Role Id"
           },
+          "permissions_json": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Permissions Json"
+          },
           "is_active": {
             "type": "boolean",
             "title": "Is Active",
@@ -12363,58 +15269,192 @@
         ],
         "title": "UserMessageEditRequest"
       },
-      "UserOut": {
+      "UserPluginConfigUpdate": {
+        "properties": {
+          "config_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config Json"
+          }
+        },
+        "type": "object",
+        "title": "UserPluginConfigUpdate"
+      },
+      "UserPluginOut": {
         "properties": {
           "id": {
             "type": "string",
             "title": "Id"
           },
-          "username": {
+          "name": {
             "type": "string",
-            "title": "Username"
+            "title": "Name"
           },
-          "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email"
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
           },
-          "role_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Role Id"
+          "plugin_type": {
+            "type": "string",
+            "title": "Plugin Type"
           },
-          "is_active": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "is_globally_visible": {
             "type": "boolean",
-            "title": "Is Active"
+            "title": "Is Globally Visible"
           },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
+          "is_visible": {
+            "type": "boolean",
+            "title": "Is Visible"
+          },
+          "is_enabled": {
+            "type": "boolean",
+            "title": "Is Enabled"
+          },
+          "config_schema_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config Schema Json"
+          },
+          "default_config_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Default Config Json"
+          },
+          "user_config_schema_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "User Config Schema Json"
+          },
+          "user_default_config_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "User Default Config Json"
+          },
+          "user_config_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "User Config Json"
+          },
+          "user_error_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Error Text"
+          },
+          "user_error_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Error At"
           }
         },
         "type": "object",
         "required": [
           "id",
-          "username",
-          "email",
-          "role_id",
-          "is_active",
-          "created_at"
+          "name",
+          "display_name",
+          "plugin_type",
+          "status",
+          "is_globally_visible",
+          "is_visible",
+          "is_enabled",
+          "config_schema_json",
+          "default_config_json",
+          "user_config_schema_json",
+          "user_default_config_json",
+          "user_config_json",
+          "user_error_text",
+          "user_error_at"
         ],
-        "title": "UserOut"
+        "title": "UserPluginOut"
+      },
+      "UserPluginTargetBindingCreate": {
+        "properties": {
+          "target_type": {
+            "type": "string",
+            "title": "Target Type"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_type",
+          "target_id"
+        ],
+        "title": "UserPluginTargetBindingCreate"
+      },
+      "UserPluginTargetBindingOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "plugin_id": {
+            "type": "string",
+            "title": "Plugin Id"
+          },
+          "scope_type": {
+            "type": "string",
+            "title": "Scope Type"
+          },
+          "scope_id": {
+            "type": "string",
+            "title": "Scope Id"
+          },
+          "target_type": {
+            "type": "string",
+            "title": "Target Type"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "target_name": {
+            "type": "string",
+            "title": "Target Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "plugin_id",
+          "scope_type",
+          "scope_id",
+          "target_type",
+          "target_id",
+          "target_name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "UserPluginTargetBindingOut"
       },
       "UserUpdate": {
         "properties": {
@@ -12452,6 +15492,20 @@
               }
             ],
             "title": "Role Id"
+          },
+          "permissions_json": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permissions Json"
           },
           "is_active": {
             "anyOf": [
@@ -12631,47 +15685,6 @@
           "created_at"
         ],
         "title": "WakeupTaskOut"
-      },
-      "WorkflowMetrics": {
-        "properties": {
-          "wakeup_runs": {
-            "type": "integer",
-            "title": "Wakeup Runs",
-            "default": 0
-          },
-          "pull_total": {
-            "type": "integer",
-            "title": "Pull Total",
-            "default": 0
-          },
-          "pull_success_rate": {
-            "type": "number",
-            "title": "Pull Success Rate",
-            "default": 0
-          },
-          "merge_total": {
-            "type": "integer",
-            "title": "Merge Total",
-            "default": 0
-          },
-          "merge_success_rate": {
-            "type": "number",
-            "title": "Merge Success Rate",
-            "default": 0
-          },
-          "compaction_runs": {
-            "type": "integer",
-            "title": "Compaction Runs",
-            "default": 0
-          },
-          "artifact_cleanup_runs": {
-            "type": "integer",
-            "title": "Artifact Cleanup Runs",
-            "default": 0
-          }
-        },
-        "type": "object",
-        "title": "WorkflowMetrics"
       },
       "ApiValidationErrorData": {
         "type": "object",

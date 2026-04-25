@@ -171,6 +171,12 @@ class ChatRuntime:
                 "cancel_wakeup_task_ids": meta.cancel_wakeup_task_ids,
                 "generation_brief": meta.generation_brief,
             },
+            metadata_json={
+                "decision": meta.decision,
+                "relation_delta": meta.relation_delta,
+                "wakeups_scheduled": len(meta.next_wakeup_hints),
+                "wakeups_cancelled": len(meta.cancel_wakeup_task_ids),
+            },
         )
         self.audit_service.finish_step(session, meta_step, ActionStatus.completed)
         return {"meta": meta}

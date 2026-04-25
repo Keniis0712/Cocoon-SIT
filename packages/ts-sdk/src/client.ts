@@ -32,6 +32,11 @@ type MessageListQuery = {
   limit?: number | null;
 };
 
+type InsightsDashboardQuery = {
+  range?: "24h" | "7d" | "30d" | "90d" | null;
+  interval?: "auto" | "hour" | "day" | null;
+};
+
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
 }
@@ -46,6 +51,21 @@ function appendMessageListQuery(path: string, query?: MessageListQuery): string 
   }
   if (typeof query.limit === "number") {
     params.set("limit", String(query.limit));
+  }
+  const search = params.toString();
+  return search ? `${path}?${search}` : path;
+}
+
+function appendInsightsDashboardQuery(path: string, query?: InsightsDashboardQuery): string {
+  if (!query) {
+    return path;
+  }
+  const params = new URLSearchParams();
+  if (query.range) {
+    params.set("range", query.range);
+  }
+  if (query.interval) {
+    params.set("interval", query.interval);
   }
   const search = params.toString();
   return search ? `${path}?${search}` : path;
@@ -147,7 +167,7 @@ export class CocoonApiClient {
   }
 
   me() {
-    return this.request<Schemas["UserOut"]>("/api/v1/auth/me");
+    return this.request<Schemas["CurrentUserOut"]>("/api/v1/auth/me");
   }
 
   getPublicFeatures() {
@@ -155,15 +175,15 @@ export class CocoonApiClient {
   }
 
   listUsers() {
-    return this.request<Schemas["UserOut"][]>("/api/v1/users");
+    return this.request<Schemas["ManagedUserOut"][]>("/api/v1/users");
   }
 
   createUser(body: Schemas["UserCreate"]) {
-    return this.request<Schemas["UserOut"]>("/api/v1/users", { method: "POST", body });
+    return this.request<Schemas["ManagedUserOut"]>("/api/v1/users", { method: "POST", body });
   }
 
   updateUser(userId: string, body: Schemas["UserUpdate"]) {
-    return this.request<Schemas["UserOut"]>(`/api/v1/users/${userId}`, { method: "PATCH", body });
+    return this.request<Schemas["ManagedUserOut"]>(`/api/v1/users/${userId}`, { method: "PATCH", body });
   }
 
   listRoles() {
@@ -608,8 +628,10 @@ export class CocoonApiClient {
     return this.request<Schemas["AuditRunDetail"]>(`/api/v1/audits/${runId}`);
   }
 
-  getInsights() {
-    return this.request<Schemas["InsightsSummary"]>("/api/v1/insights/summary");
+  getInsightsDashboard(query?: InsightsDashboardQuery) {
+    return this.request<Schemas["InsightsDashboard"]>(
+      appendInsightsDashboardQuery("/api/v1/insights/dashboard", query),
+    );
   }
 
   listArtifacts() {

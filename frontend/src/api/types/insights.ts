@@ -1,8 +1,12 @@
 import type { NamedMetric, RankedCocoonMetric, TimeSeriesPoint } from "./common";
+
 export type { NamedMetric, RankedCocoonMetric, TimeSeriesPoint } from "./common";
 
-export interface InsightsOverview {
-  range: string;
+export type InsightsRange = "24h" | "7d" | "30d" | "90d";
+export type InsightsInterval = "auto" | "hour" | "day";
+export type ResolvedInsightsInterval = "hour" | "day";
+
+export interface InsightsSummary {
   total_messages: number;
   total_runs: number;
   total_tokens: number;
@@ -12,10 +16,7 @@ export interface InsightsOverview {
   pending_wakeup_count: number;
 }
 
-export interface TokenUsageSeries {
-  range: string;
-  interval: string;
-  total_tokens: number;
+export interface TokenUsageInsights {
   series: TimeSeriesPoint[];
   by_provider: NamedMetric[];
   by_model: NamedMetric[];
@@ -23,22 +24,17 @@ export interface TokenUsageSeries {
 }
 
 export interface MemoryInsights {
-  range: string;
   total_memories: number;
   growth: TimeSeriesPoint[];
   by_source_kind: NamedMetric[];
-  by_visibility: NamedMetric[];
   by_memory_type: NamedMetric[];
   top_cocoons: RankedCocoonMetric[];
 }
 
 export interface RuntimeInsights {
-  range: string;
-  interval: string;
   request_series: TimeSeriesPoint[];
   decision_distribution: NamedMetric[];
   status_distribution: NamedMetric[];
-  operation_distribution: NamedMetric[];
   node_latency: NamedMetric[];
   latency_p50_ms: number;
   latency_p95_ms: number;
@@ -46,4 +42,14 @@ export interface RuntimeInsights {
   wakeup_rate: number;
   error_rate: number;
   top_error_cocoons: RankedCocoonMetric[];
+}
+
+export interface InsightsDashboard {
+  generated_at: string;
+  range: InsightsRange;
+  interval: ResolvedInsightsInterval;
+  summary: InsightsSummary;
+  token_usage: TokenUsageInsights;
+  memory: MemoryInsights;
+  runtime: RuntimeInsights;
 }

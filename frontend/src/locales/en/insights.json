@@ -1,9 +1,11 @@
 {
   "title": "Insights",
-  "description": "Global admin dashboard for memory, token usage, runtime behavior, and health.",
+  "description": "Operational dashboard for token usage, memory growth, runtime decisions, and system health.",
   "noPermission": "This account does not have permission to view system insights.",
   "loading": "Loading insights...",
-  "sqlBadge": "SQL-backed analytics",
+  "loadFailed": "Unable to load insights right now.",
+  "noData": "No data in the selected range.",
+  "sqlBadge": "Live analytics",
   "ranges": {
     "24h": "Last 24h",
     "7d": "Last 7d",
@@ -17,11 +19,11 @@
     },
     "auditRuns": {
       "title": "Audit Runs",
-      "hint": "Silence rate {{value}}%"
+      "hint": "Silence rate {{value}}"
     },
     "memories": {
       "title": "Memories",
-      "hint": "SQL-backed memory chunks"
+      "hint": "Memory chunks created in the selected range"
     },
     "avgLatency": {
       "title": "Avg Latency",
@@ -31,7 +33,7 @@
   "cards": {
     "tokenTrend": {
       "title": "Token Trend",
-      "description": "Prompt and completion tokens over time."
+      "description": "Total token usage over time."
     },
     "tokenByOperation": {
       "title": "Token by Operation",
@@ -48,11 +50,11 @@
     },
     "memoryGrowth": {
       "title": "Memory Growth",
-      "description": "Daily memory chunk creation."
+      "description": "New memory chunks created over time."
     },
     "runtimeThroughput": {
       "title": "Runtime Throughput",
-      "description": "Audit run count over time."
+      "description": "Audit run volume over time."
     },
     "topCocoonsByMemory": {
       "title": "Top Cocoons by Memory"
