@@ -56,6 +56,23 @@ function humanizeKey(value: string) {
   return value.replace(/_/g, " ");
 }
 
+function promptNodeKey(templateType: string): "meta" | "generation" | null {
+  if (templateType === "meta") return "meta";
+  if (templateType === "system" || templateType === "generator" || templateType === "pull" || templateType === "merge") {
+    return "generation";
+  }
+  return null;
+}
+
+function promptSortOrder(templateType: string) {
+  if (templateType === "system") return 0;
+  if (templateType === "meta") return 1;
+  if (templateType === "generator") return 2;
+  if (templateType === "pull") return 3;
+  if (templateType === "merge") return 4;
+  return 99;
+}
+
 function StructuredValue({
   value,
   label,
@@ -121,6 +138,101 @@ function StructuredValue({
   if (value === null || value === undefined || value === "") return <span className="text-muted-foreground">-</span>;
   if (typeof value === "boolean") return <Badge variant={value ? "default" : "secondary"}>{String(value)}</Badge>;
   return <span className="whitespace-pre-wrap break-words text-sm leading-6">{String(value)}</span>;
+}
+
+function PromptTraceCard({
+  title,
+  badge,
+  renderedPrompt,
+  variables,
+}: {
+  title: string;
+  badge: string;
+  renderedPrompt: string | null;
+  variables: unknown;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <Card className="border-border/60 bg-background/40">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-sm">{title}</CardTitle>
+          <Badge variant="outline">{badge}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="rounded-xl border border-border/60 bg-background/70 p-4 whitespace-pre-wrap text-sm leading-6">
+          {renderedPrompt || "-"}
+        </div>
+        <Collapsible className="rounded-xl border border-border/60 bg-background/50">
+          <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
+            <div className="text-sm font-medium">{t("audits.artifacts.prompt_variables")}</div>
+            <ChevronDown className="size-4 text-muted-foreground transition data-[state=open]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="border-t border-border/60 px-4 py-3">
+            <StructuredValue value={variables} label={t("audits.artifacts.prompt_variables")} />
+          </CollapsibleContent>
+        </Collapsible>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MemoryRetrievalView({ artifact }: { artifact: AuditArtifactRead }) {
+  const { t } = useTranslation();
+  const payload = isRecord(artifact.payload) ? artifact.payload : null;
+  const hits = Array.isArray(payload?.hits) ? payload.hits : [];
+
+  return (
+    <Card className="border-border/70 bg-background/30">
+      <CardHeader>
+        <CardTitle className="text-base">{t(`audits.artifacts.${artifact.artifact_type}`, { defaultValue: artifact.artifact_type })}</CardTitle>
+        <CardDescription>{artifact.title || t("audits.arrayCount", { count: hits.length })}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {hits.map((item, index) => {
+          const hit = isRecord(item) ? item : null;
+          const title = typeof hit?.summary === "string" && hit.summary.trim()
+            ? hit.summary
+            : t("audits.arrayItem", { index: index + 1 });
+          const scope = typeof hit?.scope === "string" ? hit.scope : null;
+          const score = typeof hit?.similarity_score === "number" ? hit.similarity_score : null;
+          const matchedTags = Array.isArray(hit?.matched_tags)
+            ? hit.matched_tags.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+            : [];
+          const preview = typeof hit?.content_preview === "string" ? hit.content_preview : "";
+          const chunkId = typeof hit?.memory_chunk_id === "string" ? hit.memory_chunk_id : null;
+
+          return (
+            <div key={`${artifact.id}-${index}`} className="rounded-2xl border border-border/70 p-4">
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div>
+                  <div className="font-medium">{title}</div>
+                  {chunkId ? <div className="mt-1 text-xs text-muted-foreground">{chunkId}</div> : null}
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  {scope ? <Badge variant="secondary">{humanizeKey(scope)}</Badge> : null}
+                  {score !== null ? <Badge variant="outline">{score.toFixed(3)}</Badge> : null}
+                </div>
+              </div>
+              <div className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                {preview || "-"}
+              </div>
+              {matchedTags.length ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {matchedTags.map((tag) => (
+                    <Badge key={tag} variant="outline">{tag}</Badge>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+        {!hits.length ? <div className="text-sm text-muted-foreground">{t("audits.traceEmpty")}</div> : null}
+      </CardContent>
+    </Card>
+  );
 }
 
 function describeRelationEndpoint(
@@ -269,6 +381,65 @@ export default function AuditsWorkbenchPage() {
     }
     return map;
   }, [selectedRun]);
+  const promptNodes = useMemo(() => {
+    if (!selectedRun) return [];
+
+    const promptEntries = new Map<string, { templateType: string; renderedPrompt: string | null; variables: unknown }>();
+    for (const artifact of selectedRun.artifacts) {
+      if (artifact.artifact_type !== "prompt_snapshot" && artifact.artifact_type !== "prompt_variables") continue;
+      const payload = isRecord(artifact.payload) ? artifact.payload : null;
+      const templateType = typeof payload?.template_type === "string" ? payload.template_type : null;
+      if (!templateType) continue;
+
+      const existing = promptEntries.get(templateType) || {
+        templateType,
+        renderedPrompt: null,
+        variables: null,
+      };
+      if (artifact.artifact_type === "prompt_snapshot" && typeof payload?.rendered_prompt === "string") {
+        existing.renderedPrompt = payload.rendered_prompt;
+      }
+      if (artifact.artifact_type === "prompt_variables" && payload && "variables" in payload) {
+        existing.variables = payload.variables;
+      }
+      promptEntries.set(templateType, existing);
+    }
+
+    const grouped = new Map<"meta" | "generation", typeof promptEntries extends Map<string, infer T> ? T[] : never>();
+    for (const entry of promptEntries.values()) {
+      const node = promptNodeKey(entry.templateType);
+      if (!node) continue;
+      const items = grouped.get(node) || [];
+      items.push(entry);
+      grouped.set(node, items);
+    }
+
+    return (["meta", "generation"] as const)
+      .map((node) => ({
+        key: node,
+        title: node === "meta" ? stepTitle("meta_node") : stepTitle("generator_node"),
+        description:
+          node === "meta"
+            ? t("prompts.types.meta.description", { defaultValue: "Meta decision prompt chain." })
+            : t("prompts.types.generator.description", { defaultValue: "Reply generation prompt chain." }),
+        prompts: (grouped.get(node) || []).sort((left, right) => promptSortOrder(left.templateType) - promptSortOrder(right.templateType)),
+      }))
+      .filter((node) => node.prompts.length > 0);
+  }, [selectedRun, stepTitle, t]);
+  const memoryArtifacts = useMemo(
+    () => (selectedRun?.artifacts || []).filter((artifact) => artifact.artifact_type === "memory_retrieval"),
+    [selectedRun],
+  );
+  const genericArtifacts = useMemo(
+    () =>
+      (selectedRun?.artifacts || []).filter(
+        (artifact) =>
+          artifact.artifact_type !== "prompt_snapshot"
+          && artifact.artifact_type !== "prompt_variables"
+          && artifact.artifact_type !== "memory_retrieval",
+      ),
+    [selectedRun],
+  );
 
   if (!canAudit) return <AccessCard description={t("audits.noPermission")} />;
 
@@ -477,8 +648,40 @@ export default function AuditsWorkbenchPage() {
                   </CardContent>
                 </Card>
 
+                {promptNodes.length ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {promptNodes.map((node) => (
+                      <Card key={node.key} className="border-border/70 bg-background/30">
+                        <CardHeader>
+                          <CardTitle className="text-base">{node.title}</CardTitle>
+                          <CardDescription>{node.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {node.prompts.map((prompt) => (
+                            <PromptTraceCard
+                              key={`${node.key}-${prompt.templateType}`}
+                              title={t(`prompts.types.${prompt.templateType}.name`, { defaultValue: humanizeKey(prompt.templateType) })}
+                              badge={prompt.templateType === "system" ? t("settings.themeSystem", { defaultValue: "System" }) : t("common.user")}
+                              renderedPrompt={prompt.renderedPrompt}
+                              variables={prompt.variables}
+                            />
+                          ))}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : null}
+
+                {memoryArtifacts.length ? (
+                  <div className="grid gap-3">
+                    {memoryArtifacts.map((artifact) => (
+                      <MemoryRetrievalView key={`${artifact.artifact_type}-${artifact.id}`} artifact={artifact} />
+                    ))}
+                  </div>
+                ) : null}
+
                 <div className="grid gap-3">
-                  {selectedRun.artifacts.map((artifact) => (
+                  {genericArtifacts.map((artifact) => (
                     <Collapsible key={`${artifact.artifact_type}-${artifact.id}`} className="rounded-xl border border-border/70 bg-background/30">
                       <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 px-6 py-4 text-left">
                         <div>
@@ -492,7 +695,7 @@ export default function AuditsWorkbenchPage() {
                       </CollapsibleContent>
                     </Collapsible>
                   ))}
-                  {!selectedRun.artifacts.length ? <div className="text-sm text-muted-foreground">{t("audits.traceEmpty")}</div> : null}
+                  {!promptNodes.length && !memoryArtifacts.length && !genericArtifacts.length ? <div className="text-sm text-muted-foreground">{t("audits.traceEmpty")}</div> : null}
                 </div>
 
                 <Card className="border-border/70 bg-background/30">
