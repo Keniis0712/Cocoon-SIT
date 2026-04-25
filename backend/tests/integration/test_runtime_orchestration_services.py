@@ -82,11 +82,14 @@ def test_state_patch_service_updates_session_state_and_broadcasts(client, defaul
     service = StatePatchService(container.side_effects, hub)
 
     with container.session_factory() as session:
+        cocoon = session.get(Cocoon, default_cocoon_id)
+        assert cocoon is not None
         tag = TagRegistry(
+            owner_user_id=cocoon.owner_user_id,
             tag_id="focus",
             brief="Focus topic",
-            visibility="public",
-            is_isolated=False,
+            visibility="private",
+            is_isolated=True,
             meta_json={},
         )
         session.add(tag)
@@ -258,10 +261,13 @@ def test_side_effects_resolve_readable_tag_references_to_canonical_ids(client, d
     container = client.app.state.container
 
     with container.session_factory() as session:
+        cocoon = session.get(Cocoon, default_cocoon_id)
+        assert cocoon is not None
         tag = TagRegistry(
+            owner_user_id=cocoon.owner_user_id,
             tag_id="focus",
             brief="Focus topic",
-            visibility="public",
+            visibility="private",
             meta_json={"name": "Focus Topic"},
         )
         session.add(tag)

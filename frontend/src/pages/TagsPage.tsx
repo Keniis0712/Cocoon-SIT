@@ -4,40 +4,25 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { showErrorToast } from "@/api/client";
-import { listChatGroups } from "@/api/chatGroups";
 import { createTag, deleteTag, listTags, updateTag } from "@/api/tags";
 import type { TagPayload, TagRead } from "@/api/types/catalog";
-import type { ChatGroupRead } from "@/api/types/chat-groups";
 import { useConfirmDialog } from "@/components/composes/useConfirmDialog";
 import PageFrame from "@/components/PageFrame";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 const EMPTY_FORM: TagPayload = {
   name: "",
   brief: "",
-  visibility_mode: "private",
-  visible_chat_group_ids: [],
 };
-
-function visibilityModeLabel(value: string, t: (key: string) => string) {
-  if (value === "private") return t("tags:visibilityOptions.private");
-  if (value === "public") return t("tags:visibilityOptions.public");
-  if (value === "group_acl") return t("tags:visibilityOptions.group_acl");
-  return value;
-}
 
 export default function TagsPage() {
   const { t } = useTranslation(["tags", "common"]);
   const [items, setItems] = useState<TagRead[]>([]);
-  const [rooms, setRooms] = useState<ChatGroupRead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TagRead | null>(null);
@@ -53,9 +38,7 @@ export default function TagsPage() {
   async function fetchData() {
     setIsLoading(true);
     try {
-      const [tagItems, roomItems] = await Promise.all([listTags(), listChatGroups()]);
-      setItems(tagItems);
-      setRooms(roomItems);
+      setItems(await listTags());
     } catch (error) {
       console.error(error);
       showErrorToast(error, t("tags:loadFailed"));
@@ -75,8 +58,6 @@ export default function TagsPage() {
     setForm({
       name: item.name,
       brief: item.brief,
-      visibility_mode: item.visibility_mode,
-      visible_chat_group_ids: item.visible_chat_group_ids,
     });
     setDialogOpen(true);
   }
@@ -85,8 +66,6 @@ export default function TagsPage() {
     const payload: TagPayload = {
       name: form.name.trim(),
       brief: form.brief || "",
-      visibility_mode: form.visibility_mode || "private",
-      visible_chat_group_ids: form.visibility_mode === "group_acl" ? form.visible_chat_group_ids || [] : [],
     };
     try {
       if (editing) {
@@ -125,16 +104,6 @@ export default function TagsPage() {
     }
   }
 
-  function toggleRoom(roomId: string, checked: boolean) {
-    const current = new Set(form.visible_chat_group_ids || []);
-    if (checked) {
-      current.add(roomId);
-    } else {
-      current.delete(roomId);
-    }
-    setForm((prev) => ({ ...prev, visible_chat_group_ids: [...current] }));
-  }
-
   return (
     <PageFrame
       title={t("tags:title")}
@@ -149,6 +118,12 @@ export default function TagsPage() {
       <div className="grid gap-4 xl:grid-cols-2">
         {isLoading ? (
           <Card className="h-48 animate-pulse bg-muted/40" />
+        ) : visibleItems.length === 0 ? (
+          <Card className="border-dashed border-border/70 bg-card/70">
+            <CardContent className="py-10 text-sm text-muted-foreground">
+              {t("tags:emptyState")}
+            </CardContent>
+          </Card>
         ) : (
           visibleItems.map((item) => (
             <Card key={item.actual_id} className="border-border/70 bg-card/90">
@@ -172,40 +147,16 @@ export default function TagsPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">{visibilityModeLabel(item.visibility_mode, t)}</Badge>
-                </div>
-                {item.visibility_mode === "group_acl" ? (
-                  <div>
-                    <div className="mb-1 text-muted-foreground">{t("tags:visibleChatGroups")}</div>
-                    <div className="flex flex-wrap gap-2">
-                      {item.visible_chat_group_ids.length
-                        ? item.visible_chat_group_ids.map((roomId) => {
-                            const room = rooms.find((entry) => entry.id === roomId);
-                            return (
-                              <Badge key={roomId} variant="outline">
-                                {room?.name || roomId}
-                              </Badge>
-                            );
-                          })
-                        : <span className="text-muted-foreground">{t("tags:noRoomsSelected")}</span>}
-                    </div>
-                  </div>
-                ) : null}
-              </CardContent>
             </Card>
           ))
         )}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{editing ? t("tags:editTitle") : t("tags:createTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("tags:dialogDescription")}
-            </DialogDescription>
+            <DialogDescription>{t("tags:dialogDescription")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
@@ -219,47 +170,11 @@ export default function TagsPage() {
             <div className="grid gap-2">
               <Label>{t("common:description")}</Label>
               <Textarea
-                rows={3}
+                rows={4}
                 value={form.brief || ""}
                 onChange={(event) => setForm((prev) => ({ ...prev, brief: event.target.value }))}
               />
             </div>
-            <div className="grid gap-2">
-              <Label>{t("tags:visibilityMode")}</Label>
-              <Select
-                value={form.visibility_mode}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, visibility_mode: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="private">{t("tags:visibilityOptions.private")}</SelectItem>
-                  <SelectItem value="public">{t("tags:visibilityOptions.public")}</SelectItem>
-                  <SelectItem value="group_acl">{t("tags:visibilityOptions.group_acl")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {form.visibility_mode === "group_acl" ? (
-              <div className="grid gap-2">
-                <Label>{t("tags:visibleChatGroups")}</Label>
-                <div className="max-h-64 space-y-2 overflow-auto rounded-2xl border border-border/70 bg-background/60 p-3">
-                  {rooms.length ? (
-                    rooms.map((room) => {
-                      const checked = (form.visible_chat_group_ids || []).includes(room.id);
-                      return (
-                        <label key={room.id} className="flex items-center gap-3 text-sm">
-                          <Checkbox checked={checked} onCheckedChange={(value) => toggleRoom(room.id, Boolean(value))} />
-                          <span>{room.name}</span>
-                        </label>
-                      );
-                    })
-                  ) : (
-                    <span className="text-sm text-muted-foreground">{t("tags:noChatGroupsAvailable")}</span>
-                  )}
-                </div>
-              </div>
-            ) : null}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>

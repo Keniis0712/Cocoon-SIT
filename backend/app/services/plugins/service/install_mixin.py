@@ -56,6 +56,7 @@ class PluginServiceInstallMixin:
         upload: UploadFile,
         *,
         existing_plugin: PluginDefinition | None,
+        owner_user_id: str | None = None,
     ) -> PluginDetailOut:
         temp_dir = Path(tempfile.mkdtemp(prefix="plugin-install-"))
         plugin_root: Path | None = None
@@ -145,6 +146,7 @@ class PluginServiceInstallMixin:
                 data_dir_created = not data_dir.exists()
                 data_dir.mkdir(parents=True, exist_ok=True)
                 plugin = PluginDefinition(
+                    owner_user_id=owner_user_id,
                     name=manifest.name,
                     display_name=manifest.display_name,
                     plugin_type=manifest.plugin_type,

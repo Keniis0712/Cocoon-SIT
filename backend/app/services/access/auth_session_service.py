@@ -12,6 +12,7 @@ from app.core.config import Settings
 from app.models import AuthSession, InviteCode, Role, User, UserGroupMember
 from app.schemas.access.auth import RegisterRequest, TokenPair
 from app.services.access.group_service import GroupService
+from app.services.catalog.tag_policy import ensure_user_system_tag
 from app.services.catalog.system_settings_service import SystemSettingsService
 from app.services.security.encryption import hash_secret, verify_secret
 from app.services.security.token_service import TokenService
@@ -85,6 +86,7 @@ class AuthSessionService:
         )
         session.add(user)
         session.flush()
+        ensure_user_system_tag(session, user.id)
         registration_group = self.group_service.resolve_registration_group(session, invite_code.registration_group_id)
         existing_membership = session.scalar(
             select(UserGroupMember).where(

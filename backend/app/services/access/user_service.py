@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models import User
 from app.schemas.access.auth import UserCreate, UserUpdate
+from app.services.catalog.tag_policy import ensure_user_system_tag
 from app.services.security.encryption import hash_secret
 
 
@@ -34,6 +35,7 @@ class UserService:
         )
         session.add(user)
         session.flush()
+        ensure_user_system_tag(session, user.id)
         return user
 
     def update_user(self, session: Session, actor: User, user_id: str, payload: UserUpdate) -> User:

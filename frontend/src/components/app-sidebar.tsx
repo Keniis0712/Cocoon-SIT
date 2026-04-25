@@ -123,12 +123,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <NavMain items={workspaceItems} />
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>{t("collaboration")}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <NavMain items={collaborationItems} />
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {collaborationItems.length > 0 ? (
+          <SidebarGroup>
+            <SidebarGroupLabel>{t("collaboration")}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <NavMain items={collaborationItems} />
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : null}
         {managementItems.length > 0 ? (
           <SidebarGroup>
             <SidebarGroupLabel>{t("management")}</SidebarGroupLabel>

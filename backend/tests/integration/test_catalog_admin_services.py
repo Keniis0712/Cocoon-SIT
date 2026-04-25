@@ -60,6 +60,7 @@ def test_prompt_template_admin_and_tag_services(client):
         )
         tag = container.tag_service.create_tag(
             session,
+            admin,
             TagCreate(tag_id="svc-tag", brief="Service tag", is_isolated=False, meta_json={"color": "green"}),
         )
         session.commit()
@@ -69,11 +70,12 @@ def test_prompt_template_admin_and_tag_services(client):
     with container.session_factory() as session:
         updated = container.tag_service.update_tag(
             session,
+            admin,
             "svc-tag",
             TagUpdate(brief="Updated service tag", is_isolated=True),
         )
         session.commit()
         assert updated.brief == "Updated service tag"
-        assert any(item.tag_id == "svc-tag" for item in container.tag_service.list_tags(session))
+        assert any(item.tag_id == "svc-tag" for item in container.tag_service.list_tags(session, admin))
         templates = container.prompt_template_admin_service.list_templates(session)
         assert any(item.template_type == "generator" for item in templates)

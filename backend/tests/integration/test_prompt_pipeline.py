@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select
 
-from app.models import ActionDispatch, AuditArtifact, AuditRun, AuditStep, CocoonTagBinding, MemoryChunk, SessionState, TagRegistry
+from app.models import ActionDispatch, AuditArtifact, AuditRun, AuditStep, Cocoon, CocoonTagBinding, MemoryChunk, SessionState, TagRegistry
 
 pytestmark = pytest.mark.integration
 
@@ -229,13 +229,22 @@ def test_runtime_prompt_exposes_readable_tag_metadata(
     default_cocoon_id,
 ):
     with client.app.state.container.session_factory() as session:
-        default_tag = session.scalar(select(TagRegistry).where(TagRegistry.is_system.is_(True)))
+        cocoon = session.get(Cocoon, default_cocoon_id)
+        assert cocoon is not None
+        default_tag = session.scalar(
+            select(TagRegistry).where(
+                TagRegistry.owner_user_id == cocoon.owner_user_id,
+                TagRegistry.is_system.is_(True),
+            )
+        )
         assert default_tag is not None
+        owner_user_id = default_tag.owner_user_id
         focus_tag = TagRegistry(
+            owner_user_id=owner_user_id,
             tag_id="focus-readable",
             brief="Readable focus tag",
-            visibility="public",
-            is_isolated=False,
+            visibility="private",
+            is_isolated=True,
             meta_json={},
         )
         session.add(focus_tag)

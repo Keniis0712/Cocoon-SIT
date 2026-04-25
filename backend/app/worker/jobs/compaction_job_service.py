@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.models import Cocoon, MemoryChunk, MemoryTag, Message, TagRegistry
 from app.models.entities import ActionStatus
 from app.services.audit.service import AuditService
-from app.services.catalog.tag_policy import canonicalize_tag_refs, ensure_default_tag, serialize_prompt_tag_catalog
+from app.services.catalog.tag_policy import canonicalize_tag_refs, ensure_user_system_tag, serialize_prompt_tag_catalog
 from app.services.memory.service import MemoryService
 from app.services.prompts.service import PromptTemplateService
 from app.services.providers.registry import ProviderRegistry
@@ -78,7 +78,11 @@ class CompactionJobService:
         )
         all_tags = {
             tag.id: tag
-            for tag in session.scalars(select(TagRegistry).order_by(TagRegistry.tag_id.asc())).all()
+            for tag in session.scalars(
+                select(TagRegistry)
+                .where(TagRegistry.owner_user_id == cocoon.owner_user_id)
+                .order_by(TagRegistry.tag_id.asc())
+            ).all()
         }
         variables = {
             "session_state": {
@@ -151,7 +155,7 @@ class CompactionJobService:
             },
         )
         parsed = CompactionStructuredOutputModel.model_validate(response.parsed or {})
-        default_tag_id = ensure_default_tag(session).id
+        default_tag_id = ensure_user_system_tag(session, cocoon.owner_user_id).id
         created_chunks: list[MemoryChunk] = []
         for item in parsed.long_term_memories:
             summary = str(item.summary or "").strip()
@@ -167,6 +171,7 @@ class CompactionJobService:
                 session,
                 [default_tag_id, *resolved_tags],
                 include_default=True,
+                owner_user_id=cocoon.owner_user_id,
             )
             chunk = MemoryChunk(
                 cocoon_id=cocoon_id,

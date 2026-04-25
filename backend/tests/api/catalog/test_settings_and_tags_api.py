@@ -10,7 +10,6 @@ def test_delete_tag_scrubs_bindings_and_cached_tag_arrays(client, auth_headers, 
         json={
             "tag_id": "delete-me",
             "brief": "Delete me",
-            "is_isolated": False,
             "meta_json": {"priority": 1},
         },
     )

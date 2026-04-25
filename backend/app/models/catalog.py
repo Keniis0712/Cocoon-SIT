@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Boolean, ForeignKey, JSON, String, Text
+from sqlalchemy import Boolean, ForeignKey, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, JsonDefaultMixin, TimestampMixin
@@ -74,13 +74,18 @@ class ProviderCredential(Base, TimestampMixin, JsonDefaultMixin):
 
 class TagRegistry(Base, TimestampMixin, JsonDefaultMixin):
     __tablename__ = "tag_registry"
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "tag_id", name="uq_tag_registry_owner_tag_id"),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
-    tag_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    tag_id: Mapped[str] = mapped_column(String(64), nullable=False)
     brief: Mapped[str] = mapped_column(Text, nullable=False)
     visibility: Mapped[str] = mapped_column(String(32), default="private")
     is_isolated: Mapped[bool] = mapped_column(Boolean, default=False)
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
     meta_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
 
 

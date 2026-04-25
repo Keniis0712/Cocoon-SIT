@@ -1,6 +1,6 @@
 {
   "title": "标签",
-  "description": "管理用于 Cocoon、消息和长期记忆检索的语义标签定义。",
+  "description": "管理你自己的私有标签，用于 Cocoon 状态、消息和长期记忆检索。",
   "newTag": "新建标签",
   "loadFailed": "加载标签失败",
   "created": "标签已创建",
@@ -10,22 +10,8 @@
   "deleteFailed": "删除标签失败",
   "deleteTitle": "删除标签",
   "noDescription": "暂无描述。",
+  "emptyState": "你还没有创建任何私有标签。",
   "editTitle": "编辑标签",
   "createTitle": "新建标签",
-  "dialogDescription": "标签用于定义 Cocoon 状态、消息与记忆之间的可见性和隔离边界。",
-  "visibilityMode": "可见性模式",
-  "visibleChatGroups": "可见聊天群组",
-  "noRoomsSelected": "未选择任何聊天群组",
-  "noChatGroupsAvailable": "当前没有可用聊天群组。",
-  "visibilityOptions": {
-    "private": "私有",
-    "public": "公开",
-    "group_acl": "组 ACL"
-  },
-  "priority": "优先级",
-  "groupAllowlist": "允许组",
-  "groupDenylist": "拒绝组",
-  "groupAllowlistInput": "允许组（用逗号分隔 group id）",
-  "groupDenylistInput": "拒绝组（用逗号分隔 group id）",
-  "confirmDeletePrompt": "删除标签“{{name}}”并清理所有相关绑定？"
+  "dialogDescription": "标签仅归当前用户所有，不能共享，也不能公开。"
 }

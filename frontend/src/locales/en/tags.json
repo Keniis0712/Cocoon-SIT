@@ -1,6 +1,6 @@
 {
   "title": "Tags",
-  "description": "Manage semantic tag definitions used by cocoons, messages, and long-term memory retrieval.",
+  "description": "Manage your private tags for cocoon state, messages, and long-term memory retrieval.",
   "newTag": "New Tag",
   "loadFailed": "Failed to load tags",
   "created": "Tag created",
@@ -10,22 +10,8 @@
   "deleteFailed": "Failed to delete tag",
   "deleteTitle": "Delete Tag",
   "noDescription": "No description yet.",
+  "emptyState": "You have not created any private tags yet.",
   "editTitle": "Edit Tag",
   "createTitle": "Create Tag",
-  "dialogDescription": "Tags define visibility and isolation boundaries across cocoon state, messages, and memories.",
-  "visibilityMode": "Visibility Mode",
-  "visibleChatGroups": "Visible Chat Groups",
-  "noRoomsSelected": "No rooms selected",
-  "noChatGroupsAvailable": "No chat groups available.",
-  "visibilityOptions": {
-    "private": "Private",
-    "public": "Public",
-    "group_acl": "Group ACL"
-  },
-  "priority": "Priority",
-  "groupAllowlist": "Allowed Groups",
-  "groupDenylist": "Denied Groups",
-  "groupAllowlistInput": "Allowed groups (comma-separated group ids)",
-  "groupDenylistInput": "Denied groups (comma-separated group ids)",
-  "confirmDeletePrompt": "Delete tag \"{{name}}\" and scrub all related bindings?"
+  "dialogDescription": "Tags are private to your account and cannot be shared or published."
 }

@@ -16,29 +16,31 @@ from app.models import (
     SessionState,
     TagChatGroupVisibility,
     TagRegistry,
+    User,
 )
 from app.schemas.catalog.tags import TagCreate, TagOut, TagUpdate
 from app.services.catalog.tag_policy import (
+    canonicalize_tag_refs,
     is_system_tag,
+    list_tags_for_user,
     list_visible_chat_group_ids,
     replace_tag_visibility_groups,
     require_canonical_tag,
     require_valid_visibility,
+    resolve_tag_owner_user_id_for_state,
 )
 
 
 class TagService:
-    """Creates, lists, and updates tag definitions."""
+    """Creates, lists, and updates user-owned private tag definitions."""
 
-    def _get_tag(self, session: Session, tag_ref: str) -> TagRegistry | None:
-        tag = session.get(TagRegistry, tag_ref)
-        if tag:
-            return tag
-        return session.scalar(select(TagRegistry).where(TagRegistry.tag_id == tag_ref))
+    def _get_tag(self, session: Session, user: User, tag_ref: str) -> TagRegistry | None:
+        tag = require_canonical_tag(session, tag_ref, owner_user_id=user.id)
+        return tag if tag.owner_user_id == user.id else None
 
-    def list_tags(self, session: Session) -> list[TagRegistry]:
-        """Return tags ordered by tag id."""
-        return list(session.scalars(select(TagRegistry).order_by(TagRegistry.tag_id.asc())).all())
+    def list_tags(self, session: Session, user: User) -> list[TagRegistry]:
+        """Return the current user's tags ordered by system-then-name."""
+        return list_tags_for_user(session, user.id)
 
     def serialize_tag(self, session: Session, tag: TagRegistry) -> TagOut:
         return TagOut.model_validate(
@@ -55,36 +57,50 @@ class TagService:
             }
         )
 
-    def create_tag(self, session: Session, payload: TagCreate) -> TagRegistry:
-        """Create a tag registry entry."""
-        visibility = require_valid_visibility(payload.visibility)
+    def create_tag(self, session: Session, user: User, payload: TagCreate) -> TagRegistry:
+        """Create a private tag owned by the current user."""
+        normalized_tag_id = str(payload.tag_id or "").strip()
+        if not normalized_tag_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tag name is required")
+        if normalized_tag_id == "default":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reserved system tag name")
+        require_valid_visibility(payload.visibility)
+        existing = session.scalar(
+            select(TagRegistry).where(
+                TagRegistry.owner_user_id == user.id,
+                TagRegistry.tag_id == normalized_tag_id,
+            )
+        )
+        if existing:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tag already exists")
         tag = TagRegistry(
-            tag_id=payload.tag_id,
+            owner_user_id=user.id,
+            tag_id=normalized_tag_id,
             brief=payload.brief,
-            visibility=visibility,
-            is_isolated=payload.is_isolated or visibility == "private",
+            visibility="private",
+            is_isolated=True,
             is_system=False,
+            is_hidden=False,
             meta_json=payload.meta_json or {},
         )
         session.add(tag)
         session.flush()
-        replace_tag_visibility_groups(session, tag, payload.visible_chat_group_ids)
+        replace_tag_visibility_groups(session, tag, [])
         return tag
 
-    def update_tag(self, session: Session, tag_id: str, payload: TagUpdate) -> TagRegistry:
-        """Patch a tag registry entry."""
-        tag = self._get_tag(session, tag_id)
+    def update_tag(self, session: Session, user: User, tag_id: str, payload: TagUpdate) -> TagRegistry:
+        """Patch a user-owned private tag."""
+        tag = self._get_tag(session, user, tag_id)
         if not tag:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found")
         if is_system_tag(tag):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="System tag cannot be modified")
+        if payload.visibility is not None:
+            require_valid_visibility(payload.visibility)
         if payload.brief is not None:
             tag.brief = payload.brief
-        if payload.visibility is not None:
-            tag.visibility = require_valid_visibility(payload.visibility)
-            tag.is_isolated = tag.visibility == "private" if payload.is_isolated is None else payload.is_isolated
-        if payload.is_isolated is not None:
-            tag.is_isolated = payload.is_isolated
+        tag.visibility = "private"
+        tag.is_isolated = True
         if payload.meta_json is not None:
             tag.meta_json = payload.meta_json
         if payload.visible_chat_group_ids is not None:
@@ -92,9 +108,11 @@ class TagService:
         session.flush()
         return tag
 
-    def delete_tag(self, session: Session, tag_id: str) -> TagRegistry:
-        """Delete a tag and scrub all bindings and cached tag arrays."""
-        tag = require_canonical_tag(session, tag_id)
+    def delete_tag(self, session: Session, user: User, tag_id: str) -> TagRegistry:
+        """Delete a user-owned tag and scrub all bindings and cached tag arrays."""
+        tag = self._get_tag(session, user, tag_id)
+        if not tag:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found")
         if is_system_tag(tag):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="System tag cannot be deleted")
 
@@ -110,7 +128,13 @@ class TagService:
 
         for state in session.scalars(select(SessionState)).all():
             if tag.id in (state.active_tags_json or []):
-                state.active_tags_json = [item for item in state.active_tags_json if item != tag.id]
+                owner_user_id = resolve_tag_owner_user_id_for_state(session, state)
+                state.active_tags_json = canonicalize_tag_refs(
+                    session,
+                    [item for item in state.active_tags_json if item != tag.id],
+                    include_default=True,
+                    owner_user_id=owner_user_id,
+                )
 
         for message in session.scalars(select(Message).where(Message.tags_json.is_not(None))).all():
             if tag.id in (message.tags_json or []):

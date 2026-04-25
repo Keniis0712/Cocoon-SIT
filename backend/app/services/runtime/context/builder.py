@@ -4,7 +4,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Character, ChatGroupRoom, Cocoon, TagRegistry
-from app.services.catalog.tag_policy import is_tag_visible_in_target, serialize_prompt_tag_catalog
+from app.services.catalog.tag_policy import (
+    is_tag_visible_in_target,
+    resolve_tag_owner_user_id_for_target,
+    serialize_prompt_tag_catalog,
+)
 from app.services.memory.service import MemoryService
 from app.services.runtime.context.external_context_service import ExternalContextService
 from app.services.runtime.context.message_window_service import MessageWindowService
@@ -82,7 +86,20 @@ class ContextBuilder:
             }
             for task in pending_wakeups
         ]
-        tags = list(session.scalars(select(TagRegistry)).all())
+        owner_user_id = resolve_tag_owner_user_id_for_target(
+            session,
+            cocoon_id=event.cocoon_id,
+            chat_group_id=event.chat_group_id,
+        )
+        tags = (
+            list(
+                session.scalars(
+                    select(TagRegistry).where(TagRegistry.owner_user_id == owner_user_id)
+                ).all()
+            )
+            if owner_user_id
+            else []
+        )
         prompt_tag_catalog, prompt_tag_catalog_by_index = serialize_prompt_tag_catalog(
             session,
             target_type=event.target_type,

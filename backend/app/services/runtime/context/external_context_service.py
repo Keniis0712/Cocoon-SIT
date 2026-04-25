@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.models import Cocoon, CocoonTagBinding, SessionState, TagRegistry
 from app.services.memory.service import MemoryService
-from app.services.catalog.tag_policy import TAG_VISIBILITY_PUBLIC, get_tag_by_any_ref
+from app.services.catalog.tag_policy import get_tag_by_any_ref
 from app.services.runtime.context.message_window_service import MessageWindowService
 from app.services.runtime.types import RuntimeEvent
 from app.services.workspace.targets import get_session_state
@@ -66,20 +66,14 @@ class ExternalContextService:
             visible_target_tags.add(tag.id if tag else item.tag_id)
 
         def _is_visible(items_tags: list[str] | None) -> bool:
-            resolved_tags = [
-                tag
-                for tag in (get_tag_by_any_ref(session, tag_ref) for tag_ref in (items_tags or []))
-                if tag is not None
+            normalized = [
+                tag.id if tag else str(tag_ref)
+                for tag_ref in (items_tags or [])
+                for tag in [get_tag_by_any_ref(session, tag_ref)]
             ]
-            if not resolved_tags:
+            if not normalized:
                 return True
-            restricted = {
-                tag.id
-                for tag in resolved_tags
-                if bool(tag.is_isolated)
-                or str(tag.visibility or TAG_VISIBILITY_PUBLIC) != TAG_VISIBILITY_PUBLIC
-            }
-            return not restricted or restricted.issubset(visible_target_tags)
+            return set(normalized).issubset(visible_target_tags)
 
         source_messages = [
             message

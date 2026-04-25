@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_container, get_db, require_permission
 from app.core.container import AppContainer
+from app.models import User
 from app.schemas.admin.plugins import (
     PluginConfigUpdate,
     PluginDetailOut,
@@ -53,9 +54,9 @@ def install_plugin(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     container: AppContainer = Depends(get_container),
-    _=Depends(require_permission("plugins:write")),
+    user: User = Depends(require_permission("plugins:write")),
 ) -> PluginDetailOut:
-    return container.plugin_service.install_plugin(db, file)
+    return container.plugin_service.install_plugin(db, file, user)
 
 
 @router.post("/{plugin_id}/update", response_model=PluginDetailOut)

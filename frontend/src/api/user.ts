@@ -107,6 +107,25 @@ function buildMeResponse(profile: AuthMeProfileResponse): MeResponse {
   };
 }
 
+export function buildSessionPatch(profile: MeResponse): Partial<SessionUser> {
+  return {
+    uid: profile.uid,
+    username: profile.username,
+    parent_uid: profile.parent_uid,
+    user_path: profile.user_path,
+    role: profile.role,
+    role_level: profile.role_level,
+    can_audit: profile.can_audit,
+    can_manage_system: profile.can_manage_system,
+    can_manage_users: profile.can_manage_users,
+    can_manage_prompts: profile.can_manage_prompts,
+    can_manage_providers: profile.can_manage_providers,
+    permissions: profile.permissions,
+    invite_quota_remaining: profile.invite_quota_remaining,
+    invite_quota_unlimited: profile.invite_quota_unlimited,
+  };
+}
+
 async function fetchProfileWithAccessToken(accessToken: string): Promise<AuthMeProfileResponse> {
   const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/me`, {
     headers: {

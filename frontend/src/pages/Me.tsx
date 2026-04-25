@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { showErrorToast } from "@/api/client";
-import { changePassword, changeUsername, createImBindToken, logout, me } from "@/api/user";
+import { buildSessionPatch, changePassword, changeUsername, createImBindToken, logout, me } from "@/api/user";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,22 +36,7 @@ export default function MePage() {
       }
       try {
         const profile = await me();
-        updateInfo({
-          uid: profile.uid,
-          username: profile.username,
-          parent_uid: profile.parent_uid,
-          user_path: profile.user_path,
-          role: profile.role,
-          role_level: profile.role_level,
-          can_audit: profile.can_audit,
-          can_manage_system: profile.can_manage_system,
-          can_manage_users: profile.can_manage_users,
-          can_manage_prompts: profile.can_manage_prompts,
-          can_manage_providers: profile.can_manage_providers,
-          permissions: profile.permissions,
-          invite_quota_remaining: profile.invite_quota_remaining,
-          invite_quota_unlimited: profile.invite_quota_unlimited,
-        });
+        updateInfo(buildSessionPatch(profile));
         setUsername(profile.username);
         setEmail(profile.email);
         setCreatedAt(profile.created_at);
@@ -103,22 +88,7 @@ export default function MePage() {
     try {
       if (username.trim() && username.trim() !== userInfo.username) {
         const profile = await changeUsername(username.trim());
-        updateInfo({
-          uid: profile.uid,
-          username: profile.username,
-          parent_uid: profile.parent_uid,
-          user_path: profile.user_path,
-          role: profile.role,
-          role_level: profile.role_level,
-          can_audit: profile.can_audit,
-          can_manage_system: profile.can_manage_system,
-          can_manage_users: profile.can_manage_users,
-          can_manage_prompts: profile.can_manage_prompts,
-          can_manage_providers: profile.can_manage_providers,
-          permissions: profile.permissions,
-          invite_quota_remaining: profile.invite_quota_remaining,
-          invite_quota_unlimited: profile.invite_quota_unlimited,
-        });
+        updateInfo(buildSessionPatch(profile));
         setEmail(profile.email);
         setCreatedAt(profile.created_at);
       }

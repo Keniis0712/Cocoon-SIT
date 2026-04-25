@@ -13,6 +13,7 @@ class PluginDefinition(Base, TimestampMixin, JsonDefaultMixin):
     __tablename__ = "plugin_definitions"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    owner_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     plugin_type: Mapped[str] = mapped_column(String(32), nullable=False)

@@ -20,6 +20,7 @@ from app.models import (
     PluginTargetBinding,
     PluginUserConfig,
     PluginVersion,
+    User,
 )
 from app.schemas.admin.plugins import (
     PluginDetailOut,
@@ -119,8 +120,8 @@ class PluginServiceAdminMixin:
             run_state=PluginRunStateOut.model_validate(run_state) if run_state else None,
         )
 
-    def install_plugin(self, session: Session, upload: UploadFile) -> PluginDetailOut:
-        return self._install_or_update(session, upload, existing_plugin=None)
+    def install_plugin(self, session: Session, upload: UploadFile, actor: User) -> PluginDetailOut:
+        return self._install_or_update(session, upload, existing_plugin=None, owner_user_id=actor.id)
 
     def list_shared_packages(self, session: Session) -> list[PluginSharedPackageOut]:
         manifest_paths = [

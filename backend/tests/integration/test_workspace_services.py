@@ -119,11 +119,14 @@ def test_message_dispatch_commits_before_enqueuing(client, default_cocoon_id, mo
 def test_cocoon_tag_service_updates_session_tags(client, default_cocoon_id):
     container = client.app.state.container
     with container.session_factory() as session:
+        cocoon = session.get(Cocoon, default_cocoon_id)
+        assert cocoon is not None
         tag = TagRegistry(
+            owner_user_id=cocoon.owner_user_id,
             tag_id="focus",
             brief="Focus topic",
-            visibility="public",
-            is_isolated=False,
+            visibility="private",
+            is_isolated=True,
             meta_json={},
         )
         session.add(tag)

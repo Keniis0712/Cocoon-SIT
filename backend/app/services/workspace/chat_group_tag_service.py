@@ -12,6 +12,7 @@ from app.services.catalog.tag_policy import (
     ensure_target_default_binding,
     is_system_tag,
     require_canonical_tag,
+    resolve_tag_owner_user_id_for_target,
 )
 from app.services.workspace.targets import get_session_state
 
@@ -20,7 +21,8 @@ class ChatGroupTagService:
     """Applies chat-group tag bindings and keeps session state tags aligned."""
 
     def bind_tag(self, session: Session, chat_group_id: str, tag_id: str) -> ChatGroupTagBinding:
-        tag = require_canonical_tag(session, tag_id)
+        owner_user_id = resolve_tag_owner_user_id_for_target(session, chat_group_id=chat_group_id)
+        tag = require_canonical_tag(session, tag_id, owner_user_id=owner_user_id)
         ensure_target_default_binding(session, chat_group_id=chat_group_id)
         existing = session.scalar(
             select(ChatGroupTagBinding).where(
@@ -38,12 +40,14 @@ class ChatGroupTagService:
                 session,
                 [*state.active_tags_json, tag.id],
                 include_default=True,
+                owner_user_id=owner_user_id,
             )
         session.flush()
         return binding
 
     def unbind_tag(self, session: Session, chat_group_id: str, tag_id: str) -> ChatGroupTagBinding:
-        tag = require_canonical_tag(session, tag_id)
+        owner_user_id = resolve_tag_owner_user_id_for_target(session, chat_group_id=chat_group_id)
+        tag = require_canonical_tag(session, tag_id, owner_user_id=owner_user_id)
         if is_system_tag(tag):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="System tag cannot be unbound")
         binding = session.scalar(
@@ -60,6 +64,7 @@ class ChatGroupTagService:
                 session,
                 [item for item in state.active_tags_json if item != tag.id],
                 include_default=True,
+                owner_user_id=owner_user_id,
             )
         session.delete(binding)
         session.flush()

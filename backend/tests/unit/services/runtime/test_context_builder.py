@@ -89,9 +89,10 @@ def test_context_builder_builds_chat_group_context_with_tags_and_pending_wakeups
         )
         tag = TagRegistry(
             id="tag-row-1",
+            owner_user_id="owner-1",
             tag_id="focus",
             brief="Keep focus",
-            visibility="public",
+            visibility="private",
             is_isolated=True,
             meta_json={"weight": 2},
         )
