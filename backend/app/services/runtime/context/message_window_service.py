@@ -13,6 +13,18 @@ from app.services.workspace.targets import build_target_filter
 class MessageWindowService:
     """Collects the message window visible to a runtime round."""
 
+    def _trim_to_context_start(
+        self,
+        messages: list[Message],
+        context_start_message_id: str | None,
+    ) -> list[Message]:
+        if not context_start_message_id:
+            return messages
+        for index, message in enumerate(messages):
+            if message.id == context_start_message_id:
+                return messages[index:]
+        return messages
+
     def list_visible_messages(
         self,
         session: Session,
@@ -21,17 +33,30 @@ class MessageWindowService:
         *,
         cocoon_id: str | None = None,
         chat_group_id: str | None = None,
+        context_start_message_id: str | None = None,
     ) -> list[Message]:
         """Return the recent message window, filtered by active tags when present."""
-        visible_messages = list(
-            session.scalars(
-                select(Message)
-                .where(build_target_filter(Message, cocoon_id=cocoon_id, chat_group_id=chat_group_id))
-                .order_by(Message.created_at.desc())
-                .limit(max_context_messages)
-            ).all()
-        )
-        visible_messages.reverse()
+        if cocoon_id and context_start_message_id:
+            all_messages = list(
+                session.scalars(
+                    select(Message)
+                    .where(build_target_filter(Message, cocoon_id=cocoon_id, chat_group_id=chat_group_id))
+                    .order_by(Message.created_at.asc())
+                ).all()
+            )
+            visible_messages = self._trim_to_context_start(all_messages, context_start_message_id)[
+                -max_context_messages:
+            ]
+        else:
+            visible_messages = list(
+                session.scalars(
+                    select(Message)
+                    .where(build_target_filter(Message, cocoon_id=cocoon_id, chat_group_id=chat_group_id))
+                    .order_by(Message.created_at.desc())
+                    .limit(max_context_messages)
+                ).all()
+            )
+            visible_messages.reverse()
         if chat_group_id:
             tags = {
                 tag.id: tag

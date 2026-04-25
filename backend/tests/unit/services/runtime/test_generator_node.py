@@ -159,4 +159,5 @@ def test_generator_node_build_structured_prompt_includes_runtime_context():
     assert '"target_type": "cocoon"' in prompt
     assert '"current_time": {"timezone": "Asia/Shanghai"' in prompt
     assert '"pending_wakeups": [{"id": "wake-1", "reason": "later", "status": "queued"}]' in prompt
+    assert '"wakeup_context": {"reason": "scheduled reminder"}' in prompt
     assert "target_id" not in prompt

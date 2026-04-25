@@ -4,8 +4,9 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import select
 
-from app.models import SessionState, WakeupTask
+from app.models import DurableJob, SessionState, WakeupTask
 from app.models.entities import DurableJobStatus
 from app.services.jobs.durable_jobs import DurableJobService
 from app.services.runtime.scheduling.scheduler_node import SchedulerNode
@@ -159,10 +160,19 @@ def test_scheduler_node_schedule_handles_cancellation_hints_and_compaction():
             reason="existing wakeup",
             payload_json={"trigger_kind": "idle_timeout"},
         )
+        visible_messages = [
+            SimpleNamespace(
+                id=f"message-{index}",
+                created_at=datetime.now(UTC).replace(tzinfo=None),
+                role="user",
+                is_retracted=False,
+            )
+            for index in range(1, 6)
+        ]
         context = _context(
             payload={"timezone": "Asia/Shanghai"},
-            visible_messages=[SimpleNamespace(id="message-1", created_at=datetime.now(UTC).replace(tzinfo=None), role="user", is_retracted=False)],
-            max_context_messages=1,
+            visible_messages=visible_messages,
+            max_context_messages=5,
         )
         result = scheduler.schedule(
             session,
@@ -184,6 +194,9 @@ def test_scheduler_node_schedule_handles_cancellation_hints_and_compaction():
         scheduled_task = session.get(WakeupTask, result["wakeup_task_id"])
         assert scheduled_task is not None
         assert scheduled_task.payload_json["timezone"] == "Asia/Shanghai"
+        compaction_job = session.scalar(select(DurableJob).where(DurableJob.id == result["compaction_job_id"]))
+        assert compaction_job is not None
+        assert compaction_job.payload_json["before_message_id"] == "message-5"
         assert current_state is not None
         assert current_state.current_wakeup_task_id == result["wakeup_task_id"]
 
@@ -285,6 +298,14 @@ def test_scheduler_node_helpers_cover_job_lookup_and_invalid_idle_payloads():
             scheduler._schedule_compaction(
                 session,
                 _context(auto_compaction_enabled=False, visible_messages=[SimpleNamespace(id="m1")]),
+                reason="skip",
+            )
+            is None
+        )
+        assert (
+            scheduler._schedule_compaction(
+                session,
+                _context(max_context_messages=1, visible_messages=[SimpleNamespace(id="m1")]),
                 reason="skip",
             )
             is None

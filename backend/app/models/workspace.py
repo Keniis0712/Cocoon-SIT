@@ -27,6 +27,7 @@ class Cocoon(Base, TimestampMixin):
     default_temperature: Mapped[float] = mapped_column(Float, default=0.7)
     max_context_messages: Mapped[int] = mapped_column(Integer, default=12)
     auto_compaction_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    context_start_message_id: Mapped[str | None] = mapped_column(ForeignKey("messages.id"), nullable=True)
     rollback_anchor_msg_id: Mapped[str | None] = mapped_column(ForeignKey("messages.id"), nullable=True)
 
 

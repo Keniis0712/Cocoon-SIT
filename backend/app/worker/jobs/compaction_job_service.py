@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -21,6 +22,8 @@ from app.services.workspace.targets import ensure_session_state
 
 class CompactionJobService:
     """Executes memory compaction jobs using the configured summary prompt and provider."""
+
+    COMPACTION_COMPRESS_RATIO = 0.8
 
     def __init__(
         self,
@@ -52,15 +55,15 @@ class CompactionJobService:
             self.audit_service.finish_run(session, run, ActionStatus.completed)
             return
 
-        selected: list[Message] = []
-        for message in messages:
-            if before_message_id and message.id == before_message_id:
-                break
-            selected.append(message)
-        if not before_message_id:
-            selected = messages[: max(1, len(messages) // 2)]
+        selected, retained_start = self._select_messages_for_compaction(
+            cocoon,
+            messages,
+            before_message_id=before_message_id,
+        )
         if not selected:
-            selected = messages[:1]
+            self.audit_service.finish_step(session, step, ActionStatus.completed)
+            self.audit_service.finish_run(session, run, ActionStatus.completed)
+            return
 
         state = ensure_session_state(session, cocoon_id=cocoon_id)
         memory_context = list(
@@ -215,6 +218,8 @@ class CompactionJobService:
                 "compressed_count": len(selected),
             },
         )
+        if created_chunks and retained_start is not None:
+            cocoon.context_start_message_id = retained_start.id
         self.audit_service.finish_step(session, step, ActionStatus.completed)
         self.audit_service.finish_run(session, run, ActionStatus.completed)
 
@@ -231,4 +236,68 @@ class CompactionJobService:
             "PROMPT_TEXT_START\n"
             f"{rendered_prompt}\n"
             "PROMPT_TEXT_END"
+        )
+
+    def _resolve_anchor_index(
+        self,
+        messages: list[Message],
+        anchor_message_id: str | None,
+    ) -> int:
+        if not anchor_message_id:
+            return 0
+        for index, message in enumerate(messages):
+            if message.id == anchor_message_id:
+                return index
+        return 0
+
+    def _resolve_message_index(
+        self,
+        messages: list[Message],
+        message_id: str | None,
+    ) -> int | None:
+        if not message_id:
+            return None
+        for index, message in enumerate(messages):
+            if message.id == message_id:
+                return index
+        return None
+
+    def _resolve_default_compaction_selection(
+        self,
+        cocoon: Cocoon,
+        messages: list[Message],
+        *,
+        start_index: int,
+    ) -> tuple[list[Message], Message | None]:
+        candidates = messages[start_index:]
+        if len(candidates) < 2:
+            return [], None
+        window = candidates[-int(cocoon.max_context_messages):]
+        if len(window) < 2:
+            return [], None
+        compress_count = min(
+            len(window) - 1,
+            max(1, math.ceil(int(cocoon.max_context_messages) * self.COMPACTION_COMPRESS_RATIO)),
+        )
+        if compress_count <= 0 or compress_count >= len(window):
+            return [], None
+        return window[:compress_count], window[compress_count]
+
+    def _select_messages_for_compaction(
+        self,
+        cocoon: Cocoon,
+        messages: list[Message],
+        *,
+        before_message_id: str | None,
+    ) -> tuple[list[Message], Message | None]:
+        start_index = self._resolve_anchor_index(messages, cocoon.context_start_message_id)
+        if before_message_id:
+            end_index = self._resolve_message_index(messages, before_message_id)
+            if end_index is None or end_index <= start_index:
+                return [], None
+            return messages[start_index:end_index], messages[end_index]
+        return self._resolve_default_compaction_selection(
+            cocoon,
+            messages,
+            start_index=start_index,
         )

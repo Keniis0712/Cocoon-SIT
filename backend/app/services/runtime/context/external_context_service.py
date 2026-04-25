@@ -50,6 +50,7 @@ class ExternalContextService:
             source_cocoon.max_context_messages,
             source_active_tags,
             cocoon_id=source_cocoon_id,
+            context_start_message_id=getattr(source_cocoon, "context_start_message_id", None),
         )
         source_memories = self.memory_service.get_visible_memories(
             session=session,

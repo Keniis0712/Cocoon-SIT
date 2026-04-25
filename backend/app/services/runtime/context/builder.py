@@ -50,6 +50,7 @@ class ContextBuilder:
             state.active_tags_json,
             cocoon_id=event.cocoon_id,
             chat_group_id=event.chat_group_id,
+            context_start_message_id=getattr(conversation, "context_start_message_id", None),
         )
         memory_owner_user_id = self._resolve_memory_owner_user_id(event, conversation, visible_messages)
         query_text = self._resolve_query_text(event, visible_messages)

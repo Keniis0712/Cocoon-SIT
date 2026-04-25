@@ -49,6 +49,7 @@ class MetaNode:
             variables=build_runtime_prompt_variables(
                 context,
                 provider_capabilities=provider_record.capabilities_json,
+                include_wakeup_context=True,
             ),
         )
         record_prompt_render_artifacts(
@@ -150,6 +151,7 @@ class MetaNode:
             context,
             snapshot,
             include_session_state=True,
+            include_wakeup_context=True,
         )
         context_json = json.dumps(context_payload, ensure_ascii=False, default=str)
         return (
@@ -159,6 +161,8 @@ class MetaNode:
             "Only propose wakeups that have a concrete reason.\n"
             "When editing tags, you may only use tag indexes from the allowed tag catalog shown in the context, including system tags when they are present.\n"
             "Never invent new tag names or output free-text tags.\n"
+            "If the current event is a plugin or other wakeup, distill the useful wakeup details into event_summary for continuity.\n"
+            "Do not assume future rounds will still receive the raw wakeup payload.\n"
             "If the current event is a wakeup and you choose silence, you must still provide a concise event_summary so future rounds do not lose the wakeup context.\n"
             f"{context_summary}\n"
             "CONTEXT_JSON_START\n"

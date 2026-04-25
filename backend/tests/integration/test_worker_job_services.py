@@ -1,9 +1,11 @@
 from datetime import UTC, datetime
+from datetime import timedelta
 
 import pytest
 from sqlalchemy import select
 
-from app.models import ActionDispatch, AuditArtifact, Checkpoint, DurableJob, MemoryChunk, Message, WakeupTask
+from app.models import ActionDispatch, AuditArtifact, Checkpoint, Cocoon, DurableJob, MemoryChunk, Message, WakeupTask
+from app.services.runtime.context.message_window_service import MessageWindowService
 from app.worker.durable_executor import DurableJobExecutor
 from app.worker.runtime import WorkerRuntime
 
@@ -97,6 +99,67 @@ def test_compaction_job_service_creates_long_term_memories(client, auth_headers,
         session.commit()
         chunks = list(session.scalars(select(MemoryChunk).where(MemoryChunk.cocoon_id == default_cocoon_id)).all())
         assert any((chunk.meta_json or {}).get("source_kind") == "compaction" for chunk in chunks)
+
+
+def test_compaction_job_service_keeps_recent_tail_after_completion(client, default_cocoon_id):
+    container = client.app.state.container
+    durable_executor = _build_durable_executor(container)
+    window_service = MessageWindowService()
+    base_time = datetime.now(UTC).replace(tzinfo=None)
+
+    with container.session_factory() as session:
+        cocoon = session.get(Cocoon, default_cocoon_id)
+        assert cocoon is not None
+        cocoon.max_context_messages = 5
+        for index in range(1, 8):
+            session.add(
+                Message(
+                    id=f"cmp-{index}",
+                    cocoon_id=default_cocoon_id,
+                    role="user",
+                    content=f"compaction message {index}",
+                    created_at=base_time + timedelta(seconds=index),
+                    updated_at=base_time + timedelta(seconds=index),
+                )
+            )
+        session.flush()
+
+        before = window_service.list_visible_messages(
+            session,
+            cocoon.max_context_messages,
+            [],
+            cocoon_id=default_cocoon_id,
+            context_start_message_id=cocoon.context_start_message_id,
+        )
+        assert [message.id for message in before] == ["cmp-3", "cmp-4", "cmp-5", "cmp-6", "cmp-7"]
+        assert cocoon.context_start_message_id is None
+
+        durable_executor.compaction_job_service.execute(session, default_cocoon_id, before_message_id="cmp-5")
+        session.commit()
+
+    with container.session_factory() as session:
+        cocoon = session.get(Cocoon, default_cocoon_id)
+        assert cocoon is not None
+        assert cocoon.context_start_message_id == "cmp-5"
+
+        after = window_service.list_visible_messages(
+            session,
+            cocoon.max_context_messages,
+            [],
+            cocoon_id=default_cocoon_id,
+            context_start_message_id=cocoon.context_start_message_id,
+        )
+        assert [message.id for message in after] == ["cmp-5", "cmp-6", "cmp-7"]
+
+        compaction_chunks = [
+            chunk
+            for chunk in session.scalars(
+                select(MemoryChunk).where(MemoryChunk.cocoon_id == default_cocoon_id)
+            ).all()
+            if (chunk.meta_json or {}).get("source_kind") == "compaction"
+        ]
+        assert compaction_chunks
+        assert compaction_chunks[0].meta_json["compressed_message_ids"] == ["cmp-1", "cmp-2", "cmp-3", "cmp-4"]
 
 
 def test_rollback_job_service_restores_checkpoint_anchor(client, auth_headers, default_cocoon_id):

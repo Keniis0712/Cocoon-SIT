@@ -42,6 +42,7 @@ class RollbackJobService:
             ).all()
         )
         self.round_cleanup._delete_message_related_rows(session, [message.id for message in later_messages])
+        cocoon.context_start_message_id = checkpoint.anchor_message_id
         cocoon.rollback_anchor_msg_id = checkpoint.anchor_message_id
         for item in session.scalars(
             select(Checkpoint).where(Checkpoint.cocoon_id == checkpoint.cocoon_id)

@@ -116,6 +116,7 @@ class GeneratorNode:
             context,
             prompt_snapshot,
             generation_brief=meta.generation_brief,
+            include_wakeup_context=True,
         )
         context_json = json.dumps(context_payload, ensure_ascii=False, default=str)
         generation_guidance = ""

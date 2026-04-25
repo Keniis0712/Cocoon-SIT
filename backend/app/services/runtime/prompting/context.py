@@ -24,6 +24,7 @@ def build_structured_prompt_context(
     *,
     include_session_state: bool = False,
     generation_brief: str | None = None,
+    include_wakeup_context: bool = True,
 ) -> tuple[dict[str, Any], str]:
     clock = build_runtime_clock_payload(context)
     runtime_event = _compact_runtime_event_payload(snapshot.get("runtime_event"))
@@ -50,13 +51,14 @@ def build_structured_prompt_context(
     if runtime_event.get("source_event_type"):
         lines.append(f"Source event type: {runtime_event['source_event_type']}")
 
-    wakeup_context = _compact_wakeup_context_payload(snapshot.get("wakeup_context"))
-    if wakeup_context:
-        compact_payload["wakeup_context"] = wakeup_context
-        if wakeup_context.get("reason"):
-            lines.append(f"Wakeup reason: {wakeup_context['reason']}")
-        if wakeup_context.get("idle_summary"):
-            lines.append(f"Wakeup summary: {wakeup_context['idle_summary']}")
+    if include_wakeup_context:
+        wakeup_context = _compact_wakeup_context_payload(snapshot.get("wakeup_context"))
+        if wakeup_context:
+            compact_payload["wakeup_context"] = wakeup_context
+            if wakeup_context.get("reason"):
+                lines.append(f"Wakeup reason: {wakeup_context['reason']}")
+            if wakeup_context.get("idle_summary"):
+                lines.append(f"Wakeup summary: {wakeup_context['idle_summary']}")
 
     pending_wakeups = _compact_pending_wakeup_payload(snapshot.get("pending_wakeups"))
     compact_payload["pending_wakeups"] = pending_wakeups
@@ -155,6 +157,22 @@ def _participant_alias(context: ContextPackage, sender_user_id: str | None) -> s
     return participants.get(sender, "participant")
 
 
+def _thought_event_summary(message) -> str | None:
+    if not getattr(message, "is_thought", False):
+        return None
+    if not isinstance(getattr(message, "retraction_note", None), str):
+        return None
+    event_summary = message.retraction_note.strip()
+    return event_summary or None
+
+
+def _message_prompt_content(message) -> str:
+    event_summary = _thought_event_summary(message)
+    if event_summary:
+        return event_summary
+    return str(message.content)
+
+
 def _runtime_message_payload(
     message, context: ContextPackage, catalog: dict[str, dict[str, Any]]
 ) -> dict[str, Any]:
@@ -162,18 +180,17 @@ def _runtime_message_payload(
     retracted_suffix = (
         "\n\n[system note: this message was later retracted]" if message.is_retracted else ""
     )
+    event_summary = _thought_event_summary(message)
     payload = {
         "role": message.role,
-        "content": f"{message.content}{retracted_suffix}",
+        "content": f"{_message_prompt_content(message)}{retracted_suffix}",
         "is_thought": bool(getattr(message, "is_thought", False)),
         "is_retracted": message.is_retracted,
         "tags": _serialize_tags(tag_refs, context, catalog),
         "mentionable_in_current_target": _mentionable_for_target(tag_refs, context, catalog),
     }
-    if payload["is_thought"] and isinstance(getattr(message, "retraction_note", None), str):
-        event_summary = message.retraction_note.strip()
-        if event_summary:
-            payload["event_summary"] = event_summary
+    if event_summary:
+        payload["event_summary"] = event_summary
     if alias := _participant_alias(context, getattr(message, "sender_user_id", None)):
         payload["speaker"] = alias
     return payload
@@ -262,15 +279,15 @@ def _pending_wakeup_payload(tasks: list[dict[str, Any]] | None) -> list[dict[str
 
 
 def build_provider_message_payload(message, context: ContextPackage) -> dict[str, str]:
-    content = message.content
+    content = _message_prompt_content(message)
     role = message.role
     if getattr(message, "is_thought", False):
         role = "system"
-        content = f"[assistant_thought] {content}"
-        if isinstance(getattr(message, "retraction_note", None), str):
-            event_summary = message.retraction_note.strip()
-            if event_summary:
-                content = f"{content}\n\n[wakeup_event_summary] {event_summary}"
+        event_summary = _thought_event_summary(message)
+        if event_summary:
+            content = f"[assistant_event_summary] {event_summary}"
+        else:
+            content = f"[assistant_thought] {content}"
     if message.role == "user" and (
         alias := _participant_alias(context, getattr(message, "sender_user_id", None))
     ):
@@ -284,9 +301,15 @@ def build_runtime_prompt_variables(
     context: ContextPackage,
     *,
     provider_capabilities: dict[str, Any] | None = None,
+    include_wakeup_context: bool = True,
 ) -> dict[str, Any]:
     catalog = _tag_catalog(context)
     pending_wakeups = _pending_wakeup_payload(context.external_context.get("pending_wakeups", []))
+    wakeup_context = (
+        _sanitize_prompt_value(context.external_context.get("wakeup_context"))
+        if include_wakeup_context
+        else None
+    )
     return {
         "character_settings": _character_settings_payload(context),
         "conversation_target": {
@@ -309,7 +332,7 @@ def build_runtime_prompt_variables(
         ],
         "runtime_event": _runtime_event_payload(context),
         "current_time": build_runtime_clock_payload(context),
-        "wakeup_context": _sanitize_prompt_value(context.external_context.get("wakeup_context")),
+        "wakeup_context": wakeup_context,
         "pending_wakeups": pending_wakeups,
         "merge_context": _merge_context_payload(context, catalog),
         "provider_capabilities": _sanitize_provider_capabilities(provider_capabilities),

@@ -1,59 +1,46 @@
-from types import SimpleNamespace
+from datetime import UTC, datetime, timedelta
 
+from app.models import Message
 from app.services.runtime.context.message_window_service import MessageWindowService
+from tests.sqlite_helpers import make_sqlite_session_factory
 
 
-class _ScalarResult:
-    def __init__(self, items):
-        self._items = items
-
-    def all(self):
-        return list(self._items)
-
-
-def test_message_window_service_returns_reversed_messages_when_no_active_tags():
-    messages = [
-        SimpleNamespace(id="m3", tags_json=["focus"]),
-        SimpleNamespace(id="m2", tags_json=[]),
-        SimpleNamespace(id="m1", tags_json=None),
-    ]
-
-    class _Session:
-        def __init__(self):
-            self.calls = 0
-
-        def scalars(self, query):
-            self.calls += 1
-            return _ScalarResult(messages)
-
+def test_message_window_service_respects_context_start_message_id_for_cocoons():
+    session_factory = make_sqlite_session_factory()
     service = MessageWindowService()
-    result = service.list_visible_messages(_Session(), 10, [], cocoon_id="cocoon-1")
+    base_time = datetime.now(UTC).replace(tzinfo=None)
 
-    assert [item.id for item in result] == ["m1", "m2", "m3"]
+    with session_factory() as session:
+        messages = []
+        for index in range(1, 8):
+            message = Message(
+                id=f"m{index}",
+                cocoon_id="cocoon-1",
+                role="user",
+                content=f"message-{index}",
+                created_at=base_time + timedelta(seconds=index),
+                updated_at=base_time + timedelta(seconds=index),
+            )
+            session.add(message)
+            messages.append(message)
+        session.commit()
 
+        visible = service.list_visible_messages(
+            session,
+            5,
+            [],
+            cocoon_id="cocoon-1",
+            context_start_message_id="m5",
+        )
 
-def test_message_window_service_filters_by_tagged_ids_and_falls_back_when_empty():
-    messages = [
-        SimpleNamespace(id="m3", tags_json=["focus"]),
-        SimpleNamespace(id="m2", tags_json=["other"]),
-        SimpleNamespace(id="m1", tags_json=[]),
-    ]
-    tagged_records = [SimpleNamespace(message_id="m3")]
+        assert [message.id for message in visible] == ["m5", "m6", "m7"]
 
-    class _Session:
-        def __init__(self, tag_items):
-            self.calls = 0
-            self.tag_items = tag_items
+        fallback = service.list_visible_messages(
+            session,
+            5,
+            [],
+            cocoon_id="cocoon-1",
+            context_start_message_id="missing",
+        )
 
-        def scalars(self, query):
-            self.calls += 1
-            if self.calls == 1:
-                return _ScalarResult(messages)
-            return _ScalarResult(self.tag_items)
-
-    service = MessageWindowService()
-    filtered = service.list_visible_messages(_Session(tagged_records), 10, ["focus"], cocoon_id="cocoon-1")
-    fallback = service.list_visible_messages(_Session([]), 10, ["missing"], cocoon_id="cocoon-1")
-
-    assert [item.id for item in filtered] == ["m1", "m3"]
-    assert [item.id for item in fallback] == ["m1"]
+        assert [message.id for message in fallback] == ["m3", "m4", "m5", "m6", "m7"]

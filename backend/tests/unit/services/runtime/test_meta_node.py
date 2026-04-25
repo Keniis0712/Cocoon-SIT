@@ -79,7 +79,9 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
     )
     monkeypatch.setattr(
         "app.services.runtime.meta.node.build_runtime_prompt_variables",
-        lambda context, provider_capabilities: prompt_var_calls.append((context, provider_capabilities)) or {"x": 1},
+        lambda context, provider_capabilities, include_wakeup_context=True: (
+            prompt_var_calls.append((context, provider_capabilities, include_wakeup_context)) or {"x": 1}
+        ),
     )
 
     class _FakeProvider:
@@ -144,6 +146,7 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
 
     assert len(record_calls) == 1
     assert prompt_var_calls[0][1] == {"json_mode": True}
+    assert prompt_var_calls[0][2] is True
     assert provider.calls[0]["model_name"] == "gpt-meta"
     assert provider.calls[0]["provider_config"] == {"temperature": 0.2}
     assert provider.calls[0]["output_name"] == "cocoon_meta_output"

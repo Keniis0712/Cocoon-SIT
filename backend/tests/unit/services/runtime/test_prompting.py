@@ -141,12 +141,12 @@ def test_prompting_serializes_tags_messages_and_memory():
     assert serialized_tags[0]["name"] == "default"
     assert serialized_tags[2]["name"] == "group-id"
     assert message_payload["is_thought"] is True
+    assert message_payload["content"] == "The wakeup checked in after a long silence."
     assert message_payload["event_summary"] == "The wakeup checked in after a long silence."
     assert "speaker" not in message_payload
     assert message_payload["mentionable_in_current_target"] is True
     assert provider_payload["role"] == "system"
-    assert "[assistant_thought] Private reasoning" in provider_payload["content"]
-    assert "[wakeup_event_summary] The wakeup checked in after a long silence." in provider_payload["content"]
+    assert provider_payload["content"] == "[assistant_event_summary] The wakeup checked in after a long silence."
     assert memory_payload["source"] == "cocoon"
     assert memory_payload["mentionable_in_current_target"] is False
     assert memory_payload["tags"][0]["is_isolated"] is True
@@ -204,7 +204,6 @@ def test_build_runtime_prompt_variables_builds_full_payload():
     assert payload["pending_wakeups"] == [{"id": "wake-1", "run_at": None, "reason": None, "status": None, "has_payload": False}]
     assert payload["merge_context"]["source_state"]["active_tags"][0]["name"] == "Public Tag"
     assert payload["provider_capabilities"] == {"streaming": True}
-
 
 def test_build_runtime_prompt_variables_drops_duplicate_prompt_summary():
     context = _build_context(target_type="cocoon")

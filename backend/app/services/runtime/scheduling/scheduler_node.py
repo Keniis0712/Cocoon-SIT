@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -22,6 +23,7 @@ class SchedulerNode:
 
     DEFAULT_IDLE_WAKEUP_DELAY_SECONDS = 5 * 60
     FREQUENT_COCOON_IDLE_WAKEUP_DELAY_SECONDS = 2 * 60
+    COMPACTION_COMPRESS_RATIO = 0.8
 
     def __init__(self, durable_jobs: DurableJobService) -> None:
         self.durable_jobs = durable_jobs
@@ -121,16 +123,31 @@ class SchedulerNode:
             return None
         if not context.cocoon.auto_compaction_enabled or not context.visible_messages:
             return None
+        retain_from_message_id = self._resolve_compaction_retain_from_message_id(context)
+        if not retain_from_message_id:
+            return None
         return self.durable_jobs.enqueue(
             session,
             job_type=DurableJobType.compaction,
             lock_key=f"cocoon:{context.cocoon.id}:compaction",
             payload_json={
-                "before_message_id": context.visible_messages[0].id,
+                "before_message_id": retain_from_message_id,
                 "reason": reason,
             },
             cocoon_id=context.cocoon.id,
         )
+
+    def _resolve_compaction_retain_from_message_id(self, context: ContextPackage) -> str | None:
+        visible_messages = list(context.visible_messages or [])
+        if len(visible_messages) < 2:
+            return None
+        compress_count = min(
+            len(visible_messages) - 1,
+            max(1, math.ceil(int(context.cocoon.max_context_messages) * self.COMPACTION_COMPRESS_RATIO)),
+        )
+        if compress_count <= 0 or compress_count >= len(visible_messages):
+            return None
+        return str(visible_messages[compress_count].id)
 
     def schedule(self, session: Session, context: ContextPackage, meta: MetaDecision) -> dict:
         result: dict[str, str | list[str] | None] = {
@@ -187,11 +204,11 @@ class SchedulerNode:
                 result["wakeup_job_id"] = job.id
             result["wakeup_task_ids"].append(task.id)
             result["wakeup_job_ids"].append(job.id)
-        if context.target_type == "cocoon" and (
-            len(context.visible_messages) >= context.cocoon.max_context_messages
-            or context.runtime_event.event_type in {"pull", "merge"}
+        if (
+            context.target_type == "cocoon"
+            and len(context.visible_messages) >= context.cocoon.max_context_messages
         ):
-            reason = "post_sync_compaction" if context.runtime_event.event_type in {"pull", "merge"} else "window_limit"
+            reason = "window_limit"
             job = self._schedule_compaction(session, context, reason=reason)
             result["compaction_job_id"] = job.id if job else None
         sync_current_wakeup_task_id(

@@ -57,6 +57,7 @@ class PromptAssemblyService:
         variables = build_runtime_prompt_variables(
             context,
             provider_capabilities=provider_capabilities,
+            include_wakeup_context=True,
         )
         system_template, system_revision, system_snapshot, system_prompt = self.prompt_service.render(
             session=session,
