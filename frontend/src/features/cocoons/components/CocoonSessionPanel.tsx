@@ -60,8 +60,14 @@ export function CocoonSessionPanel({
     tagLabelByKey.set(tag.name, tag.name);
   }
   const activeTags = sessionActiveTags.length
-    ? sessionActiveTags.map((tag) => ({ key: tag, label: tagLabelByKey.get(tag) || tag }))
+    ? sessionActiveTags
+        .filter((tag) => tagLabelByKey.has(tag))
+        .map((tag) => ({ key: tag, label: tagLabelByKey.get(tag) || tag }))
     : selectedCocoon?.tags?.filter((item) => !item.is_system).map((item) => ({ key: item.actual_id, label: item.name })) || [];
+  const visibleSelectedTags = (selectedCocoon?.tags || []).filter((tag) => !tag.is_system);
+  const displayTags = visibleSelectedTags.length
+    ? visibleSelectedTags.map((tag) => ({ key: tag.actual_id, label: tag.name, id: tag.id }))
+    : activeTags.map((tag) => ({ ...tag, id: null }));
 
   return (
     <Card className="border-border/70 bg-card/90">
@@ -71,32 +77,27 @@ export function CocoonSessionPanel({
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <div className="mb-2 text-sm text-muted-foreground">{t("workspace:activeTags")}</div>
-          <div className="flex flex-wrap gap-2">
-            {activeTags.map((tag) => (
-              <Badge key={tag.key} variant="secondary">
-                {tag.label}
-              </Badge>
-            ))}
-            {!(sessionActiveTags.length || selectedCocoon?.tags?.length) ? <span className="text-sm text-muted-foreground">{t("workspace:noTags")}</span> : null}
-          </div>
-        </div>
-        <div>
           <div className="mb-2 text-sm text-muted-foreground">{t("workspace:editChatTags")}</div>
           <div className="rounded-2xl border border-border/70 bg-background/60 p-3">
             <div className="flex flex-wrap gap-2">
-              {(selectedCocoon?.tags || []).filter((tag) => !tag.is_system).map((tag) => (
-                <button
-                  key={tag.id}
-                  type="button"
-                  className="inline-flex items-center rounded-full"
-                  onClick={() => onRemoveTag(tag.id)}
-                  disabled={isUpdatingTags}
-                >
-                  <Badge variant="secondary">{tag.name} x</Badge>
-                </button>
+              {displayTags.map((tag) => (
+                tag.id !== null ? (
+                  <button
+                    key={tag.key}
+                    type="button"
+                    className="inline-flex items-center rounded-full"
+                    onClick={() => onRemoveTag(tag.id)}
+                    disabled={isUpdatingTags}
+                  >
+                    <Badge variant="secondary">{tag.label} x</Badge>
+                  </button>
+                ) : (
+                  <Badge key={tag.key} variant="secondary">
+                    {tag.label}
+                  </Badge>
+                )
               ))}
-              {!selectedCocoon?.tags?.length ? <span className="text-sm text-muted-foreground">{t("workspace:noTagsEnabled")}</span> : null}
+              {!displayTags.length ? <span className="text-sm text-muted-foreground">{t("workspace:noTagsEnabled")}</span> : null}
             </div>
             <div className="mt-3 text-xs text-muted-foreground">{t("workspace:editTagsHint")}</div>
             <div className="mt-3">

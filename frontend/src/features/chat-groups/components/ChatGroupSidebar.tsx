@@ -71,6 +71,10 @@ export function ChatGroupSidebar({
         .filter((tag) => tagLabelByKey.has(tag))
         .map((tag) => ({ key: tag, label: tagLabelByKey.get(tag) || tag }))
     : roomTags.filter((item) => !item.is_system).map((item) => ({ key: item.actual_id, label: item.name }));
+  const visibleRoomTags = roomTags.filter((item) => !item.is_system);
+  const displayTags = visibleRoomTags.length
+    ? visibleRoomTags.map((item) => ({ key: item.actual_id, label: item.name, id: item.id }))
+    : activeTags.map((item) => ({ ...item, id: null }));
 
   return (
     <div className="space-y-4">
@@ -87,34 +91,27 @@ export function ChatGroupSidebar({
             <Badge variant="outline">{t("relationLabel", { value: relationScore ?? DEFAULT_RELATION_SCORE })}</Badge>
           </div>
           <div className="rounded-[22px] border border-border/70 bg-background/60 p-4 text-sm">
-            <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Active Tags</div>
+            <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Tags</div>
             <div className="flex flex-wrap gap-2">
-              {activeTags.length ? activeTags.map((tag) => (
-                <Badge key={tag.key} variant="secondary">
-                  {tag.label}
-                </Badge>
-              )) : <span className="text-muted-foreground">No visible tags</span>}
-            </div>
-          </div>
-          {canManage ? (
-            <div className="rounded-[22px] border border-border/70 bg-background/60 p-4 text-sm">
-              <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Manage Tags</div>
-              <div className="flex flex-wrap gap-2">
-                {roomTags.filter((item) => !item.is_system).map((tag) => (
+              {displayTags.length ? displayTags.map((tag) => (
+                canManage && tag.id !== null ? (
                   <button
-                    key={tag.actual_id}
+                    key={tag.key}
                     type="button"
                     className="inline-flex items-center rounded-full"
                     disabled={isUpdatingTags}
                     onClick={() => onRemoveTag(tag.id)}
                   >
-                    <Badge variant="secondary">{tag.name} x</Badge>
+                    <Badge variant="secondary">{tag.label} x</Badge>
                   </button>
-                ))}
-                {!roomTags.filter((item) => !item.is_system).length ? (
-                  <span className="text-muted-foreground">No tags enabled</span>
-                ) : null}
-              </div>
+                ) : (
+                  <Badge key={tag.key} variant="secondary">
+                    {tag.label}
+                  </Badge>
+                )
+              )) : <span className="text-muted-foreground">No visible tags</span>}
+            </div>
+            {canManage ? (
               <div className="mt-3">
                 <Select value={addTagValue} onValueChange={onAddTag} disabled={isUpdatingTags || !availableAddableTags.length}>
                   <SelectTrigger>
@@ -135,8 +132,8 @@ export function ChatGroupSidebar({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
           <div className="rounded-[22px] border border-border/70 bg-background/60 p-4 text-sm">
             <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">{t("wakeupPanelTitle")}</div>
             {currentAiWakeup ? (

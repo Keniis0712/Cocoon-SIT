@@ -76,9 +76,16 @@ async function reconcileTargetTags(
   unbindPath: (tagId: string) => string,
   tagIds: number[],
 ) {
+  const tags = await listTags();
+  const systemTagIds = new Set(
+    tags.filter((item) => item.is_system).map((item) => item.actual_id),
+  );
   const existing = await apiJson<RawBinding[]>(listPath);
   const existingIds = new Set(existing.map((item) => item.tag_id));
-  const desiredIds = tagIds.map((item) => resolveActualId("tag", item));
+  const existingManagedIds = [...existingIds].filter((item) => !systemTagIds.has(item));
+  const desiredIds = tagIds
+    .map((item) => resolveActualId("tag", item))
+    .filter((item) => !systemTagIds.has(item));
 
   for (const tagId of desiredIds) {
     if (!existingIds.has(tagId)) {
@@ -89,7 +96,7 @@ async function reconcileTargetTags(
     }
   }
 
-  for (const tagId of existingIds) {
+  for (const tagId of existingManagedIds) {
     if (!desiredIds.includes(tagId)) {
       await apiJson(unbindPath(tagId), {
         method: "DELETE",
@@ -97,7 +104,7 @@ async function reconcileTargetTags(
     }
   }
 
-  const [tags, bindings] = await Promise.all([listTags(), apiJson<RawBinding[]>(listPath)]);
+  const bindings = await apiJson<RawBinding[]>(listPath);
   const tagMap = new Map(tags.map((item) => [item.actual_id, item] as const));
   return bindings.map((binding) => tagMap.get(binding.tag_id)).filter(Boolean) as TagRead[];
 }
