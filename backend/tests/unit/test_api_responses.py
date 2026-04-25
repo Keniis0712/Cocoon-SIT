@@ -4,6 +4,7 @@ import json
 
 import pytest
 from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.testclient import TestClient
@@ -15,9 +16,11 @@ from app.api.responses import (
     _decode_json_body,
     _extract_detail,
     _is_openapi_envelope_schema,
+    _make_json_safe,
     _message_from_detail,
     _normalize_code_token,
     _read_response_body,
+    _sanitize_validation_errors,
     _wrap_openapi_api_responses,
     _wrap_openapi_operation,
     build_error_envelope,
@@ -58,6 +61,31 @@ def test_response_helpers_cover_decode_extract_and_code_fallbacks():
     assert _normalize_code_token("   ") == ""
     assert _code_from_detail(422, [{"loc": ["body"]}], "ignored") == "VALIDATION_ERROR"
     assert _code_from_detail(418, {}, "") == "INTERNAL_SERVER_ERROR"
+
+
+def test_validation_error_sanitizers_convert_exceptions_into_json_safe_strings():
+    errors = [
+        {
+            "type": "value_error",
+            "loc": ("body", "timezone"),
+            "msg": "Value error, Invalid timezone",
+            "input": "Mars/Phobos",
+            "ctx": {"error": ValueError("Invalid timezone")},
+        }
+    ]
+
+    sanitized = _sanitize_validation_errors(errors)
+
+    assert sanitized == [
+        {
+            "type": "value_error",
+            "loc": ["body", "timezone"],
+            "msg": "Value error, Invalid timezone",
+            "input": "Mars/Phobos",
+            "ctx": {"error": "Invalid timezone"},
+        }
+    ]
+    assert _make_json_safe(RuntimeError("boom")) == "boom"
 
 
 @pytest.mark.anyio
@@ -178,6 +206,46 @@ def test_register_api_response_handlers_wrap_api_errors_and_leave_non_api_routes
     assert api_http_error.json() == {"code": "MISSING_ITEM", "msg": "missing item", "data": None}
     assert api_crash.json() == {"code": "INTERNAL_SERVER_ERROR", "msg": "Internal server error", "data": None}
     assert plain_http_error.json() == {"detail": "plain missing"}
+
+
+def test_register_api_response_handlers_serializes_validation_errors_with_exception_context():
+    app = FastAPI()
+    register_api_response_handlers(app, "/api")
+
+    @app.post("/api/timezone")
+    def _post_timezone():
+        raise RequestValidationError(
+            [
+                {
+                    "type": "value_error",
+                    "loc": ("body", "timezone"),
+                    "msg": "Value error, Invalid timezone",
+                    "input": "Mars/Phobos",
+                    "ctx": {"error": ValueError("Invalid timezone")},
+                }
+            ]
+        )
+
+    client = TestClient(app, raise_server_exceptions=False)
+
+    response = client.post("/api/timezone")
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "code": "VALIDATION_ERROR",
+        "msg": "Request validation failed",
+        "data": {
+            "errors": [
+                {
+                    "type": "value_error",
+                    "loc": ["body", "timezone"],
+                    "msg": "Value error, Invalid timezone",
+                    "input": "Mars/Phobos",
+                    "ctx": {"error": "Invalid timezone"},
+                }
+            ]
+        },
+    }
 
 
 @pytest.mark.anyio

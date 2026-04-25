@@ -15,6 +15,12 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8)
     email: EmailStr | None = None
     invite_code: str = Field(min_length=4)
+    timezone: str
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str) -> str:
+        return str(validate_timezone_name(value))
 
 
 class RefreshRequest(BaseModel):

@@ -153,14 +153,28 @@ def _sanitize_provider_capabilities(payload: dict[str, Any] | None) -> dict[str,
     return _sanitize_prompt_dict(payload or {})
 
 
-def resolve_runtime_timezone(context: ContextPackage) -> str:
-    timezone = context.runtime_event.payload.get("timezone")
+def _normalize_timezone_name(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    timezone = value.strip()
     if not timezone:
-        wakeup_context = context.external_context.get("wakeup_context")
-        if isinstance(wakeup_context, dict):
-            timezone = wakeup_context.get("timezone")
-    if isinstance(timezone, str) and timezone.strip():
-        return timezone.strip()
+        return None
+    try:
+        ZoneInfo(timezone)
+    except ZoneInfoNotFoundError:
+        return None
+    return timezone
+
+
+def resolve_runtime_timezone(context: ContextPackage) -> str:
+    candidates: list[Any] = [context.runtime_event.payload.get("timezone")]
+    wakeup_context = context.external_context.get("wakeup_context")
+    if isinstance(wakeup_context, dict):
+        candidates.append(wakeup_context.get("timezone"))
+    candidates.append(context.external_context.get("runtime_timezone_fallback"))
+    for candidate in candidates:
+        if timezone := _normalize_timezone_name(candidate):
+            return timezone
     return "UTC"
 
 
@@ -172,11 +186,7 @@ def build_runtime_clock_payload(
     timezone_name = resolve_runtime_timezone(context)
     current = now or datetime.now(UTC)
     current = current.replace(tzinfo=UTC) if current.tzinfo is None else current.astimezone(UTC)
-    try:
-        local_time = current.astimezone(ZoneInfo(timezone_name))
-    except ZoneInfoNotFoundError:
-        timezone_name = "UTC"
-        local_time = current.astimezone(UTC)
+    local_time = current.astimezone(ZoneInfo(timezone_name))
     return {
         "timezone": timezone_name,
         "local_time": local_time.strftime("%Y-%m-%d %H:%M:%S"),

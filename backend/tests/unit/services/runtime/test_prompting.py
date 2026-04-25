@@ -248,6 +248,25 @@ def test_build_runtime_clock_payload_falls_back_to_wakeup_context_and_utc():
     assert fallback["local_time_iso"].endswith("+00:00")
 
 
+def test_build_runtime_clock_payload_uses_profile_timezone_fallback_when_payload_is_missing_or_invalid():
+    context = _build_context(target_type="cocoon")
+    context.runtime_event.payload.pop("timezone")
+    context.external_context["wakeup_context"]["timezone"] = "Invalid/Zone"
+    context.external_context["runtime_timezone_fallback"] = "Asia/Shanghai"
+
+    payload = build_runtime_clock_payload(context)
+
+    assert payload["timezone"] == "Asia/Shanghai"
+    assert payload["local_time_iso"].endswith("+08:00")
+
+    context.runtime_event.payload["timezone"] = "Invalid/Zone"
+
+    still_fallback = build_runtime_clock_payload(context)
+
+    assert still_fallback["timezone"] == "Asia/Shanghai"
+    assert still_fallback["local_time_iso"].endswith("+08:00")
+
+
 def test_pending_wakeup_payload_keeps_ids_and_hides_payload_details():
     payload = _pending_wakeup_payload(
         [

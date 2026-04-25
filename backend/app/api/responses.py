@@ -95,7 +95,7 @@ def register_api_response_handlers(app: FastAPI, api_prefix: str) -> None:
                 detail="Request validation failed",
                 code="VALIDATION_ERROR",
                 msg="Request validation failed",
-                data={"errors": exc.errors()},
+                data={"errors": _sanitize_validation_errors(exc.errors())},
             ),
         )
 
@@ -222,6 +222,22 @@ def _extract_detail(payload: Any) -> Any:
     if isinstance(payload, dict) and "detail" in payload:
         return payload["detail"]
     return payload
+
+
+def _sanitize_validation_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [_make_json_safe(error) for error in errors]
+
+
+def _make_json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, BaseException):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(key): _make_json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_make_json_safe(item) for item in value]
+    return str(value)
 
 
 def install_api_envelope_openapi(app: FastAPI, api_prefix: str) -> None:

@@ -104,6 +104,7 @@ def test_auth_session_service_register_validates_configuration_and_invite_state(
         password="secret123",
         email="fresh@example.com",
         invite_code="INVITE1",
+        timezone="Asia/Shanghai",
     )
 
     with session_factory() as session:
@@ -134,20 +135,40 @@ def test_auth_session_service_register_validates_configuration_and_invite_state(
             system_settings_service=SimpleNamespace(get_settings=lambda _: SimpleNamespace(allow_registration=True)),
         )
         with pytest.raises(HTTPException) as duplicate_username:
-            enabled.register(session, RegisterRequest(username="fresh-user", password="secret123", invite_code="MISS1"))
+            enabled.register(
+                session,
+                RegisterRequest(
+                    username="fresh-user",
+                    password="secret123",
+                    invite_code="MISS1",
+                    timezone="Asia/Shanghai",
+                ),
+            )
         assert duplicate_username.value.status_code == 400
 
         with pytest.raises(HTTPException) as duplicate_email:
             enabled.register(
                 session,
-                RegisterRequest(username="another-user", password="secret123", email="fresh@example.com", invite_code="MISS2"),
+                RegisterRequest(
+                    username="another-user",
+                    password="secret123",
+                    email="fresh@example.com",
+                    invite_code="MISS2",
+                    timezone="Asia/Shanghai",
+                ),
             )
         assert duplicate_email.value.status_code == 400
 
         with pytest.raises(HTTPException) as invite_missing:
             enabled.register(
                 session,
-                RegisterRequest(username="another-user", password="secret123", email="another@example.com", invite_code="MISS3"),
+                RegisterRequest(
+                    username="another-user",
+                    password="secret123",
+                    email="another@example.com",
+                    invite_code="MISS3",
+                    timezone="Asia/Shanghai",
+                ),
             )
         assert invite_missing.value.status_code == 404
 
@@ -167,21 +188,39 @@ def test_auth_session_service_register_validates_configuration_and_invite_state(
         with pytest.raises(HTTPException) as invite_revoked:
             enabled.register(
                 session,
-                RegisterRequest(username="revoked-user", password="secret123", email="revoked@example.com", invite_code="REVOKED"),
+                RegisterRequest(
+                    username="revoked-user",
+                    password="secret123",
+                    email="revoked@example.com",
+                    invite_code="REVOKED",
+                    timezone="Asia/Shanghai",
+                ),
             )
         assert invite_revoked.value.status_code == 400
 
         with pytest.raises(HTTPException) as invite_expired:
             enabled.register(
                 session,
-                RegisterRequest(username="expired-user", password="secret123", email="expired@example.com", invite_code="EXPIRED"),
+                RegisterRequest(
+                    username="expired-user",
+                    password="secret123",
+                    email="expired@example.com",
+                    invite_code="EXPIRED",
+                    timezone="Asia/Shanghai",
+                ),
             )
         assert invite_expired.value.status_code == 400
 
         with pytest.raises(HTTPException) as invite_full:
             enabled.register(
                 session,
-                RegisterRequest(username="full-user", password="secret123", email="full@example.com", invite_code="FULL"),
+                RegisterRequest(
+                    username="full-user",
+                    password="secret123",
+                    email="full@example.com",
+                    invite_code="FULL",
+                    timezone="Asia/Shanghai",
+                ),
             )
         assert invite_full.value.status_code == 400
 
@@ -202,7 +241,13 @@ def test_auth_session_service_register_success_requires_user_role_consumes_invit
         with pytest.raises(HTTPException) as missing_role:
             service.register(
                 session,
-                RegisterRequest(username="role-missing", password="secret123", email="role@example.com", invite_code="ROLEMISS"),
+                RegisterRequest(
+                    username="role-missing",
+                    password="secret123",
+                    email="role@example.com",
+                    invite_code="ROLEMISS",
+                    timezone="Asia/Shanghai",
+                ),
             )
         assert missing_role.value.status_code == 500
 
@@ -219,7 +264,13 @@ def test_auth_session_service_register_success_requires_user_role_consumes_invit
 
         tokens = service.register(
             session,
-            RegisterRequest(username="registered-user", password="secret123", email="registered@example.com", invite_code="READY123"),
+            RegisterRequest(
+                username="registered-user",
+                password="secret123",
+                email="registered@example.com",
+                invite_code="READY123",
+                timezone="Asia/Shanghai",
+            ),
         )
         created_user = session.scalar(select(User).where(User.username == "registered-user"))
         invite = session.scalar(select(InviteCode).where(InviteCode.code == "READY123"))
@@ -229,6 +280,7 @@ def test_auth_session_service_register_success_requires_user_role_consumes_invit
         assert tokens.token_type == "bearer"
         assert created_user is not None
         assert created_user.role_id == user_role.id
+        assert created_user.timezone == "Asia/Shanghai"
         assert invite is not None
         assert invite.quota_used == 1
         assert auth_session is not None

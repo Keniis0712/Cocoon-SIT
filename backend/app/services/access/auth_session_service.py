@@ -82,6 +82,7 @@ class AuthSessionService:
             email=payload.email,
             password_hash=hash_secret(payload.password),
             role_id=user_role.id,
+            timezone=payload.timezone,
             is_active=True,
         )
         session.add(user)

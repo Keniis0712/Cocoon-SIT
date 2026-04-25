@@ -4,13 +4,21 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { showErrorToast } from "@/api/client";
-import { buildSessionPatch, createImBindToken, logout, me, updateMyProfile } from "@/api/user";
+import {
+  buildSessionPatch,
+  createImBindToken,
+  logout,
+  me,
+  updateMyProfile,
+} from "@/api/user";
+import { PopupSelect } from "@/components/composes/PopupSelect";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { buildTimezoneOptions, resolveBrowserTimezone } from "@/lib/timezones";
 import { useUserStore } from "@/store/useUserStore";
 
 export default function MePage() {
@@ -27,9 +35,14 @@ export default function MePage() {
   const [isCreatingBindToken, setIsCreatingBindToken] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
-  const browserTimezone = useMemo(
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-    [],
+  const browserTimezone = useMemo(() => resolveBrowserTimezone(), []);
+  const timezoneOptions = useMemo(
+    () =>
+      buildTimezoneOptions({
+        browserTimezone,
+        currentTimezone: timezone,
+      }),
+    [browserTimezone, timezone],
   );
 
   useEffect(() => {
@@ -89,8 +102,8 @@ export default function MePage() {
 
     setIsSaving(true);
     try {
-      if (timezone.trim() !== (userInfo.timezone || "UTC")) {
-        const profile = await updateMyProfile({ timezone: timezone.trim() });
+      if (timezone !== (userInfo.timezone || "UTC")) {
+        const profile = await updateMyProfile({ timezone });
         updateInfo(buildSessionPatch(profile));
         setEmail(profile.email);
         setCreatedAt(profile.created_at);
@@ -208,15 +221,27 @@ export default function MePage() {
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="profile-timezone">{t("me.timezone")}</Label>
-                <Input
-                  id="profile-timezone"
-                  value={timezone}
+                <Label>{t("me.timezone")}</Label>
+                <PopupSelect
+                  title={t("me.timezone")}
+                  description={t("me.profileDescription")}
                   placeholder={browserTimezone}
-                  onChange={(event) => setTimezone(event.target.value)}
+                  searchPlaceholder={t("common.search")}
+                  emptyText={t("common.notSet")}
+                  value={timezone}
+                  onValueChange={setTimezone}
+                  options={timezoneOptions}
+                  pageSize={12}
                 />
-                <div className="text-xs text-muted-foreground">
-                  {t("me.timezoneHint", { timezone: browserTimezone })}
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline" className="font-normal">
+                    {timezone}
+                  </Badge>
+                  {browserTimezone !== timezone ? (
+                    <Badge variant="secondary" className="font-normal">
+                      {browserTimezone}
+                    </Badge>
+                  ) : null}
                 </div>
               </div>
               <div className="grid gap-2">

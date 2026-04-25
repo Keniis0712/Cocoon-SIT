@@ -3661,6 +3661,8 @@ export interface components {
             email?: string | null;
             /** Invite Code */
             invite_code: string;
+            /** Timezone */
+            timezone: string;
         };
         /** RetryReplyRequest */
         RetryReplyRequest: {

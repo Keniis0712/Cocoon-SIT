@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.models import Character, ChatGroupRoom, Cocoon, SessionState, TagRegistry
+from app.models import Character, ChatGroupRoom, Cocoon, SessionState, TagRegistry, User
 from app.services.runtime.context.builder import ContextBuilder
 from app.services.runtime.types import RuntimeEvent
 from tests.sqlite_helpers import make_sqlite_session_factory
@@ -141,6 +141,62 @@ def test_context_builder_builds_chat_group_context_with_tags_and_pending_wakeups
     assert external_calls and external_calls[0][1].chat_group_id == "room-1"
 
 
+def test_context_builder_adds_runtime_timezone_fallback_from_user_profile(monkeypatch):
+    session_factory = _session_factory()
+    builder = ContextBuilder(
+        memory_service=SimpleNamespace(retrieve_visible_memories=lambda **kwargs: []),
+        message_window_service=SimpleNamespace(
+            list_visible_messages=lambda *args, **kwargs: [
+                SimpleNamespace(role="user", sender_user_id="member-2", content="latest", is_retracted=False)
+            ]
+        ),
+        external_context_service=SimpleNamespace(build=lambda session, event: {}),
+    )
+    monkeypatch.setattr(
+        "app.services.runtime.context.builder.list_pending_wakeup_tasks",
+        lambda session, cocoon_id=None, chat_group_id=None: [],
+    )
+
+    with session_factory() as session:
+        session.add_all(
+            [
+                User(
+                    id="owner-1",
+                    username="owner",
+                    password_hash="pw",
+                    timezone="UTC",
+                ),
+                User(
+                    id="member-2",
+                    username="member",
+                    password_hash="pw",
+                    timezone="Asia/Shanghai",
+                ),
+                Character(
+                    id="character-1",
+                    name="Guide",
+                    prompt_summary="",
+                    settings_json={},
+                    created_by_user_id="owner-1",
+                ),
+                ChatGroupRoom(
+                    id="room-1",
+                    name="Room",
+                    owner_user_id="owner-1",
+                    character_id="character-1",
+                    selected_model_id="model-1",
+                    max_context_messages=8,
+                ),
+            ]
+        )
+        session.commit()
+
+        result = builder.build(session, _event(chat_group_id="room-1", cocoon_id=None))
+
+    assert result.memory_owner_user_id == "member-2"
+    assert result.external_context["runtime_timezone_fallback"] == "Asia/Shanghai"
+
+
 def test_context_builder_limits_cocoon_memory_lookup_to_current_cocoon(monkeypatch):
     session_factory = _session_factory()
     memory_calls = []
@@ -161,30 +217,40 @@ def test_context_builder_limits_cocoon_memory_lookup_to_current_cocoon(monkeypat
     )
 
     with session_factory() as session:
-        character = Character(
-            id="character-1",
-            name="Guide",
-            prompt_summary="",
-            settings_json={},
-            created_by_user_id="owner-1",
+        session.add_all(
+            [
+                User(
+                    id="owner-1",
+                    username="owner",
+                    password_hash="pw",
+                    timezone="Asia/Shanghai",
+                ),
+                Character(
+                    id="character-1",
+                    name="Guide",
+                    prompt_summary="",
+                    settings_json={},
+                    created_by_user_id="owner-1",
+                ),
+                Cocoon(
+                    id="cocoon-1",
+                    name="Solo",
+                    owner_user_id="owner-1",
+                    character_id="character-1",
+                    selected_model_id="model-1",
+                    max_context_messages=6,
+                ),
+            ]
         )
-        cocoon = Cocoon(
-            id="cocoon-1",
-            name="Solo",
-            owner_user_id="owner-1",
-            character_id=character.id,
-            selected_model_id="model-1",
-            max_context_messages=6,
-        )
-        session.add_all([character, cocoon])
         session.commit()
 
-        result = builder.build(session, _event(cocoon_id=cocoon.id))
+        result = builder.build(session, _event(cocoon_id="cocoon-1"))
 
     assert result.memory_owner_user_id == "owner-1"
     assert memory_calls[0]["cocoon_id"] == "cocoon-1"
     assert memory_calls[0]["owner_user_id"] is None
     assert memory_calls[0]["character_id"] is None
+    assert result.external_context["runtime_timezone_fallback"] == "Asia/Shanghai"
 
 
 def test_context_builder_build_raises_when_character_missing():

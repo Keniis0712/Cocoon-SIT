@@ -55,6 +55,25 @@ def test_auth_can_issue_short_lived_im_bind_token(client):
     assert payload["expires_at"]
 
 
+def test_auth_me_rejects_invalid_timezone_with_validation_envelope(client):
+    login = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin"})
+    assert login.status_code == 200, login.text
+    access_token = login.json()["access_token"]
+
+    response = client.patch(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"timezone": "Mars/Phobos"},
+    )
+
+    assert response.status_code == 422, response.text
+    payload = response.envelope_json()
+    assert payload["code"] == "VALIDATION_ERROR"
+    assert payload["msg"] == "Request validation failed"
+    assert payload["data"]["errors"][0]["loc"] == ["body", "timezone"]
+    assert payload["data"]["errors"][0]["ctx"]["error"] == "Invalid timezone"
+
+
 def test_invites_api_crud_and_summary_routes(client, auth_headers):
     container = client.app.state.container
     with container.session_factory() as session:

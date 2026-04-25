@@ -71,6 +71,7 @@ export type RegisterPayload = {
   password: string;
   email?: string | null;
   invite_code: string;
+  timezone: string;
 };
 
 function roleLevel(roleName: string) {

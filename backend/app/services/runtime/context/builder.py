@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Character, ChatGroupRoom, Cocoon, TagRegistry
+from app.models import Character, ChatGroupRoom, Cocoon, TagRegistry, User
 from app.services.catalog.tag_policy import (
     is_tag_visible_in_target,
     resolve_tag_owner_user_id_for_target,
@@ -69,6 +69,12 @@ class ContextBuilder:
             limit=5,
         )
         external_context = self.external_context_service.build(session, event)
+        if runtime_timezone := self._resolve_runtime_timezone_fallback(
+            session,
+            conversation=conversation,
+            memory_owner_user_id=memory_owner_user_id,
+        ):
+            external_context["runtime_timezone_fallback"] = runtime_timezone
         pending_wakeups = list_pending_wakeup_tasks(
             session,
             cocoon_id=event.cocoon_id,
@@ -208,3 +214,23 @@ class ContextBuilder:
         if event.target_type == "cocoon":
             return {"owner_user_id": None, "character_id": None}
         return {"owner_user_id": owner_user_id, "character_id": character_id}
+
+    def _resolve_runtime_timezone_fallback(
+        self,
+        session: Session,
+        *,
+        conversation: Cocoon | ChatGroupRoom,
+        memory_owner_user_id: str | None,
+    ) -> str | None:
+        candidate_user_ids: list[str] = []
+        for raw_value in (memory_owner_user_id, conversation.owner_user_id):
+            if raw_value is None:
+                continue
+            user_id = str(raw_value).strip()
+            if user_id and user_id not in candidate_user_ids:
+                candidate_user_ids.append(user_id)
+        for user_id in candidate_user_ids:
+            timezone = session.scalar(select(User.timezone).where(User.id == user_id))
+            if isinstance(timezone, str) and timezone.strip():
+                return timezone.strip()
+        return None

@@ -110,6 +110,7 @@ def test_system_settings_drive_public_features_and_registration(client, auth_hea
             "password": "new-user-password",
             "email": "new-user@example.com",
             "invite_code": "REGI1234",
+            "timezone": "Asia/Shanghai",
         },
     )
     assert registered.status_code == 200, registered.text
@@ -119,3 +120,4 @@ def test_system_settings_drive_public_features_and_registration(client, auth_hea
     me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {tokens['access_token']}"})
     assert me.status_code == 200, me.text
     assert me.json()["username"] == "new-user"
+    assert me.json()["timezone"] == "Asia/Shanghai"

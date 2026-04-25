@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTheme } from "@/hooks/use-theme";
+import { resolveBrowserTimezone } from "@/lib/timezones";
 import { useUserStore } from "@/store/useUserStore";
 
 type AuthMode = "login" | "register";
@@ -37,6 +38,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const browserTimezone = useMemo(() => resolveBrowserTimezone(), []);
 
   useEffect(() => {
     async function loadFeatures() {
@@ -81,6 +83,7 @@ export default function LoginPage() {
               password,
               email: email.trim() || null,
               invite_code: inviteCode.trim(),
+              timezone: browserTimezone,
             });
       setLogin(data);
       navigate("/cocoons", { replace: true });
