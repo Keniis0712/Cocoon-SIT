@@ -29,6 +29,7 @@ backend/.pytest_cache/
 backend/.mypy_cache/
 backend/.ruff_cache/
 backend/.coverage
+backend/data
 frontend/dist/
 *.db
 .coverage
