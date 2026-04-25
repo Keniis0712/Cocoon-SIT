@@ -62,7 +62,7 @@ function DialogContent({
         <DialogPrimitive.Content
           data-slot="dialog-content"
           className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[80vh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden overscroll-contain rounded-xl bg-popover text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-h-[85vh] sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 [&>[data-slot=dialog-header]+*]:min-h-0 [&>[data-slot=dialog-header]+*]:flex-1 [&>[data-slot=dialog-header]+*]:overflow-y-auto [&>[data-slot=dialog-header]+*]:px-4 [&>[data-slot=dialog-header]+*]:py-4",
           className
         )}
         {...props}
@@ -91,7 +91,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-header"
       className={cn(
-        "-mx-4 -mt-4 sticky top-0 z-10 flex flex-col gap-2 border-b bg-popover px-4 pt-4 pb-3",
+        "shrink-0 border-b bg-popover px-4 pt-4 pb-3",
         className
       )}
       {...props}
@@ -113,7 +113,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 sticky bottom-0 z-10 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-popover p-4 sm:flex-row sm:justify-end",
+        "flex shrink-0 flex-col-reverse gap-2 rounded-b-xl border-t bg-popover px-4 py-4 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
