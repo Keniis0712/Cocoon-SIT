@@ -62,7 +62,14 @@ def _build_jwt(private_key_pem: str, project_id: str, key_id: str, ttl_seconds: 
     )
 
 
-def _qweather_get(api_host: str, token: str, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+def _qweather_get(
+    api_host: str,
+    token: str,
+    path: str,
+    params: dict[str, Any] | None = None,
+    *,
+    allow_zero_result: bool = False,
+) -> dict[str, Any]:
     try:
         resp = requests.get(
             f"https://{api_host}{path}",
@@ -78,6 +85,9 @@ def _qweather_get(api_host: str, token: str, path: str, params: dict[str, Any] |
         raise RuntimeError("和风天气返回内容不是有效 JSON。") from exc
 
     code = data.get("code")
+    zero_result = bool((data.get("metadata") or {}).get("zeroResult"))
+    if allow_zero_result and zero_result:
+        return data
     if code != "200":
         raise RuntimeError(f"和风天气 API 返回非成功 code={code}, body={json.dumps(data, ensure_ascii=False)}")
     return data
@@ -116,6 +126,7 @@ def _weather_alerts(api_host: str, token: str, cfg: dict[str, Any]) -> dict[str,
         token,
         f"/weatheralert/v1/current/{cfg['alert_latitude']}/{cfg['alert_longitude']}",
         {"lang": cfg["lang"], "localTime": str(cfg["local_time"]).lower()},
+        allow_zero_result=True,
     )
 
 
