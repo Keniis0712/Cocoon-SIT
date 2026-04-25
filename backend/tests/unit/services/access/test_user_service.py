@@ -35,6 +35,7 @@ def test_user_service_lists_creates_and_updates_users():
                 email="created@example.com",
                 password="secret123",
                 role_id="role-1",
+                timezone="Asia/Shanghai",
                 permissions_json={"users:read": True},
                 is_active=False,
             ),
@@ -49,6 +50,7 @@ def test_user_service_lists_creates_and_updates_users():
                 username="updated",
                 email="updated@example.com",
                 role_id="role-2",
+                timezone="Europe/Berlin",
                 permissions_json={"users:write": True},
                 is_active=True,
                 password="new-secret",
@@ -60,6 +62,7 @@ def test_user_service_lists_creates_and_updates_users():
         assert updated.username == "updated"
         assert updated.email == "updated@example.com"
         assert updated.role_id == "role-2"
+        assert updated.timezone == "Europe/Berlin"
         assert updated.permissions_json == {"users:write": True}
         assert updated.is_active is True
         assert updated.password_hash != original_hash

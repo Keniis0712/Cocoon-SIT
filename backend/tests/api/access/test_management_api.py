@@ -24,6 +24,7 @@ def test_roles_users_and_groups_api_crud(client, auth_headers):
             "email": "api-user@example.com",
             "password": "secret1",
             "role_id": role_id,
+            "timezone": "Asia/Tokyo",
             "permissions_json": {"audits:read": True},
             "is_active": True,
         },
@@ -33,6 +34,7 @@ def test_roles_users_and_groups_api_crud(client, auth_headers):
     assert user_response.json()["permissions_json"]["audits:read"] is True
     assert user_response.json()["effective_permissions"]["users:write"] is True
     assert user_response.json()["effective_permissions"]["audits:read"] is True
+    assert user_response.json()["timezone"] == "Asia/Tokyo"
 
     users_response = client.get("/api/v1/users", headers=auth_headers)
     assert users_response.status_code == 200, users_response.text
@@ -49,10 +51,16 @@ def test_roles_users_and_groups_api_crud(client, auth_headers):
     user_update = client.patch(
         f"/api/v1/users/{user_id}",
         headers=auth_headers,
-        json={"is_active": False, "password": "secret2", "permissions_json": {"users:write": False}},
+        json={
+            "is_active": False,
+            "password": "secret2",
+            "permissions_json": {"users:write": False},
+            "timezone": "Europe/Berlin",
+        },
     )
     assert user_update.status_code == 200, user_update.text
     assert user_update.json()["is_active"] is False
+    assert user_update.json()["timezone"] == "Europe/Berlin"
     assert user_update.json()["effective_permissions"]["users:write"] is False
 
     group_response = client.post(

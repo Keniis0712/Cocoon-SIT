@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { showErrorToast } from "@/api/client";
-import { buildSessionPatch, changePassword, changeUsername, createImBindToken, logout, me } from "@/api/user";
+import { buildSessionPatch, createImBindToken, logout, me, updateMyProfile } from "@/api/user";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,16 +18,19 @@ export default function MePage() {
   const userInfo = useUserStore((state) => state.userInfo);
   const updateInfo = useUserStore((state) => state.updateInfo);
   const clearSession = useUserStore((state) => state.logout);
-  const [username, setUsername] = useState(userInfo?.username || "");
-  const [oldPassword, setOldPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
   const [email, setEmail] = useState<string | null>(null);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
+  const [timezone, setTimezone] = useState(userInfo?.timezone || "UTC");
   const [isSaving, setIsSaving] = useState(false);
   const [bindToken, setBindToken] = useState("");
   const [bindTokenExpiresAt, setBindTokenExpiresAt] = useState<string | null>(null);
   const [isCreatingBindToken, setIsCreatingBindToken] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
+
+  const browserTimezone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    [],
+  );
 
   useEffect(() => {
     async function refreshProfile() {
@@ -37,9 +40,9 @@ export default function MePage() {
       try {
         const profile = await me();
         updateInfo(buildSessionPatch(profile));
-        setUsername(profile.username);
         setEmail(profile.email);
         setCreatedAt(profile.created_at);
+        setTimezone(profile.timezone);
       } catch {
         // Keep the existing session info if background refresh fails.
       }
@@ -86,19 +89,13 @@ export default function MePage() {
 
     setIsSaving(true);
     try {
-      if (username.trim() && username.trim() !== userInfo.username) {
-        const profile = await changeUsername(username.trim());
+      if (timezone.trim() !== (userInfo.timezone || "UTC")) {
+        const profile = await updateMyProfile({ timezone: timezone.trim() });
         updateInfo(buildSessionPatch(profile));
         setEmail(profile.email);
         setCreatedAt(profile.created_at);
+        setTimezone(profile.timezone);
       }
-
-      if (oldPassword && newPassword) {
-        await changePassword(oldPassword, newPassword);
-        setOldPassword("");
-        setNewPassword("");
-      }
-
       toast.success(t("me.saveSuccess"));
     } catch (error) {
       showErrorToast(error, t("me.saveFailed"));
@@ -167,8 +164,12 @@ export default function MePage() {
               <div>
                 <div className="text-muted-foreground">{t("me.role")}</div>
                 <div className="mt-1 font-medium">
-                  {userInfo?.role || "-"} 路 L{userInfo?.role_level ?? "-"}
+                  {userInfo?.role || "-"} / L{userInfo?.role_level ?? "-"}
                 </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">{t("me.timezone")}</div>
+                <div className="mt-1 font-medium">{userInfo?.timezone || "UTC"}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">{t("me.userUid")}</div>
@@ -199,7 +200,7 @@ export default function MePage() {
               <div className="grid gap-2 md:grid-cols-2">
                 <div className="grid gap-2">
                   <Label>{t("me.username")}</Label>
-                  <Input value={username} onChange={(event) => setUsername(event.target.value)} />
+                  <Input value={userInfo?.username || ""} disabled />
                 </div>
                 <div className="grid gap-2">
                   <Label>{t("common.email")}</Label>
@@ -207,28 +208,20 @@ export default function MePage() {
                 </div>
               </div>
               <div className="grid gap-2">
+                <Label htmlFor="profile-timezone">{t("me.timezone")}</Label>
+                <Input
+                  id="profile-timezone"
+                  value={timezone}
+                  placeholder={browserTimezone}
+                  onChange={(event) => setTimezone(event.target.value)}
+                />
+                <div className="text-xs text-muted-foreground">
+                  {t("me.timezoneHint", { timezone: browserTimezone })}
+                </div>
+              </div>
+              <div className="grid gap-2">
                 <Label>{t("common.createdAt")}</Label>
                 <Input value={createdAt ? new Date(createdAt).toLocaleString() : ""} disabled placeholder="-" />
-              </div>
-              <div className="grid gap-2 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="profile-old-password">{t("me.oldPassword")}</Label>
-                  <Input
-                    id="profile-old-password"
-                    type="password"
-                    value={oldPassword}
-                    onChange={(event) => setOldPassword(event.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="profile-new-password">{t("me.newPassword")}</Label>
-                  <Input
-                    id="profile-new-password"
-                    type="password"
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                  />
-                </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button disabled={isSaving} onClick={saveProfile}>

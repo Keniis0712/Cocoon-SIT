@@ -9,6 +9,7 @@ export interface AdminUserRead {
   role_level: number;
   can_audit: boolean;
   is_active: boolean;
+  timezone: string;
   permissions_json: Record<string, boolean>;
   effective_permissions: Record<string, boolean>;
   token_version: number | null;
@@ -25,6 +26,7 @@ export interface AdminUserCreatePayload {
   password: string;
   email?: string | null;
   role?: string | null;
+  timezone?: string;
   permissions_json?: Record<string, boolean>;
   role_level: number;
   can_audit: boolean;
@@ -36,6 +38,7 @@ export interface AdminUserCreatePayload {
 export interface AdminUserUpdatePayload {
   email?: string | null;
   role?: string | null;
+  timezone?: string | null;
   permissions_json?: Record<string, boolean> | null;
   role_level?: number | null;
   can_audit?: boolean | null;

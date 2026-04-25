@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import User
-from app.schemas.access.auth import UserCreate, UserUpdate
+from app.schemas.access.auth import CurrentUserUpdate, UserCreate, UserUpdate
 from app.services.catalog.tag_policy import ensure_user_system_tag
 from app.services.security.encryption import hash_secret
 
@@ -31,6 +31,7 @@ class UserService:
             password_hash=hash_secret(payload.password),
             role_id=payload.role_id,
             permissions_json=payload.permissions_json,
+            timezone=payload.timezone,
             is_active=payload.is_active,
         )
         session.add(user)
@@ -52,10 +53,23 @@ class UserService:
             user.role_id = payload.role_id
         if payload.permissions_json is not None:
             user.permissions_json = payload.permissions_json
+        if payload.timezone is not None:
+            user.timezone = payload.timezone
         if payload.is_active is not None:
             user.is_active = payload.is_active
         if payload.password is not None:
             user.password_hash = hash_secret(payload.password)
+        session.flush()
+        return user
+
+    def update_current_user_profile(
+        self,
+        session: Session,
+        user: User,
+        payload: CurrentUserUpdate,
+    ) -> User:
+        """Patch editable self-service profile fields."""
+        user.timezone = payload.timezone
         session.flush()
         return user
 

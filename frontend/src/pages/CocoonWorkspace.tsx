@@ -21,6 +21,7 @@ import { CocoonSessionPanel } from "@/features/cocoons/components/CocoonSessionP
 import { createRuntimeWsEventHandler } from "@/features/workspace/runtimeWsEvents";
 import { useCocoonWs } from "@/hooks/useCocoonWs";
 import { useChatSessionStore } from "@/store/useChatSessionStore";
+import { useUserStore } from "@/store/useUserStore";
 
 function getVisibleMessages(items: MessageRead[]) {
   return items.filter((item) => !item.is_thought);
@@ -48,6 +49,7 @@ export default function CocoonWorkspacePage() {
   const [isCompacting, setIsCompacting] = useState(false);
   const [isUpdatingTags, setIsUpdatingTags] = useState(false);
   const [addTagValue, setAddTagValue] = useState("__add");
+  const currentUser = useUserStore((state) => state.userInfo);
 
   const session = useChatSessionStore((state) => state.sessions[cocoonId] ?? null);
   const ensureSession = useChatSessionStore((state) => state.ensureSession);
@@ -194,7 +196,7 @@ export default function CocoonWorkspacePage() {
     if (!messageInput.trim() || isSending) return;
     const content = messageInput.trim();
     const now = Date.now();
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+    const timezone = currentUser?.timezone || "UTC";
     const locale = navigator.language || null;
     const lastMessageAt = visibleMessages.length ? new Date(visibleMessages[visibleMessages.length - 1].created_at).getTime() : null;
     const typingHint = typingStartedAtRef.current ? Math.max(0, now - typingStartedAtRef.current) : null;

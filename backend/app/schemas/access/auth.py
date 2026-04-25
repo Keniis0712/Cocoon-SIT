@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.schemas.common import ORMModel
+from app.schemas.common import ORMModel, UTCModel, validate_timezone_name
 
 
 class LoginRequest(BaseModel):
@@ -49,6 +49,7 @@ class UserOut(ORMModel):
     email: str | None
     role_id: str | None
     permissions_json: dict[str, bool] = Field(default_factory=dict)
+    timezone: str = "UTC"
     is_active: bool
     created_at: datetime
 
@@ -63,7 +64,7 @@ class CurrentUserOut(UserOut):
     permissions: dict[str, bool] = Field(default_factory=dict)
 
 
-class ImBindTokenOut(BaseModel):
+class ImBindTokenOut(UTCModel):
     token: str
     expires_at: datetime
     expires_in_seconds: int
@@ -75,7 +76,13 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=4)
     role_id: str | None = None
     permissions_json: dict[str, bool] = Field(default_factory=dict)
+    timezone: str = "UTC"
     is_active: bool = True
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str) -> str:
+        return str(validate_timezone_name(value))
 
 
 class UserUpdate(BaseModel):
@@ -83,8 +90,23 @@ class UserUpdate(BaseModel):
     email: EmailStr | None = None
     role_id: str | None = None
     permissions_json: dict[str, bool] | None = None
+    timezone: str | None = None
     is_active: bool | None = None
     password: str | None = Field(default=None, min_length=4)
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str | None) -> str | None:
+        return validate_timezone_name(value, allow_none=True)
+
+
+class CurrentUserUpdate(BaseModel):
+    timezone: str
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str) -> str:
+        return str(validate_timezone_name(value))
 
 
 class AllowedModelOut(ORMModel):
@@ -93,7 +115,7 @@ class AllowedModelOut(ORMModel):
     model_name: str
 
 
-class PublicFeaturesOut(BaseModel):
+class PublicFeaturesOut(UTCModel):
     allow_registration: bool
     max_chat_turns: int
     allowed_models: list[AllowedModelOut]

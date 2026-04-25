@@ -286,7 +286,7 @@ export default function ChatGroupWorkspacePage() {
 
     const content = messageInput.trim();
     const now = Date.now();
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+    const timezone = currentUser?.timezone || "UTC";
     const recentTurnCount = visibleMessages.slice(-8).length;
     const lastMessageAt = visibleMessages.length ? new Date(visibleMessages[visibleMessages.length - 1].created_at).getTime() : null;
     const idleSeconds = lastMessageAt ? Math.max(0, Math.floor((now - lastMessageAt) / 1000)) : null;

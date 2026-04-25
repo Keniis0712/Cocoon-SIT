@@ -12,7 +12,7 @@ export interface NamedMetric {
 }
 
 export interface TimeSeriesPoint {
-  bucket: string;
+  bucket_start_at: string;
   value: number;
 }
 

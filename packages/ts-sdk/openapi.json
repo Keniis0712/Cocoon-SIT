@@ -323,6 +323,68 @@
             "HTTPBearer": []
           }
         ]
+      },
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Update Me",
+        "operationId": "update_me_api_v1_auth_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CurrentUserUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CurrentUserOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/auth/me/im-bind-token": {
@@ -11627,6 +11689,11 @@
             "type": "object",
             "title": "Permissions Json"
           },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "UTC"
+          },
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
@@ -11665,6 +11732,19 @@
           "created_at"
         ],
         "title": "CurrentUserOut"
+      },
+      "CurrentUserUpdate": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timezone"
+        ],
+        "title": "CurrentUserUpdate"
       },
       "DurableJobOut": {
         "properties": {
@@ -12834,6 +12914,11 @@
             },
             "type": "object",
             "title": "Permissions Json"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "UTC"
           },
           "is_active": {
             "type": "boolean",
@@ -15109,9 +15194,10 @@
       },
       "TimeSeriesPoint": {
         "properties": {
-          "bucket": {
+          "bucket_start_at": {
             "type": "string",
-            "title": "Bucket"
+            "format": "date-time",
+            "title": "Bucket Start At"
           },
           "value": {
             "anyOf": [
@@ -15127,7 +15213,7 @@
         },
         "type": "object",
         "required": [
-          "bucket",
+          "bucket_start_at",
           "value"
         ],
         "title": "TimeSeriesPoint"
@@ -15236,6 +15322,11 @@
             },
             "type": "object",
             "title": "Permissions Json"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "UTC"
           },
           "is_active": {
             "type": "boolean",
@@ -15506,6 +15597,17 @@
               }
             ],
             "title": "Permissions Json"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
           },
           "is_active": {
             "anyOf": [

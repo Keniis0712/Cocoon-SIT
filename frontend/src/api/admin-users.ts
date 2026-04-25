@@ -29,6 +29,7 @@ type ManagedUserResponse = {
   role_name: string | null;
   permissions_json: Record<string, boolean>;
   effective_permissions: Record<string, boolean>;
+  timezone: string;
   is_active: boolean;
   created_at: string;
 };
@@ -53,6 +54,7 @@ function mapUser(user: ManagedUserResponse): AdminUserRead {
     role_level: roleLevel(roleName),
     can_audit: Boolean(permissions["audits:read"]),
     is_active: user.is_active,
+    timezone: user.timezone || "UTC",
     permissions_json: user.permissions_json || {},
     effective_permissions: permissions,
     token_version: null,
@@ -106,6 +108,7 @@ export function createAdminUser(data: AdminUserCreatePayload): Promise<AdminUser
         email: data.email ?? null,
         password: data.password,
         role_id: role?.id ?? null,
+        timezone: data.timezone ?? "UTC",
         permissions_json: data.permissions_json || {},
         is_active: true,
       }),
@@ -123,6 +126,7 @@ export function updateAdminUser(userUid: string, data: AdminUserUpdatePayload): 
       body: JSON.stringify({
         email: data.email ?? null,
         role_id: data.role !== undefined ? role?.id ?? null : undefined,
+        timezone: data.timezone ?? undefined,
         permissions_json: data.permissions_json ?? undefined,
         is_active: data.is_active ?? undefined,
         password: data.password ?? undefined,

@@ -14,6 +14,7 @@ type AuthMeProfileResponse = {
   role_name: string | null;
   is_active: boolean;
   created_at: string;
+  timezone: string;
   permissions: PermissionMap;
 };
 
@@ -33,6 +34,7 @@ export interface SessionUser {
   can_manage_users: boolean;
   can_manage_prompts: boolean;
   can_manage_providers: boolean;
+  timezone: string;
   permissions: PermissionMap;
   invite_quota_remaining: number | null;
   invite_quota_unlimited: boolean | null;
@@ -51,6 +53,7 @@ export interface MeResponse {
   can_manage_users: boolean;
   can_manage_prompts: boolean;
   can_manage_providers: boolean;
+  timezone: string;
   permissions: PermissionMap;
   invite_quota_remaining: number | null;
   invite_quota_unlimited: boolean | null;
@@ -100,6 +103,7 @@ function buildMeResponse(profile: AuthMeProfileResponse): MeResponse {
       permissions["prompt_templates:read"] || permissions["prompt_templates:write"],
     ),
     can_manage_providers: Boolean(permissions["providers:read"] || permissions["providers:write"]),
+    timezone: profile.timezone || "UTC",
     permissions,
     invite_quota_remaining: null,
     invite_quota_unlimited: null,
@@ -120,6 +124,7 @@ export function buildSessionPatch(profile: MeResponse): Partial<SessionUser> {
     can_manage_users: profile.can_manage_users,
     can_manage_prompts: profile.can_manage_prompts,
     can_manage_providers: profile.can_manage_providers,
+    timezone: profile.timezone,
     permissions: profile.permissions,
     invite_quota_remaining: profile.invite_quota_remaining,
     invite_quota_unlimited: profile.invite_quota_unlimited,
@@ -188,6 +193,14 @@ export async function createImBindToken(): Promise<ImBindTokenResponse> {
   return apiJson<ImBindTokenResponse>("/auth/me/im-bind-token", {
     method: "POST",
   });
+}
+
+export async function updateMyProfile(payload: { timezone: string }): Promise<MeResponse> {
+  const profile = await apiJson<AuthMeProfileResponse>("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  return buildMeResponse(profile);
 }
 
 export async function logout(refresh_token: string): Promise<undefined> {

@@ -103,7 +103,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Me */
+        patch: operations["update_me_api_v1_auth_me_patch"];
         trace?: never;
     };
     "/api/v1/auth/me/im-bind-token": {
@@ -2538,6 +2539,11 @@ export interface components {
             permissions_json?: {
                 [key: string]: boolean;
             };
+            /**
+             * Timezone
+             * @default UTC
+             */
+            timezone: string;
             /** Is Active */
             is_active: boolean;
             /**
@@ -2551,6 +2557,11 @@ export interface components {
             permissions?: {
                 [key: string]: boolean;
             };
+        };
+        /** CurrentUserUpdate */
+        CurrentUserUpdate: {
+            /** Timezone */
+            timezone: string;
         };
         /** DurableJobOut */
         DurableJobOut: {
@@ -2982,6 +2993,11 @@ export interface components {
             permissions_json?: {
                 [key: string]: boolean;
             };
+            /**
+             * Timezone
+             * @default UTC
+             */
+            timezone: string;
             /** Is Active */
             is_active: boolean;
             /**
@@ -3874,8 +3890,11 @@ export interface components {
         };
         /** TimeSeriesPoint */
         TimeSeriesPoint: {
-            /** Bucket */
-            bucket: string;
+            /**
+             * Bucket Start At
+             * Format: date-time
+             */
+            bucket_start_at: string;
             /** Value */
             value: number;
         };
@@ -3916,6 +3935,11 @@ export interface components {
             permissions_json?: {
                 [key: string]: boolean;
             };
+            /**
+             * Timezone
+             * @default UTC
+             */
+            timezone: string;
             /**
              * Is Active
              * @default true
@@ -4025,6 +4049,8 @@ export interface components {
             permissions_json?: {
                 [key: string]: boolean;
             } | null;
+            /** Timezone */
+            timezone?: string | null;
             /** Is Active */
             is_active?: boolean | null;
             /** Password */
@@ -4301,6 +4327,45 @@ export interface operations {
                         msg: string;
                         data: components["schemas"]["CurrentUserOut"];
                     };
+                };
+            };
+        };
+    };
+    update_me_api_v1_auth_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CurrentUserUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["CurrentUserOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
                 };
             };
         };

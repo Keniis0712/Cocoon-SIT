@@ -13,6 +13,7 @@
   "loading": "Loading users...",
   "empty": "No matching users found.",
   "noEmail": "No email set",
+  "timezone": "Timezone",
   "canAudit": "Audit Enabled",
   "active": "Active",
   "inactive": "Inactive",

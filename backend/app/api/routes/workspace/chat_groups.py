@@ -270,7 +270,7 @@ def send_chat_group_message(
         room_id,
         content=payload.content,
         client_request_id=payload.client_request_id,
-        timezone=payload.timezone,
+        timezone=payload.timezone or user.timezone,
         client_sent_at=payload.client_sent_at,
         locale=payload.locale,
         idle_seconds=payload.idle_seconds,

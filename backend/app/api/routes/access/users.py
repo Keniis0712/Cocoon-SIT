@@ -18,6 +18,7 @@ def _serialize_user(db: Session, user: User) -> ManagedUserOut:
         email=user.email,
         role_id=user.role_id,
         permissions_json=user.permissions_json or {},
+        timezone=user.timezone,
         role_name=role.name if role else None,
         effective_permissions=get_effective_permission_map(db, user),
         is_active=user.is_active,

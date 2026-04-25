@@ -21,7 +21,16 @@ def test_auth_refresh_me_and_missing_bearer(client):
     assert me.status_code == 200, me.text
     assert me.json()["username"] == "admin"
     assert me.json()["role_name"] == "admin"
+    assert me.json()["timezone"] == "UTC"
     assert me.json()["permissions"]["cocoons:read"] is True
+
+    update = client.patch(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"timezone": "Asia/Shanghai"},
+    )
+    assert update.status_code == 200, update.text
+    assert update.json()["timezone"] == "Asia/Shanghai"
 
     missing = client.get("/api/v1/auth/me")
     assert missing.status_code == 401, missing.text

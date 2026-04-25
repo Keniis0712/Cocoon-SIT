@@ -73,6 +73,10 @@ def test_audit_artifact_and_insight_routes_cover_summary_and_manual_cleanup(clie
     assert {"series", "by_provider", "by_model", "by_operation"} == set(payload["token_usage"].keys())
     assert {"total_memories", "growth", "by_source_kind", "by_memory_type", "top_cocoons"} == set(payload["memory"].keys())
     assert {"request_series", "decision_distribution", "status_distribution", "node_latency", "latency_p50_ms", "latency_p95_ms", "silence_rate", "wakeup_rate", "error_rate", "top_error_cocoons"} == set(payload["runtime"].keys())
+    assert payload["generated_at"].endswith("Z")
+    if payload["runtime"]["request_series"]:
+        assert set(payload["runtime"]["request_series"][0].keys()) == {"bucket_start_at", "value"}
+        assert payload["runtime"]["request_series"][0]["bucket_start_at"].endswith("Z")
 
 
 def test_audit_detail_returns_404_for_unknown_run(client, auth_headers):

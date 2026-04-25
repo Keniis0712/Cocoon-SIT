@@ -25,6 +25,7 @@ def test_user_and_role_services(client):
                 email="svc-user@example.com",
                 password="secret1",
                 role_id=role.id,
+                timezone="Asia/Shanghai",
                 permissions_json={"audits:read": True},
                 is_active=True,
             ),
@@ -45,11 +46,17 @@ def test_user_and_role_services(client):
             session,
             admin,
             user_id,
-            UserUpdate(is_active=False, password="secret2", permissions_json={"users:read": False}),
+            UserUpdate(
+                is_active=False,
+                password="secret2",
+                permissions_json={"users:read": False},
+                timezone="Europe/Berlin",
+            ),
         )
         session.commit()
         assert updated_role.name == "svc-role-2"
         assert updated_user.is_active is False
+        assert updated_user.timezone == "Europe/Berlin"
         assert updated_user.permissions_json == {"users:read": False}
         assert any(item.id == user_id for item in container.user_service.list_users(session))
         assert any(item.id == role_id for item in container.role_service.list_roles(session))
@@ -61,7 +68,14 @@ def test_group_and_invite_services(client):
         admin = session.scalars(select(User).where(User.username == "admin")).first()
         target_user = container.user_service.create_user(
             session,
-            UserCreate(username="invitee", email="invitee@example.com", password="secret1", role_id=None, is_active=True),
+            UserCreate(
+                username="invitee",
+                email="invitee@example.com",
+                password="secret1",
+                role_id=None,
+                timezone="UTC",
+                is_active=True,
+            ),
         )
         group = container.group_service.create_group(session, GroupCreate(name="svc-group", description="service group"))
         member = container.group_service.add_group_member(

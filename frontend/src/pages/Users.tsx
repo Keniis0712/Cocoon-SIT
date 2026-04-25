@@ -25,6 +25,7 @@ type UserFormState = {
   username: string;
   email: string;
   password: string;
+  timezone: string;
   role: string;
   permissions_json: Record<string, boolean>;
   is_active: boolean;
@@ -39,6 +40,7 @@ const EMPTY_FORM: UserFormState = {
   username: "",
   email: "",
   password: "",
+  timezone: "UTC",
   role: NO_ROLE,
   permissions_json: {},
   is_active: true,
@@ -211,6 +213,7 @@ export default function UsersPage() {
     setEditing(null);
     setForm({
       ...EMPTY_FORM,
+      timezone: userInfo?.timezone || "UTC",
       role: roleValue(roles.find((role) => role.code === "user")?.name ?? roles[0]?.name ?? null),
       permissions_json: {},
       is_active: true,
@@ -224,6 +227,7 @@ export default function UsersPage() {
       username: item.username,
       email: item.email || "",
       password: "",
+      timezone: item.timezone || "UTC",
       role: roleValue(item.role),
       permissions_json: { ...(item.permissions_json || {}) },
       is_active: item.is_active,
@@ -260,6 +264,7 @@ export default function UsersPage() {
           permissions_json: form.permissions_json,
           is_active: form.is_active,
           password: form.password.trim() || undefined,
+          timezone: form.timezone.trim() || undefined,
         };
         await updateAdminUser(editing.uid, payload);
         toast.success(t("users.userUpdated"));
@@ -268,6 +273,7 @@ export default function UsersPage() {
           username: form.username.trim(),
           email: form.email.trim() || null,
           password: form.password,
+          timezone: form.timezone.trim() || "UTC",
           role: form.role === NO_ROLE ? null : form.role,
           permissions_json: form.permissions_json,
           role_level: 2,
@@ -400,6 +406,7 @@ export default function UsersPage() {
                           <div className="mt-2 flex flex-wrap gap-2">
                             <Badge variant="outline">{item.uid}</Badge>
                             <Badge>{item.role || t("users.noRoleAssigned")}</Badge>
+                            <Badge variant="outline">{item.timezone || "UTC"}</Badge>
                             {item.can_audit ? <Badge variant="secondary">{t("users.canAudit")}</Badge> : null}
                             {Object.keys(item.permissions_json || {}).length > 0 ? (
                               <Badge variant="outline">
@@ -434,6 +441,10 @@ export default function UsersPage() {
                         <div>
                           <div className="text-xs uppercase tracking-wide">{t("common.role")}</div>
                           <div className="mt-1 text-foreground/90">{item.role || t("users.noRoleAssigned")}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs uppercase tracking-wide">{t("users.timezone")}</div>
+                          <div className="mt-1 text-foreground/90">{item.timezone || "UTC"}</div>
                         </div>
                         <div className="md:col-span-2 xl:col-span-3">
                           <div className="text-xs uppercase tracking-wide">{t("users.effectivePermissions")}</div>
@@ -541,6 +552,15 @@ export default function UsersPage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
+                <Label htmlFor="admin-user-timezone">{t("users.timezone")}</Label>
+                <Input
+                  id="admin-user-timezone"
+                  value={form.timezone}
+                  placeholder="UTC"
+                  onChange={(event) => setForm((prev) => ({ ...prev, timezone: event.target.value }))}
+                />
+              </div>
+              <div className="grid gap-2">
                 <Label>{t("common.role")}</Label>
                 <PopupSelect
                   title={t("common.role")}
@@ -554,6 +574,8 @@ export default function UsersPage() {
                   options={assignableRoleOptions}
                 />
               </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="admin-user-password">{editing ? t("users.newPassword") : t("users.initialPassword")}</Label>
                 <Input

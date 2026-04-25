@@ -7,6 +7,7 @@ from app.api.deps import get_current_user, get_db
 from app.models import Role, User
 from app.schemas.access.auth import (
     CurrentUserOut,
+    CurrentUserUpdate,
     LoginRequest,
     ImBindTokenOut,
     PublicFeaturesOut,
@@ -66,11 +67,22 @@ def me(
         email=user.email,
         role_id=user.role_id,
         permissions_json=user.permissions_json or {},
+        timezone=user.timezone,
         role_name=role.name if role else None,
         is_active=user.is_active,
         created_at=user.created_at,
         permissions=permissions,
     )
+
+
+@router.patch("/me", response_model=CurrentUserOut)
+def update_me(
+    payload: CurrentUserUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CurrentUserOut:
+    updated = db.info["container"].user_service.update_current_user_profile(db, user, payload)
+    return me(updated, db)
 
 
 @router.post("/me/im-bind-token", response_model=ImBindTokenOut)

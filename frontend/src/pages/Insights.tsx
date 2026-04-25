@@ -28,10 +28,34 @@ function metricOption(items: NamedMetric[]) {
   };
 }
 
-function seriesOption(points: TimeSeriesPoint[], color = "#2563eb") {
+function formatBucketLabel(value: string, interval: InsightsDashboard["interval"]) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  if (interval === "hour") {
+    return new Intl.DateTimeFormat(undefined, {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function seriesOption(
+  points: TimeSeriesPoint[],
+  interval: InsightsDashboard["interval"],
+  color = "#2563eb",
+) {
   return {
     tooltip: { trigger: "axis" },
-    xAxis: { type: "category", data: points.map((item) => item.bucket) },
+    xAxis: { type: "category", data: points.map((item) => formatBucketLabel(item.bucket_start_at, interval)) },
     yAxis: { type: "value" },
     series: [{ type: "line", smooth: true, data: points.map((item) => item.value), areaStyle: {}, lineStyle: { color }, itemStyle: { color } }],
   };
@@ -177,7 +201,7 @@ export default function InsightsPage() {
           <div className="grid gap-6 xl:grid-cols-2">
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Activity className="size-4 text-primary" />{t("insights.cards.tokenTrend.title")}</CardTitle><CardDescription>{t("insights.cards.tokenTrend.description")}</CardDescription></CardHeader>
-              <CardContent>{hasSeriesData(dashboard.token_usage.series) ? <EChart option={seriesOption(dashboard.token_usage.series)} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
+              <CardContent>{hasSeriesData(dashboard.token_usage.series) ? <EChart option={seriesOption(dashboard.token_usage.series, dashboard.interval)} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2 text-base"><BrainCircuit className="size-4 text-primary" />{t("insights.cards.tokenByOperation.title")}</CardTitle><CardDescription>{t("insights.cards.tokenByOperation.description")}</CardDescription></CardHeader>
@@ -203,11 +227,11 @@ export default function InsightsPage() {
           <div className="grid gap-6 xl:grid-cols-2">
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Database className="size-4 text-primary" />{t("insights.cards.memoryGrowth.title")}</CardTitle><CardDescription>{t("insights.cards.memoryGrowth.description")}</CardDescription></CardHeader>
-              <CardContent>{hasSeriesData(dashboard.memory.growth) ? <EChart option={seriesOption(dashboard.memory.growth, "#16a34a")} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
+              <CardContent>{hasSeriesData(dashboard.memory.growth) ? <EChart option={seriesOption(dashboard.memory.growth, dashboard.interval, "#16a34a")} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2 text-base"><TimerReset className="size-4 text-primary" />{t("insights.cards.runtimeThroughput.title")}</CardTitle><CardDescription>{t("insights.cards.runtimeThroughput.description")}</CardDescription></CardHeader>
-              <CardContent>{hasSeriesData(dashboard.runtime.request_series) ? <EChart option={seriesOption(dashboard.runtime.request_series, "#ea580c")} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
+              <CardContent>{hasSeriesData(dashboard.runtime.request_series) ? <EChart option={seriesOption(dashboard.runtime.request_series, dashboard.interval, "#ea580c")} /> : <EmptyChart message={t("insights.noData")} />}</CardContent>
             </Card>
           </div>
 

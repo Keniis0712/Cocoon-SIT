@@ -26,6 +26,7 @@ class User(Base, TimestampMixin):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role_id: Mapped[str | None] = mapped_column(ForeignKey("roles.id"), nullable=True)
     permissions_json: Mapped[dict[str, bool]] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+    timezone: Mapped[str] = mapped_column(String(128), default="UTC", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 

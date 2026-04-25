@@ -294,11 +294,6 @@ class InsightQueryService:
             return value.replace(minute=0, second=0, microsecond=0)
         return value.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    def _bucket_label(self, value: datetime, interval: ResolvedInsightsInterval) -> str:
-        if interval == "hour":
-            return value.strftime("%m-%d %H:00")
-        return value.strftime("%Y-%m-%d")
-
     def _bucket_series(
         self,
         window: DashboardWindow,
@@ -316,7 +311,7 @@ class InsightQueryService:
             if bucket in buckets:
                 buckets[bucket] += float(value)
         return [
-            TimeSeriesPoint(bucket=self._bucket_label(bucket, window.interval), value=value)
+            TimeSeriesPoint(bucket_start_at=bucket, value=value)
             for bucket, value in sorted(buckets.items())
         ]
 

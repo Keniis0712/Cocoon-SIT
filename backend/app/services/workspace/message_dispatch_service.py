@@ -44,7 +44,7 @@ class MessageDispatchService(MessageDispatchBase):
         *,
         content: str,
         client_request_id: str,
-        timezone: str,
+        timezone: str | None,
         client_sent_at: datetime | None = None,
         locale: str | None = None,
         idle_seconds: int | None = None,
@@ -54,6 +54,7 @@ class MessageDispatchService(MessageDispatchBase):
         extra_payload: dict | None = None,
     ) -> ActionDispatch:
         """Create a chat action and user message, enqueue it, and emit a queue event."""
+        timezone_name = (timezone or "UTC").strip() or "UTC"
         existing = session.scalar(
             select(ActionDispatch).where(ActionDispatch.client_request_id == client_request_id)
         )
@@ -100,7 +101,7 @@ class MessageDispatchService(MessageDispatchBase):
             debounce_until=datetime.now(UTC).replace(tzinfo=None)
             + timedelta(seconds=debounce_seconds),
             payload_json={
-                "timezone": timezone,
+                "timezone": timezone_name,
                 "debounce_key": debounce_key,
                 "client_sent_at": client_sent_at.isoformat() if client_sent_at else None,
                 "locale": locale,
@@ -127,7 +128,7 @@ class MessageDispatchService(MessageDispatchBase):
         action.payload_json = {
             "message_id": message.id,
             "client_request_id": client_request_id,
-            "timezone": timezone,
+            "timezone": timezone_name,
             "debounce_key": debounce_key,
             "client_sent_at": client_sent_at.isoformat() if client_sent_at else None,
             "locale": locale,
@@ -155,7 +156,7 @@ class MessageDispatchService(MessageDispatchBase):
         *,
         content: str,
         client_request_id: str,
-        timezone: str,
+        timezone: str | None,
         client_sent_at: datetime | None = None,
         locale: str | None = None,
         idle_seconds: int | None = None,
@@ -164,6 +165,7 @@ class MessageDispatchService(MessageDispatchBase):
         sender_user_id: str | None,
         extra_payload: dict | None = None,
     ) -> ActionDispatch:
+        timezone_name = (timezone or "UTC").strip() or "UTC"
         existing = session.scalar(
             select(ActionDispatch).where(ActionDispatch.client_request_id == client_request_id)
         )
@@ -214,7 +216,7 @@ class MessageDispatchService(MessageDispatchBase):
             debounce_until=datetime.now(UTC).replace(tzinfo=None)
             + timedelta(seconds=debounce_seconds),
             payload_json={
-                "timezone": timezone,
+                "timezone": timezone_name,
                 "debounce_key": self._build_debounce_key(
                     "chat_group", chat_group_id, debounce_sender, content
                 ),
@@ -245,7 +247,7 @@ class MessageDispatchService(MessageDispatchBase):
         action.payload_json = {
             "message_id": message.id,
             "client_request_id": client_request_id,
-            "timezone": timezone,
+            "timezone": timezone_name,
             "debounce_key": debounce_key,
             "sender_user_id": sender_user_id,
             "character_id": room.character_id,
