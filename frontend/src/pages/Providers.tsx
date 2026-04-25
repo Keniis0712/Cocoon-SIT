@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, RefreshCcw, Server, Trash2, Wifi } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -38,12 +38,25 @@ export default function ProvidersPage() {
   const [items, setItems] = useState<ModelProviderRead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ModelProviderRead | null>(null);
+  const [modelsDialogProvider, setModelsDialogProvider] = useState<ModelProviderRead | null>(null);
+  const [selectedTestModelId, setSelectedTestModelId] = useState("");
+  const [testPrompt, setTestPrompt] = useState("ping");
+  const [modelQuery, setModelQuery] = useState("");
   const [form, setForm] = useState<ModelProviderPayload>(EMPTY_FORM);
   const { confirm, confirmDialog } = useConfirmDialog();
 
   const canManage = Boolean(userInfo?.can_manage_providers);
+  const filteredDialogModels = useMemo(() => {
+    const normalized = modelQuery.trim().toLowerCase();
+    const models = modelsDialogProvider?.available_models || [];
+    if (!normalized) {
+      return models;
+    }
+    return models.filter((model) => `${model.model_name} ${model.id}`.toLowerCase().includes(normalized));
+  }, [modelQuery, modelsDialogProvider]);
 
   async function fetchProviders() {
     setIsLoading(true);
@@ -125,19 +138,29 @@ export default function ProvidersPage() {
     }
   }
 
+  function openModelsDialog(item: ModelProviderRead) {
+    setModelsDialogProvider(item);
+    setSelectedTestModelId(String(item.available_models[0]?.id || ""));
+    setTestPrompt("ping");
+    setModelQuery("");
+  }
+
   async function handleTestProvider(item: ModelProviderRead) {
     if (!item.available_models.length) {
       toast.error(t("providers:noModels"));
       return;
     }
+    setIsTesting(true);
     try {
       const result = await testModelProvider(item.id, {
-        selected_model_id: item.available_models[0].id,
-        prompt: "ping",
+        selected_model_id: Number(selectedTestModelId || item.available_models[0].id),
+        prompt: testPrompt.trim() || "ping",
       });
-      toast.success(t("providers:testReply", { value: result.reply }));
+      toast.success(t("providers:testReply", { model: result.model_name, value: result.reply }));
     } catch (error) {
       showErrorToast(error, t("providers:testFailed"));
+    } finally {
+      setIsTesting(false);
     }
   }
 
@@ -201,13 +224,14 @@ export default function ProvidersPage() {
                 <CardContent className="space-y-4 text-sm">
                   <div>
                     <div className="mb-2 text-muted-foreground">{t("providers:availableModels")}</div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {item.available_models.length > 0 ? (
-                        item.available_models.map((model) => (
-                          <Badge key={model.id} variant="outline">
-                            {model.model_name}
-                          </Badge>
-                        ))
+                        <>
+                          <Badge variant="outline">{t("providers:modelCount", { count: item.available_models.length })}</Badge>
+                          <Button variant="outline" size="sm" onClick={() => openModelsDialog(item)}>
+                            {t("providers:browseModels")}
+                          </Button>
+                        </>
                       ) : (
                         <span className="text-muted-foreground">{t("providers:noModelsRegistered")}</span>
                       )}
@@ -218,7 +242,7 @@ export default function ProvidersPage() {
                       <RefreshCcw className="mr-2 size-4" />
                       {t("providers:syncModels")}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => void handleTestProvider(item)}>
+                    <Button variant="outline" size="sm" onClick={() => openModelsDialog(item)}>
                       <Wifi className="mr-2 size-4" />
                       {t("providers:test")}
                     </Button>
@@ -287,6 +311,71 @@ export default function ProvidersPage() {
               onClick={saveProvider}
             >
               {isSaving ? t("providers:saving") : editing ? t("common:saveChanges") : t("providers:createProvider")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(modelsDialogProvider)} onOpenChange={(open) => !open && setModelsDialogProvider(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("providers:modelsDialogTitle")}</DialogTitle>
+            <DialogDescription>
+              {modelsDialogProvider
+                ? `${modelsDialogProvider.name} · ${t("providers:modelsDialogDescription")}`
+                : t("providers:modelsDialogDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label>{t("common:search")}</Label>
+              <Input value={modelQuery} onChange={(event) => setModelQuery(event.target.value)} placeholder={t("common:search")} />
+            </div>
+            <div className="grid gap-2">
+              <Label>{t("providers:selectedModel")}</Label>
+              <div className="max-h-[40vh] overflow-y-auto rounded-2xl border border-border/70 bg-background/60 p-2">
+                {filteredDialogModels.length ? (
+                  <div className="space-y-2">
+                    {filteredDialogModels.map((model) => {
+                      const active = selectedTestModelId === String(model.id);
+                      return (
+                        <button
+                          key={model.id}
+                          type="button"
+                          onClick={() => setSelectedTestModelId(String(model.id))}
+                          className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${
+                            active ? "border-primary bg-primary/8" : "border-border/70 hover:border-primary/40 hover:bg-accent/40"
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">{model.model_name}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">#{model.id}</div>
+                          </div>
+                          {active ? <Badge>{t("common:default")}</Badge> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                    {t("providers:noModelsMatch")}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>{t("providers:testPrompt")}</Label>
+              <Input value={testPrompt} onChange={(event) => setTestPrompt(event.target.value)} placeholder={t("providers:testPromptPlaceholder")} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModelsDialogProvider(null)}>
+              {t("common:cancel")}
+            </Button>
+            <Button
+              disabled={isTesting || !modelsDialogProvider || !selectedTestModelId}
+              onClick={() => modelsDialogProvider && void handleTestProvider(modelsDialogProvider)}
+            >
+              {isTesting ? t("providers:testing") : t("providers:runSingleModelTest")}
             </Button>
           </DialogFooter>
         </DialogContent>

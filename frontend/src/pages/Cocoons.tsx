@@ -9,6 +9,7 @@ import { getErrorMessage, localizeApiMessage, showErrorToast } from "@/api/clien
 import { getCharacters } from "@/api/characters";
 import { createCocoon, deleteCocoon, getCocoon, getCocoonTree, updateCocoon } from "@/api/cocoons";
 import { listModelProviders } from "@/api/providers";
+import { getSystemSettings } from "@/api/settings";
 import type { CharacterRead } from "@/api/types/catalog";
 import type { CocoonPayload, CocoonRead, CocoonTreeNode } from "@/api/types/cocoons";
 import type { ModelProviderRead } from "@/api/types/providers";
@@ -22,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useUserStore } from "@/store/useUserStore";
 
 type TreeNodeState = CocoonTreeNode & {
   childIds: number[];
@@ -106,12 +108,14 @@ function TruthBadge({
 export default function CocoonsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const userInfo = useUserStore((state) => state.userInfo);
   const [treeNodes, setTreeNodes] = useState<Record<number, TreeNodeState>>({});
   const [rootIds, setRootIds] = useState<number[]>([]);
   const [rootMeta, setRootMeta] = useState({ page: 1, hasMore: false, isLoading: true });
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [characters, setCharacters] = useState<CharacterRead[]>([]);
   const [providers, setProviders] = useState<ModelProviderRead[]>([]);
+  const [allowedModelIds, setAllowedModelIds] = useState<Set<number> | null>(null);
   const [selectedCocoonId, setSelectedCocoonId] = useState<number | null>(null);
   const [selectedCocoon, setSelectedCocoon] = useState<CocoonRead | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
@@ -120,8 +124,18 @@ export default function CocoonsPage() {
   const [form, setForm] = useState<CocoonFormState>(EMPTY_ROOT_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const { confirm, confirmDialog } = useConfirmDialog();
+  const canManageSystem = Boolean(userInfo?.can_manage_system);
 
-  const modelOptions = useMemo(() => buildModelOptions(providers), [providers]);
+  const modelOptions = useMemo(() => {
+    const source =
+      allowedModelIds && allowedModelIds.size > 0
+        ? providers.map((provider) => ({
+            ...provider,
+            available_models: provider.available_models.filter((model) => allowedModelIds.has(model.id)),
+          }))
+        : providers;
+    return buildModelOptions(source);
+  }, [allowedModelIds, providers]);
   const characterSelectOptions = useMemo(() => {
     const baseOptions =
       dialogMode === "create-child"
@@ -155,16 +169,18 @@ export default function CocoonsPage() {
   useEffect(() => {
     void fetchReferenceData();
     void loadTree(null, 1, true);
-  }, []);
+  }, [canManageSystem]);
 
   async function fetchReferenceData() {
     try {
-      const [characterResponse, providerResponse] = await Promise.all([
+      const [characterResponse, providerResponse, settings] = await Promise.all([
         getCharacters(1, 100, "all"),
         listModelProviders(1, 100),
+        canManageSystem ? getSystemSettings().catch(() => null) : Promise.resolve(null),
       ]);
       setCharacters(characterResponse.items);
       setProviders(providerResponse.items);
+      setAllowedModelIds(settings?.allowed_model_ids?.length ? new Set(settings.allowed_model_ids) : null);
     } catch (error) {
       showErrorToast(error, t("cocoons.loadReferenceFailed"));
     }

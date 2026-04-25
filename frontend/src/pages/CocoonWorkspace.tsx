@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { localizeApiMessage, showErrorToast } from "@/api/client";
 import { compactCocoonContext, getCocoon, getCocoonMessages, getCocoonSessionState, retryCocoonReply, sendCocoonMessage, updateCocoon } from "@/api/cocoons";
 import { listModelProviders } from "@/api/providers";
+import { getSystemSettings } from "@/api/settings";
 import { bindCocoonTags, listTags } from "@/api/tags";
 import type { TagRead } from "@/api/types/catalog";
 import type { CocoonRead } from "@/api/types/cocoons";
@@ -50,6 +51,7 @@ export default function CocoonWorkspacePage() {
   const [isUpdatingTags, setIsUpdatingTags] = useState(false);
   const [addTagValue, setAddTagValue] = useState("__add");
   const currentUser = useUserStore((state) => state.userInfo);
+  const canManageSystem = Boolean(currentUser?.can_manage_system);
 
   const session = useChatSessionStore((state) => state.sessions[cocoonId] ?? null);
   const ensureSession = useChatSessionStore((state) => state.ensureSession);
@@ -80,7 +82,7 @@ export default function CocoonWorkspacePage() {
     resetSession(cocoonId);
     hasAutoScrolledRef.current = false;
     void loadWorkspace(true);
-  }, [cocoonId]);
+  }, [canManageSystem, cocoonId]);
 
   const handleSocketEvent = createRuntimeWsEventHandler({
     sessionKey: cocoonId,
@@ -135,13 +137,14 @@ export default function CocoonWorkspacePage() {
       setIsLoading(true);
     }
     try {
-      const [cocoon, sessionState, messageResponse, providerResponse, tagItems, wakeups] = await Promise.all([
+      const [cocoon, sessionState, messageResponse, providerResponse, tagItems, wakeups, settings] = await Promise.all([
         getCocoon(cocoonId),
         getCocoonSessionState(cocoonId),
         getCocoonMessages(cocoonId, null, 50),
         listModelProviders(1, 100),
         listTags(),
         listCocoonWakeups(cocoonId, { status: "queued", only_ai: true, limit: 1 }),
+        canManageSystem ? getSystemSettings().catch(() => null) : Promise.resolve(null),
       ]);
       const provider =
         providerResponse.items.find((item: { id: number }) => item.id === cocoon.provider_id) || null;
@@ -149,8 +152,14 @@ export default function CocoonWorkspacePage() {
         (a: { created_at: string; id: number }, b: { created_at: string; id: number }) =>
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime() || a.id - b.id,
       );
+      const nextAllowedModelIds =
+        canManageSystem && settings?.allowed_model_ids?.length ? new Set<number>(settings.allowed_model_ids) : null;
       setSelectedCocoon(cocoon);
-      setProviderModels(provider?.available_models || []);
+      setProviderModels(
+        nextAllowedModelIds && provider
+          ? provider.available_models.filter((model) => nextAllowedModelIds.has(model.id))
+          : provider?.available_models || [],
+      );
       setAvailableTags(tagItems);
       setSelectedTagIds((cocoon.tags || []).filter((item: { is_system?: boolean }) => !item.is_system).map((item: { id: number }) => item.id));
       setCurrentAiWakeup(wakeups[0] || null);
