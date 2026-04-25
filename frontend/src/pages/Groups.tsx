@@ -15,6 +15,9 @@ import {
   updateGroup,
 } from "@/api/groups";
 import type { AdminUserRead, GroupCreatePayload, GroupMemberRead, GroupRead } from "@/api/types/access";
+import { PopupSelect } from "@/components/composes/PopupSelect";
+import { useConfirmDialog } from "@/components/composes/useConfirmDialog";
+import { usePromptDialog } from "@/components/composes/usePromptDialog";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +25,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 const ROOT_GROUP = "__root";
@@ -55,11 +57,14 @@ export default function GroupsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<GroupFormState>(EMPTY_FORM);
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { prompt, promptDialog } = usePromptDialog();
 
   const selectedGroup = useMemo(
     () => groups.find((item) => item.gid === selectedGroupId) || null,
     [groups, selectedGroupId],
   );
+  const groupNameMap = useMemo(() => new Map(groups.map((group) => [group.gid, group.name])), [groups]);
 
   useEffect(() => {
     void bootstrap();
@@ -71,18 +76,20 @@ export default function GroupsPage() {
       return;
     }
     void loadGroupDetail(selectedGroupId);
-  }, [selectedGroupId]);
+  }, [selectedGroupId, users]);
 
   async function bootstrap() {
     setIsLoading(true);
     try {
       const [groupResponse, userResponse] = await Promise.all([
-        listGroups(1, 100, { q: query.trim() || undefined }),
-        listAdminUsers(1, 100),
+        listGroups(1, 200, { q: query.trim() || undefined }),
+        listAdminUsers(1, 200),
       ]);
       setGroups(groupResponse.items);
       setUsers(userResponse.items);
-      setSelectedGroupId((prev) => prev || groupResponse.items[0]?.gid || "");
+      setSelectedGroupId(
+        (prev) => prev || groupResponse.items.find((item) => item.parent_group_id)?.gid || groupResponse.items[0]?.gid || "",
+      );
     } catch (error) {
       showErrorToast(error, t("groups.loadFailed"));
     } finally {
@@ -92,7 +99,7 @@ export default function GroupsPage() {
 
   async function loadGroupDetail(gid: string) {
     try {
-      const memberResponse = await listGroupMembers(gid, 1, 100);
+      const memberResponse = await listGroupMembers(gid, 1, 200);
       setMembers(memberResponse.items);
       const firstCandidate = users.find((item) => !memberResponse.items.some((member) => member.user_uid === item.uid));
       setSelectedMemberUid(firstCandidate?.uid || "");
@@ -142,7 +149,14 @@ export default function GroupsPage() {
     if (!selectedGroup) {
       return;
     }
-    const nextName = window.prompt(t("groups.rename"), selectedGroup.name);
+    const nextName = await prompt({
+      title: t("groups.rename"),
+      description: selectedGroup.group_path || selectedGroup.name,
+      label: t("common.name"),
+      defaultValue: selectedGroup.name,
+      confirmLabel: t("common.saveChanges"),
+      cancelLabel: t("common.cancel"),
+    });
     if (!nextName || nextName.trim() === selectedGroup.name) {
       return;
     }
@@ -160,7 +174,14 @@ export default function GroupsPage() {
     if (!selectedGroup) {
       return;
     }
-    if (!window.confirm(`${t("groups.deleteAction")}: "${selectedGroup.name}"?`)) {
+    const confirmed = await confirm({
+      title: t("groups.deleteAction"),
+      description: `${selectedGroup.name}\n${selectedGroup.group_path || ""}`.trim(),
+      confirmLabel: t("common.delete"),
+      cancelLabel: t("common.cancel"),
+      variant: "destructive",
+    });
+    if (!confirmed) {
       return;
     }
     try {
@@ -187,7 +208,34 @@ export default function GroupsPage() {
     }
   }
 
-  const availableMemberOptions = users.filter((item) => !members.some((member) => member.user_uid === item.uid));
+  const availableMemberOptions = useMemo(
+    () => users.filter((item) => !members.some((member) => member.user_uid === item.uid)),
+    [members, users],
+  );
+  const memberOptions = useMemo(
+    () =>
+      availableMemberOptions.map((item) => ({
+        value: item.uid,
+        label: item.username,
+        description: item.uid,
+        keywords: [item.email || ""],
+      })),
+    [availableMemberOptions],
+  );
+  const parentGroupOptions = useMemo(
+    () => [
+      { value: ROOT_GROUP, label: t("groups.rootGroup"), description: t("groups.rootGroup") },
+      ...groups
+        .filter((group) => group.gid !== selectedGroupId)
+        .map((group) => ({
+          value: group.gid,
+          label: group.name,
+          description: group.group_path || group.gid,
+          keywords: [group.gid],
+        })),
+    ],
+    [groups, selectedGroupId, t],
+  );
 
   return (
     <PageFrame
@@ -225,17 +273,22 @@ export default function GroupsPage() {
                     key={group.gid}
                     type="button"
                     onClick={() => setSelectedGroupId(group.gid)}
-                    className={`w-full rounded-2xl border p-4 text-left transition ${selectedGroupId === group.gid ? "border-primary bg-primary/5" : "border-border/70 hover:border-primary/40 hover:bg-accent/40"}`}
+                    className={`w-full rounded-2xl border p-4 text-left transition ${
+                      selectedGroupId === group.gid ? "border-primary bg-primary/5" : "border-border/70 hover:border-primary/40 hover:bg-accent/40"
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="font-medium">{group.name}</div>
                         <div className="mt-1 break-all text-xs text-muted-foreground">{group.gid}</div>
                       </div>
-                      <Badge variant="outline">{group.parent_group_id || t("groups.rootGroup")}</Badge>
+                      <Badge variant="outline">
+                        {group.parent_group_id ? groupNameMap.get(group.parent_group_id) || group.parent_group_id : t("groups.rootGroup")}
+                      </Badge>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <Badge variant="secondary">{t("groups.ownerUid")}: {group.owner_uid}</Badge>
+                      <Badge variant="secondary">{t("groups.ownerUid")}: {group.owner_uid || "-"}</Badge>
+                      {group.description ? <Badge variant="outline">{group.description}</Badge> : null}
                     </div>
                   </button>
                 ))
@@ -256,30 +309,39 @@ export default function GroupsPage() {
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-2xl border border-border/70 p-4 text-sm">
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("groups.ownerUid")}</div>
-                      <div className="mt-2 break-all font-medium">{selectedGroup.owner_uid}</div>
+                      <div className="mt-2 break-all font-medium">{selectedGroup.owner_uid || "-"}</div>
                     </div>
                     <div className="rounded-2xl border border-border/70 p-4 text-sm">
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("groups.parentGroup")}</div>
-                      <div className="mt-2 break-all font-medium">{selectedGroup.parent_group_id || t("groups.rootGroup")}</div>
+                      <div className="mt-2 break-all font-medium">
+                        {selectedGroup.parent_group_id
+                          ? groupNameMap.get(selectedGroup.parent_group_id) || selectedGroup.parent_group_id
+                          : t("groups.rootGroup")}
+                      </div>
                     </div>
                     <div className="rounded-2xl border border-border/70 p-4 text-sm">
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("groups.groupPath")}</div>
-                      <div className="mt-2 break-all font-medium">-</div>
+                      <div className="mt-2 break-all font-medium">{selectedGroup.group_path || "-"}</div>
                     </div>
                     <div className="rounded-2xl border border-border/70 p-4 text-sm">
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("groups.updatedAt")}</div>
                       <div className="mt-2 font-medium">{formatTime(selectedGroup.updated_at)}</div>
                     </div>
                   </div>
+                  {selectedGroup.description ? (
+                    <div className="rounded-2xl border border-border/70 p-4 text-sm text-muted-foreground">{selectedGroup.description}</div>
+                  ) : null}
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={() => void handleRenameGroup()}>
                       <Pencil className="mr-2 size-4" />
                       {t("groups.rename")}
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => void handleDeleteGroup()}>
-                      <Trash2 className="mr-2 size-4" />
-                      {t("groups.deleteAction")}
-                    </Button>
+                    {selectedGroup.parent_group_id ? (
+                      <Button variant="destructive" size="sm" onClick={() => void handleDeleteGroup()}>
+                        <Trash2 className="mr-2 size-4" />
+                        {t("groups.deleteAction")}
+                      </Button>
+                    ) : null}
                   </div>
                 </>
               ) : (
@@ -301,16 +363,16 @@ export default function GroupsPage() {
                 <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                   <div className="grid gap-2">
                     <Label>{t("groups.addMember")}</Label>
-                    <Select value={selectedMemberUid} onValueChange={setSelectedMemberUid}>
-                      <SelectTrigger><SelectValue placeholder={t("groups.selectUser")} /></SelectTrigger>
-                      <SelectContent>
-                        {availableMemberOptions.map((item) => (
-                          <SelectItem key={item.uid} value={item.uid}>
-                            {item.username} 路 {item.uid}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <PopupSelect
+                      title={t("groups.selectUser")}
+                      description={t("groups.membersDescription")}
+                      placeholder={t("groups.selectUser")}
+                      searchPlaceholder={t("common.search")}
+                      emptyText={t("groups.noMembers")}
+                      value={selectedMemberUid}
+                      onValueChange={setSelectedMemberUid}
+                      options={memberOptions}
+                    />
                   </div>
                   <Button disabled={!selectedMemberUid} onClick={() => void handleAddMember()}>
                     <UserPlus className="mr-2 size-4" />
@@ -357,17 +419,16 @@ export default function GroupsPage() {
             </div>
             <div className="grid gap-2">
               <Label>{t("groups.parentGroup")}</Label>
-              <Select value={form.parent_group_id} onValueChange={(value) => setForm((prev) => ({ ...prev, parent_group_id: value }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ROOT_GROUP}>{t("groups.rootGroup")}</SelectItem>
-                  {groups.map((group) => (
-                    <SelectItem key={group.gid} value={group.gid}>
-                      {group.name} 路 {group.gid}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <PopupSelect
+                title={t("groups.parentGroup")}
+                description={t("groups.dialogDescription")}
+                placeholder={t("groups.rootGroup")}
+                searchPlaceholder={t("common.search")}
+                emptyText={t("groups.empty")}
+                value={form.parent_group_id}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, parent_group_id: value }))}
+                options={parentGroupOptions}
+              />
             </div>
             <div className="grid gap-2">
               <Label>{t("common.description")}</Label>
@@ -375,13 +436,17 @@ export default function GroupsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              {t("common.cancel")}
+            </Button>
             <Button disabled={isSaving || !form.name.trim()} onClick={() => void saveGroup()}>
               {isSaving ? t("common.saving") : t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
+      {promptDialog}
     </PageFrame>
   );
 }

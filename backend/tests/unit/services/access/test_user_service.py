@@ -35,6 +35,7 @@ def test_user_service_lists_creates_and_updates_users():
                 email="created@example.com",
                 password="secret123",
                 role_id="role-1",
+                permissions_json={"users:read": True},
                 is_active=False,
             ),
         )
@@ -48,6 +49,7 @@ def test_user_service_lists_creates_and_updates_users():
                 username="updated",
                 email="updated@example.com",
                 role_id="role-2",
+                permissions_json={"users:write": True},
                 is_active=True,
                 password="new-secret",
             ),
@@ -58,6 +60,7 @@ def test_user_service_lists_creates_and_updates_users():
         assert updated.username == "updated"
         assert updated.email == "updated@example.com"
         assert updated.role_id == "role-2"
+        assert updated.permissions_json == {"users:write": True}
         assert updated.is_active is True
         assert updated.password_hash != original_hash
 
@@ -89,7 +92,30 @@ def test_user_service_blocks_self_role_change():
             service.update_user(session, user, user.id, UserUpdate(role_id="role-user"))
 
     assert exc_info.value.status_code == 403
-    assert exc_info.value.detail == "Users cannot change their own role or active status"
+    assert exc_info.value.detail == "Users cannot change their own role, permissions, or active status"
+
+
+def test_user_service_blocks_self_permission_change():
+    session_factory = _session_factory()
+    service = _service()
+
+    with session_factory() as session:
+        user = User(
+            username="admin",
+            email="admin@example.com",
+            password_hash="hash-admin",
+            role_id="role-admin",
+            permissions_json={"users:write": True},
+            is_active=True,
+        )
+        session.add(user)
+        session.commit()
+
+        with pytest.raises(HTTPException) as exc_info:
+            service.update_user(session, user, user.id, UserUpdate(permissions_json={"users:write": False}))
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail == "Users cannot change their own role, permissions, or active status"
 
 
 def test_user_service_blocks_bootstrap_admin_role_change_by_other_user():
@@ -113,4 +139,4 @@ def test_user_service_blocks_bootstrap_admin_role_change_by_other_user():
             service.update_user(session, actor, bootstrap_admin.id, UserUpdate(is_active=False))
 
     assert exc_info.value.status_code == 403
-    assert exc_info.value.detail == "Bootstrap admin role and active status are managed by configuration"
+    assert exc_info.value.detail == "Bootstrap admin role, permissions, and active status are managed by configuration"

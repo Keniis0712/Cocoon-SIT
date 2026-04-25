@@ -66,10 +66,12 @@ def test_resource_crud_and_tag_binding_flow(client, auth_headers):
     )
     assert user.status_code == 200, user.text
 
+    group = client.post("/api/v1/groups", headers=auth_headers, json={"name": "ops"})
+    assert group.status_code == 200, group.text
     invite = client.post(
         "/api/v1/invites",
         headers=auth_headers,
-        json={"prefix": "invite", "quota_total": 2},
+        json={"prefix": "invite", "quota_total": 2, "registration_group_id": group.json()["id"]},
     )
     assert invite.status_code == 200, invite.text
     invite_code = invite.json()["code"]
@@ -81,8 +83,6 @@ def test_resource_crud_and_tag_binding_flow(client, auth_headers):
     )
     assert redeem.status_code == 200, redeem.text
 
-    group = client.post("/api/v1/groups", headers=auth_headers, json={"name": "ops"})
-    assert group.status_code == 200, group.text
     member = client.post(
         f"/api/v1/groups/{group.json()['id']}/members",
         headers=auth_headers,
@@ -107,6 +107,7 @@ def test_resource_crud_and_tag_binding_flow(client, auth_headers):
             "source_type": "GROUP",
             "source_id": group.json()["id"],
             "created_for_user_id": user.json()["id"],
+            "registration_group_id": group.json()["id"],
         },
     )
     assert scoped_invite.status_code == 200, scoped_invite.text

@@ -9,8 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.models import AuthSession, InviteCode, Role, User
+from app.models import AuthSession, InviteCode, Role, User, UserGroupMember
 from app.schemas.access.auth import RegisterRequest, TokenPair
+from app.services.access.group_service import GroupService
 from app.services.catalog.system_settings_service import SystemSettingsService
 from app.services.security.encryption import hash_secret, verify_secret
 from app.services.security.token_service import TokenService
@@ -24,10 +25,12 @@ class AuthSessionService:
         token_service: TokenService,
         settings: Settings,
         system_settings_service: SystemSettingsService | None = None,
+        group_service: GroupService | None = None,
     ) -> None:
         self.token_service = token_service
         self.settings = settings
         self.system_settings_service = system_settings_service
+        self.group_service = group_service or GroupService()
 
     def login(self, session: Session, username: str, password: str) -> TokenPair:
         """Validate credentials and issue a fresh token pair."""
@@ -82,6 +85,15 @@ class AuthSessionService:
         )
         session.add(user)
         session.flush()
+        registration_group = self.group_service.resolve_registration_group(session, invite_code.registration_group_id)
+        existing_membership = session.scalar(
+            select(UserGroupMember).where(
+                UserGroupMember.group_id == registration_group.id,
+                UserGroupMember.user_id == user.id,
+            )
+        )
+        if not existing_membership:
+            session.add(UserGroupMember(group_id=registration_group.id, user_id=user.id, member_role="member"))
         invite_code.quota_used += 1
         session.flush()
         return self._issue_token_pair(session, user.id)

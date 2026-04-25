@@ -59,15 +59,15 @@ def test_token_service_creates_and_decodes_access_and_refresh_tokens():
 def test_rbac_helpers_list_permissions_and_raise_when_missing():
     role = SimpleNamespace(permissions_json={"read": True, "write": False, "admin": True})
     session = SimpleNamespace(get=lambda model, role_id: role if role_id == "role-1" else None)
-    user_with_role = SimpleNamespace(role_id="role-1")
-    user_without_role = SimpleNamespace(role_id=None)
-    user_missing_role = SimpleNamespace(role_id="missing")
+    user_with_role = SimpleNamespace(role_id="role-1", permissions_json={"read": False, "write": True})
+    user_without_role = SimpleNamespace(role_id=None, permissions_json={})
+    user_missing_role = SimpleNamespace(role_id="missing", permissions_json={})
 
-    assert list_permissions_for_user(session, user_with_role) == {"read", "admin"}
+    assert list_permissions_for_user(session, user_with_role) == {"write", "admin"}
     assert list_permissions_for_user(session, user_without_role) == set()
     assert list_permissions_for_user(session, user_missing_role) == set()
 
-    require_permission(session, user_with_role, "read")
+    require_permission(session, user_with_role, "write")
 
-    with pytest.raises(HTTPException, match="Missing permission: write"):
-        require_permission(session, user_with_role, "write")
+    with pytest.raises(HTTPException, match="Missing permission: read"):
+        require_permission(session, user_with_role, "read")

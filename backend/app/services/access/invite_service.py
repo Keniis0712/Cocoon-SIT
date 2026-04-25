@@ -11,8 +11,9 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import InviteCode, InviteQuotaGrant, User, UserGroup
+from app.models import InviteCode, InviteQuotaGrant, Role, User, UserGroup
 from app.schemas.access.invites import InviteCreate, InviteGrantCreate, InviteRedeemRequest
+from app.services.access.group_service import GroupService
 
 
 @dataclass(slots=True)
@@ -29,6 +30,9 @@ class InviteService:
     _CODE_SUFFIX_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     _CODE_SUFFIX_LENGTH = 8
 
+    def __init__(self, group_service: GroupService | None = None) -> None:
+        self.group_service = group_service or GroupService()
+
     def list_invites(self, session: Session) -> list[InviteCode]:
         """Return invites ordered by newest first."""
         return list(session.scalars(select(InviteCode).order_by(InviteCode.created_at.desc())).all())
@@ -43,6 +47,15 @@ class InviteService:
         source_id = payload.source_id
         created_for_user_id = payload.created_for_user_id or user.id
         invite_code = payload.code or self._generate_invite_code(session, payload.prefix)
+        registration_group = session.get(UserGroup, payload.registration_group_id)
+        if not registration_group:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registration group not found")
+
+        if payload.expires_at is None and not self._is_admin(session, user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can create permanent invites",
+            )
 
         if source_type == "USER":
             source_id = source_id or user.id
@@ -66,6 +79,7 @@ class InviteService:
             expires_at=payload.expires_at,
             created_by_user_id=user.id,
             created_for_user_id=created_for_user_id,
+            registration_group_id=registration_group.id,
             source_type=source_type,
             source_id=source_id,
         )
@@ -74,7 +88,7 @@ class InviteService:
         return invite
 
     def revoke_invite(self, session: Session, code: str) -> InviteCode:
-        """Revoke an unused invite code so its quota becomes available again."""
+        """Revoke an unused invite code so future registrations cannot consume it."""
         invite = self._get_invite_by_code(session, code)
         if invite.revoked_at is not None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite already revoked")
@@ -105,8 +119,22 @@ class InviteService:
             quota=payload.amount,
             is_unlimited=payload.is_unlimited,
             note=payload.note,
+            revoked_at=None,
         )
         session.add(grant)
+        session.flush()
+        return grant
+
+    def revoke_grant(self, session: Session, grant_id: str, user: User) -> InviteQuotaGrant:
+        """Revoke an existing quota grant so it no longer contributes future invite capacity."""
+        if not self._is_admin(session, user):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only administrators can revoke invite grants")
+        grant = session.get(InviteQuotaGrant, grant_id)
+        if not grant:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite grant not found")
+        if grant.revoked_at is not None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite grant already revoked")
+        grant.revoked_at = datetime.now(UTC).replace(tzinfo=None)
         session.flush()
         return grant
 
@@ -126,6 +154,7 @@ class InviteService:
                     InviteQuotaGrant.target_type == normalized_type,
                     InviteQuotaGrant.target_id == target_id,
                     InviteQuotaGrant.is_unlimited.is_(True),
+                    InviteQuotaGrant.revoked_at.is_(None),
                 )
             )
         )
@@ -134,6 +163,7 @@ class InviteService:
                 InviteQuotaGrant.target_type == normalized_type,
                 InviteQuotaGrant.target_id == target_id,
                 InviteQuotaGrant.is_unlimited.is_(False),
+                InviteQuotaGrant.revoked_at.is_(None),
             )
         ) or 0
         total_consumed = session.scalar(
@@ -174,6 +204,7 @@ class InviteService:
             quota=payload.quota,
             is_unlimited=False,
             note=f"Redeemed from invite code {invite.code}",
+            revoked_at=None,
         )
         invite.quota_used += payload.quota
         session.add(grant)
@@ -217,3 +248,9 @@ class InviteService:
             normalized = "INVITE"
         max_prefix_length = 64 - self._CODE_SUFFIX_LENGTH - 1
         return normalized[:max_prefix_length]
+
+    def _is_admin(self, session: Session, user: User) -> bool:
+        if not user.role_id:
+            return False
+        role = session.get(Role, user.role_id)
+        return bool(role and role.name == "admin")

@@ -6,8 +6,9 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from app.models import InviteCode, InviteQuotaGrant, User, UserGroup
+from app.models import InviteCode, InviteQuotaGrant, Role, User, UserGroup
 from app.schemas.access.invites import InviteCreate, InviteGrantCreate, InviteRedeemRequest
+from app.services.access.group_service import ROOT_GROUP_ID
 from app.services.access.invite_service import InviteService
 from tests.sqlite_helpers import make_sqlite_session_factory
 
@@ -21,7 +22,10 @@ def test_invite_service_create_invite_validates_sources_and_lists_by_newest():
     service = InviteService()
 
     with session_factory() as session:
-        actor = User(username="actor", password_hash="hash")
+        admin_role = Role(name="admin", permissions_json={})
+        session.add(admin_role)
+        session.flush()
+        actor = User(username="actor", password_hash="hash", role_id=admin_role.id)
         target = User(username="target", password_hash="hash")
         group = UserGroup(name="team", owner_user_id=target.id)
         session.add_all([actor, target, group])
@@ -41,7 +45,7 @@ def test_invite_service_create_invite_validates_sources_and_lists_by_newest():
         with pytest.raises(HTTPException) as user_quota_exceeded:
             service.create_invite(
                 session,
-                InviteCreate(prefix="user", quota_total=1, source_type="USER"),
+                InviteCreate(prefix="user", quota_total=1, source_type="USER", registration_group_id=group_id),
                 actor,
             )
         assert user_quota_exceeded.value.status_code == 400
@@ -49,7 +53,7 @@ def test_invite_service_create_invite_validates_sources_and_lists_by_newest():
         with pytest.raises(HTTPException) as missing_group_id:
             service.create_invite(
                 session,
-                InviteCreate(prefix="group", quota_total=1, source_type="GROUP"),
+                InviteCreate(prefix="group", quota_total=1, source_type="GROUP", registration_group_id=group_id),
                 actor,
             )
         assert missing_group_id.value.status_code == 400
@@ -57,7 +61,7 @@ def test_invite_service_create_invite_validates_sources_and_lists_by_newest():
         with pytest.raises(HTTPException) as unsupported_source:
             service.create_invite(
                 session,
-                InviteCreate(prefix="bad", quota_total=1, source_type="UNKNOWN"),
+                InviteCreate(prefix="bad", quota_total=1, source_type="UNKNOWN", registration_group_id=group_id),
                 actor,
             )
         assert unsupported_source.value.status_code == 400
@@ -84,16 +88,31 @@ def test_invite_service_create_invite_validates_sources_and_lists_by_newest():
 
         user_scoped = service.create_invite(
             session,
-            InviteCreate(prefix="userok", quota_total=2, source_type="USER", source_id=target.id),
+            InviteCreate(
+                prefix="userok",
+                quota_total=2,
+                source_type="USER",
+                source_id=target.id,
+                registration_group_id=group_id,
+                expires_at=(datetime.now(UTC) + timedelta(days=2)).replace(tzinfo=None),
+            ),
             actor,
         )
         group_scoped = service.create_invite(
             session,
-            InviteCreate(prefix="groupok", quota_total=1, source_type="GROUP", source_id=group_id),
+            InviteCreate(
+                prefix="groupok",
+                quota_total=1,
+                source_type="GROUP",
+                source_id=group_id,
+                registration_group_id=group_id,
+                expires_at=(datetime.now(UTC) + timedelta(days=2)).replace(tzinfo=None),
+            ),
             actor,
         )
 
         assert user_scoped.source_id == target.id
+        assert user_scoped.registration_group_id == group_id
         assert user_scoped.created_for_user_id == actor.id
         assert group_scoped.source_id == group_id
         assert user_scoped.code.startswith("USEROK-")
@@ -106,7 +125,10 @@ def test_invite_service_group_sources_require_existing_group_and_available_quota
     service = InviteService()
 
     with session_factory() as session:
-        actor = User(username="actor", password_hash="hash")
+        admin_role = Role(name="admin", permissions_json={})
+        session.add(admin_role)
+        session.flush()
+        actor = User(username="actor", password_hash="hash", role_id=admin_role.id)
         owner = User(username="owner", password_hash="hash")
         session.add_all([actor, owner])
         session.flush()
@@ -123,7 +145,13 @@ def test_invite_service_group_sources_require_existing_group_and_available_quota
         with pytest.raises(HTTPException) as missing_group:
             service.create_invite(
                 session,
-                InviteCreate(prefix="grpnope", quota_total=1, source_type="GROUP", source_id="missing-group"),
+                InviteCreate(
+                    prefix="grpnope",
+                    quota_total=1,
+                    source_type="GROUP",
+                    source_id="missing-group",
+                    registration_group_id=group_id,
+                ),
                 actor,
             )
         assert missing_group.value.status_code == 404
@@ -142,7 +170,13 @@ def test_invite_service_group_sources_require_existing_group_and_available_quota
         with pytest.raises(HTTPException) as quota_exceeded:
             service.create_invite(
                 session,
-                InviteCreate(prefix="grpfail2", quota_total=2, source_type="GROUP", source_id=group_id),
+                InviteCreate(
+                    prefix="grpfail2",
+                    quota_total=2,
+                    source_type="GROUP",
+                    source_id=group_id,
+                    registration_group_id=group_id,
+                ),
                 actor,
             )
         assert quota_exceeded.value.status_code == 400
@@ -153,7 +187,10 @@ def test_invite_service_generates_unique_codes_from_prefix_and_accepts_explicit_
     service = InviteService()
 
     with session_factory() as session:
-        actor = User(username="actor", password_hash="hash")
+        admin_role = Role(name="admin", permissions_json={})
+        session.add(admin_role)
+        session.flush()
+        actor = User(username="actor", password_hash="hash", role_id=admin_role.id)
         session.add(actor)
         session.commit()
         actor_id = actor.id
@@ -161,10 +198,23 @@ def test_invite_service_generates_unique_codes_from_prefix_and_accepts_explicit_
     with session_factory() as session:
         actor = session.get(User, actor_id)
         assert actor is not None
+        service.group_service.ensure_root_group(session)
 
-        generated_one = service.create_invite(session, InviteCreate(prefix="ops team"), actor)
-        generated_two = service.create_invite(session, InviteCreate(prefix="ops team"), actor)
-        explicit = service.create_invite(session, InviteCreate(code="MANUAL-CODE"), actor)
+        generated_one = service.create_invite(
+            session,
+            InviteCreate(prefix="ops team", registration_group_id=ROOT_GROUP_ID),
+            actor,
+        )
+        generated_two = service.create_invite(
+            session,
+            InviteCreate(prefix="ops team", registration_group_id=ROOT_GROUP_ID),
+            actor,
+        )
+        explicit = service.create_invite(
+            session,
+            InviteCreate(code="MANUAL-CODE", registration_group_id=ROOT_GROUP_ID),
+            actor,
+        )
 
         assert generated_one.code.startswith("OPS-TEAM-")
         assert generated_two.code.startswith("OPS-TEAM-")
@@ -172,12 +222,15 @@ def test_invite_service_generates_unique_codes_from_prefix_and_accepts_explicit_
         assert explicit.code == "MANUAL-CODE"
 
 
-def test_invite_service_revoke_and_create_grant_validate_error_paths():
+def test_invite_service_revoke_grant_and_create_grant_validate_error_paths():
     session_factory = _session_factory()
     service = InviteService()
 
     with session_factory() as session:
-        actor = User(username="actor", password_hash="hash")
+        admin_role = Role(name="admin", permissions_json={})
+        session.add(admin_role)
+        session.flush()
+        actor = User(username="actor", password_hash="hash", role_id=admin_role.id)
         user = User(username="member", password_hash="hash")
         session.add_all([actor, user])
         session.flush()
@@ -231,8 +284,10 @@ def test_invite_service_revoke_and_create_grant_validate_error_paths():
             InviteGrantCreate(target_type="USER", target_id=user_id, amount=2, note="welcome"),
             actor,
         )
+        revoked = service.revoke_grant(session, grant.id, actor)
         assert grant.target_id == user_id
         assert grant.note == "welcome"
+        assert revoked.revoked_at is not None
         assert [item.id for item in service.list_grants(session)] == [grant.id]
 
 
@@ -277,7 +332,12 @@ def test_invite_service_summary_and_redeem_cover_remaining_branches():
                     expires_at=(datetime.now(UTC) - timedelta(days=1)).replace(tzinfo=None),
                 ),
                 InviteCode(code="FULL", quota_total=1, quota_used=1),
-                InviteCode(code="READY", quota_total=3, created_by_user_id=actor.id),
+                InviteCode(
+                    code="READY",
+                    quota_total=3,
+                    created_by_user_id=actor.id,
+                    registration_group_id=ROOT_GROUP_ID,
+                ),
             ]
         )
         session.commit()

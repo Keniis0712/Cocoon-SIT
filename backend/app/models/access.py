@@ -25,6 +25,7 @@ class User(Base, TimestampMixin):
     email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role_id: Mapped[str | None] = mapped_column(ForeignKey("roles.id"), nullable=True)
+    permissions_json: Mapped[dict[str, bool]] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -58,6 +59,7 @@ class InviteCode(Base, TimestampMixin):
     created_for_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     source_type: Mapped[str] = mapped_column(String(32), default="ADMIN_OVERRIDE")
     source_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    registration_group_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     quota_total: Mapped[int] = mapped_column(Integer, default=0)
     quota_used: Mapped[int] = mapped_column(Integer, default=0)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
@@ -78,6 +80,7 @@ class InviteQuotaGrant(Base, TimestampMixin):
     quota: Mapped[int] = mapped_column(Integer, default=1)
     is_unlimited: Mapped[bool] = mapped_column(Boolean, default=False)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
 
 
 class UserGroup(Base, TimestampMixin):
@@ -86,6 +89,8 @@ class UserGroup(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     owner_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    parent_group_id: Mapped[str | None] = mapped_column(ForeignKey("user_groups.id"), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class UserGroupMember(Base, TimestampMixin):

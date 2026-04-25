@@ -98,6 +98,7 @@ def test_system_settings_drive_public_features_and_registration(client, auth_hea
         json={
             "code": "REGI1234",
             "quota_total": 1,
+            "registration_group_id": "root-group",
             "source_type": "ADMIN_OVERRIDE",
         },
     )

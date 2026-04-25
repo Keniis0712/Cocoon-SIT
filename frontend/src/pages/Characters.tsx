@@ -25,6 +25,8 @@ import type {
   CharacterRead,
 } from "@/api/types/catalog";
 import AccessCard from "@/components/AccessCard";
+import { PopupSelect } from "@/components/composes/PopupSelect";
+import { useConfirmDialog } from "@/components/composes/useConfirmDialog";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -96,6 +98,7 @@ export default function CharactersPage() {
   const [effectiveTarget, setEffectiveTarget] = useState("");
   const [effectiveItems, setEffectiveItems] = useState<CharacterAclEffectiveEntry[]>([]);
   const [effectiveLoading, setEffectiveLoading] = useState(false);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   const canManageSystem = Boolean(userInfo?.can_manage_system);
 
@@ -131,6 +134,26 @@ export default function CharactersPage() {
   );
   const groupLabels = useMemo(
     () => new Map(aclGroups.map((item) => [item.gid, `${item.name} / ${item.gid}`])),
+    [aclGroups],
+  );
+  const aclUserOptions = useMemo(
+    () =>
+      aclUsers.map((item) => ({
+        value: item.uid,
+        label: item.username,
+        description: item.uid,
+        keywords: [item.email || ""],
+      })),
+    [aclUsers],
+  );
+  const aclGroupOptions = useMemo(
+    () =>
+      aclGroups.map((group) => ({
+        value: group.gid,
+        label: group.name,
+        description: group.group_path || group.gid,
+        keywords: [group.gid],
+      })),
     [aclGroups],
   );
 
@@ -283,7 +306,14 @@ export default function CharactersPage() {
   }
 
   async function handleDeleteCharacter(item: CharacterRead) {
-    if (!window.confirm(`Delete character "${item.name}"?`)) {
+    const accepted = await confirm({
+      title: t("common.delete"),
+      description: `Delete character "${item.name}"?`,
+      confirmLabel: t("common.delete"),
+      cancelLabel: t("common.cancel"),
+      variant: "destructive",
+    });
+    if (!accepted) {
       return;
     }
     try {
@@ -483,6 +513,7 @@ export default function CharactersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
 
       <Dialog open={aclOpen} onOpenChange={setAclOpen}>
         <DialogContent className="sm:max-w-5xl">
@@ -571,31 +602,27 @@ export default function CharactersPage() {
                           <div className="grid gap-2">
                             <Label>{t("characters.granteeTarget")}</Label>
                             {entry.grantee_type === "USER" || entry.grantee_type === "SUBTREE" ? (
-                              <Select value={entry.grantee_id} onValueChange={(value) => updateAclDraft(entry.localId, { grantee_id: value })}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t("characters.selectUser")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {aclUsers.map((item) => (
-                                    <SelectItem key={item.uid} value={item.uid}>
-                                      {item.username} / {item.uid}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <PopupSelect
+                                title={t("characters.selectUser")}
+                                description={t("characters.aclDialogDescription")}
+                                placeholder={t("characters.selectUser")}
+                                searchPlaceholder={t("common.search")}
+                                emptyText={t("characters.aclEmpty")}
+                                value={entry.grantee_id}
+                                onValueChange={(value) => updateAclDraft(entry.localId, { grantee_id: value })}
+                                options={aclUserOptions}
+                              />
                             ) : entry.grantee_type === "GROUP" ? (
-                              <Select value={entry.grantee_id} onValueChange={(value) => updateAclDraft(entry.localId, { grantee_id: value })}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t("characters.selectGroup")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {aclGroups.map((group) => (
-                                    <SelectItem key={group.gid} value={group.gid}>
-                                      {group.name} / {group.gid}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <PopupSelect
+                                title={t("characters.selectGroup")}
+                                description={t("characters.aclDialogDescription")}
+                                placeholder={t("characters.selectGroup")}
+                                searchPlaceholder={t("common.search")}
+                                emptyText={t("characters.aclEmpty")}
+                                value={entry.grantee_id}
+                                onValueChange={(value) => updateAclDraft(entry.localId, { grantee_id: value })}
+                                options={aclGroupOptions}
+                              />
                             ) : (
                               <Input disabled value={t("characters.authenticatedAll")} />
                             )}
@@ -665,31 +692,27 @@ export default function CharactersPage() {
                   <div className="grid gap-2">
                     <Label>{t("characters.inspectTarget")}</Label>
                     {effectiveMode === "user" ? (
-                      <Select value={effectiveTarget} onValueChange={setEffectiveTarget}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t("characters.selectUser")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {aclUsers.map((item) => (
-                            <SelectItem key={item.uid} value={item.uid}>
-                              {item.username} / {item.uid}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <PopupSelect
+                        title={t("characters.selectUser")}
+                        description={t("characters.effectiveDescription")}
+                        placeholder={t("characters.selectUser")}
+                        searchPlaceholder={t("common.search")}
+                        emptyText={t("characters.effectiveEmpty")}
+                        value={effectiveTarget}
+                        onValueChange={setEffectiveTarget}
+                        options={aclUserOptions}
+                      />
                     ) : (
-                      <Select value={effectiveTarget} onValueChange={setEffectiveTarget}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t("characters.selectGroup")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {aclGroups.map((group) => (
-                            <SelectItem key={group.gid} value={group.gid}>
-                              {group.name} / {group.gid}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <PopupSelect
+                        title={t("characters.selectGroup")}
+                        description={t("characters.effectiveDescription")}
+                        placeholder={t("characters.selectGroup")}
+                        searchPlaceholder={t("common.search")}
+                        emptyText={t("characters.effectiveEmpty")}
+                        value={effectiveTarget}
+                        onValueChange={setEffectiveTarget}
+                        options={aclGroupOptions}
+                      />
                     )}
                   </div>
                   <Button variant="outline" onClick={() => void loadEffectiveAcl()} disabled={!effectiveTarget || effectiveLoading}>

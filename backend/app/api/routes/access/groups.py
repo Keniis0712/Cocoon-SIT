@@ -9,12 +9,17 @@ from app.schemas.access.groups import GroupCreate, GroupMemberCreate, GroupMembe
 router = APIRouter()
 
 
+def _serialize_group(db: Session, group: UserGroup) -> GroupOut:
+    view = db.info["container"].group_service.build_group_view(db, group)
+    return GroupOut.model_validate(view)
+
+
 @router.get("", response_model=list[GroupOut])
 def list_groups(
     db: Session = Depends(get_db),
     _=Depends(require_permission("users:read")),
-) -> list[UserGroup]:
-    return db.info["container"].group_service.list_groups(db)
+) -> list[GroupOut]:
+    return [_serialize_group(db, group) for group in db.info["container"].group_service.list_groups(db)]
 
 
 @router.post("", response_model=GroupOut)
@@ -23,8 +28,8 @@ def create_group(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     _=Depends(require_permission("users:write")),
-) -> UserGroup:
-    return db.info["container"].group_service.create_group(db, payload, user)
+) -> GroupOut:
+    return _serialize_group(db, db.info["container"].group_service.create_group(db, payload, user))
 
 
 @router.patch("/{group_id}", response_model=GroupOut)
@@ -33,8 +38,8 @@ def update_group(
     payload: GroupUpdate,
     db: Session = Depends(get_db),
     _=Depends(require_permission("users:write")),
-) -> UserGroup:
-    return db.info["container"].group_service.update_group(db, group_id, payload)
+) -> GroupOut:
+    return _serialize_group(db, db.info["container"].group_service.update_group(db, group_id, payload))
 
 
 @router.delete("/{group_id}", response_model=GroupOut)
@@ -42,8 +47,8 @@ def delete_group(
     group_id: str,
     db: Session = Depends(get_db),
     _=Depends(require_permission("users:write")),
-) -> UserGroup:
-    return db.info["container"].group_service.delete_group(db, group_id)
+) -> GroupOut:
+    return _serialize_group(db, db.info["container"].group_service.delete_group(db, group_id))
 
 
 @router.get("/{group_id}/members", response_model=list[GroupMemberOut])

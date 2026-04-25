@@ -1,4 +1,4 @@
-import { apiCall } from "./client";
+import { apiCall, apiJson } from "./client";
 import { rememberLegacyId, rememberLegacyStringId, resolveActualId } from "./id-map";
 import type {
   InviteCodeCreatePayload,
@@ -22,41 +22,93 @@ function makePage<T>(items: T[], page: number, pageSize: number): PageResp<T> {
   };
 }
 
+type InviteCodeResponse = {
+  id: string;
+  code: string;
+  created_by_user_id: string | null;
+  created_for_user_id: string | null;
+  registration_group_id: string | null;
+  source_type: string;
+  source_id: string | null;
+  quota_total: number;
+  quota_used: number;
+  expires_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type InviteGrantResponse = {
+  id: string;
+  granted_by_user_id: string | null;
+  target_type: string;
+  target_id: string;
+  quota: number;
+  is_unlimited: boolean;
+  note: string | null;
+  created_at: string;
+  revoked_at: string | null;
+};
+
+function mapInvite(item: InviteCodeResponse): InviteCodeRead {
+  return {
+    code: item.code,
+    created_by_uid: item.created_by_user_id ? rememberLegacyStringId("user", item.created_by_user_id) : "",
+    parent_uid: item.created_for_user_id
+      ? rememberLegacyStringId("user", item.created_for_user_id)
+      : item.created_by_user_id
+        ? rememberLegacyStringId("user", item.created_by_user_id)
+        : "",
+    registration_group_id: item.registration_group_id ? rememberLegacyStringId("group", item.registration_group_id) : null,
+    source_type: item.source_type as InviteCodeRead["source_type"],
+    source_id:
+      item.source_type === "USER" && item.source_id
+        ? rememberLegacyStringId("user", item.source_id)
+        : item.source_type === "GROUP" && item.source_id
+          ? rememberLegacyStringId("group", item.source_id)
+          : item.source_id,
+    expires_at: item.expires_at,
+    consumed_at: item.quota_used >= item.quota_total ? item.updated_at : null,
+    consumed_by_uid: null,
+    revoked_at: item.revoked_at,
+    created_at: item.created_at,
+  };
+}
+
+function mapGrant(item: InviteGrantResponse): InviteQuotaGrantRead {
+  return {
+    id: rememberLegacyId("invite", item.id),
+    granter_uid: item.granted_by_user_id ? rememberLegacyStringId("user", item.granted_by_user_id) : "",
+    target_type: item.target_type as InviteQuotaGrantRead["target_type"],
+    target_id:
+      item.target_type === "USER"
+        ? rememberLegacyStringId("user", item.target_id)
+        : item.target_type === "GROUP"
+          ? rememberLegacyStringId("group", item.target_id)
+          : item.target_id,
+    amount: item.quota,
+    is_unlimited: item.is_unlimited,
+    note: item.note,
+    created_at: item.created_at,
+    revoked_at: item.revoked_at,
+  };
+}
+
 export function listInviteCodes(
   page: number,
   page_size: number,
   params?: { created_by_uid?: string },
 ): Promise<PageResp<InviteCodeRead>> {
-  return apiCall(async (client) => {
-    const items = (await client.listInvites())
-      .map((item) => ({
-        code: item.code,
-        created_by_uid: item.created_by_user_id ? rememberLegacyStringId("user", item.created_by_user_id) : "",
-        parent_uid: item.created_for_user_id
-          ? rememberLegacyStringId("user", item.created_for_user_id)
-          : item.created_by_user_id
-            ? rememberLegacyStringId("user", item.created_by_user_id)
-            : "",
-        source_type: item.source_type as InviteCodeRead["source_type"],
-        source_id:
-          item.source_type === "USER" && item.source_id
-            ? rememberLegacyStringId("user", item.source_id)
-            : item.source_type === "GROUP" && item.source_id
-              ? rememberLegacyStringId("group", item.source_id)
-              : item.source_id,
-        expires_at: item.expires_at,
-        consumed_at: item.quota_used >= item.quota_total ? item.updated_at : null,
-        consumed_by_uid: null,
-        revoked_at: item.revoked_at,
-        created_at: item.created_at,
-      }))
+  return apiCall(async () => {
+    const items = (await apiJson<InviteCodeResponse[]>("/invites"))
+      .map(mapInvite)
       .filter((item) => !params?.created_by_uid || item.created_by_uid === params.created_by_uid);
     return makePage(items, page, page_size);
   });
 }
 
 export function createInviteCode(data: InviteCodeCreatePayload): Promise<InviteCodeRead> {
-  return apiCall(async (client) => {
+  return apiCall(async () => {
     const sourceType = data.source_type;
     const sourceId =
       sourceType === "USER" && data.source_id
@@ -64,35 +116,19 @@ export function createInviteCode(data: InviteCodeCreatePayload): Promise<InviteC
         : sourceType === "GROUP" && data.source_id
           ? resolveActualId("group", data.source_id)
           : data.source_id ?? null;
-    const created = await client.createInvite({
-      prefix: data.prefix?.trim() || "invite",
-      quota_total: 1,
-      expires_at: data.permanent ? null : data.expires_at ?? null,
-      created_for_user_id: data.created_for_uid ? resolveActualId("user", data.created_for_uid) : null,
-      source_type: sourceType,
-      source_id: sourceId,
+    const created = await apiJson<InviteCodeResponse>("/invites", {
+      method: "POST",
+      body: JSON.stringify({
+        prefix: data.prefix?.trim() || "invite",
+        quota_total: 1,
+        expires_at: data.permanent ? null : data.expires_at ?? null,
+        created_for_user_id: data.created_for_uid ? resolveActualId("user", data.created_for_uid) : null,
+        registration_group_id: resolveActualId("group", data.registration_group_id),
+        source_type: sourceType,
+        source_id: sourceId,
+      }),
     });
-    return {
-      code: created.code,
-      created_by_uid: created.created_by_user_id ? rememberLegacyStringId("user", created.created_by_user_id) : "",
-      parent_uid: created.created_for_user_id
-        ? rememberLegacyStringId("user", created.created_for_user_id)
-        : created.created_by_user_id
-          ? rememberLegacyStringId("user", created.created_by_user_id)
-          : "",
-      source_type: created.source_type as InviteCodeRead["source_type"],
-      source_id:
-        created.source_type === "USER" && created.source_id
-          ? rememberLegacyStringId("user", created.source_id)
-          : created.source_type === "GROUP" && created.source_id
-            ? rememberLegacyStringId("group", created.source_id)
-            : created.source_id,
-      expires_at: created.expires_at,
-      consumed_at: created.quota_used >= created.quota_total ? created.updated_at : null,
-      consumed_by_uid: null,
-      revoked_at: created.revoked_at,
-      created_at: created.created_at,
-    };
+    return mapInvite(created);
   });
 }
 
@@ -103,53 +139,37 @@ export function deleteInviteCode(code: string) {
 }
 
 export function listInviteGrants(page: number, page_size: number): Promise<PageResp<InviteQuotaGrantRead>> {
-  return apiCall(async (client) => {
-    const items = (await client.listInviteGrants()).map((item) => ({
-      id: rememberLegacyId("invite", item.id),
-      granter_uid: item.granted_by_user_id ? rememberLegacyStringId("user", item.granted_by_user_id) : "",
-      target_type: item.target_type as InviteQuotaGrantRead["target_type"],
-      target_id:
-        item.target_type === "USER"
-          ? rememberLegacyStringId("user", item.target_id)
-          : item.target_type === "GROUP"
-            ? rememberLegacyStringId("group", item.target_id)
-            : item.target_id,
-      amount: item.quota,
-      is_unlimited: item.is_unlimited,
-      note: item.note,
-      created_at: item.created_at,
-    }));
+  return apiCall(async () => {
+    const items = (await apiJson<InviteGrantResponse[]>("/invites/grants")).map(mapGrant);
     return makePage(items, page, page_size);
   });
 }
 
 export function createInviteGrant(data: InviteQuotaGrantCreatePayload): Promise<InviteQuotaGrantRead> {
-  return apiCall(async (client) => {
-    const created = await client.createInviteGrant({
-      target_type: data.target_type,
-      target_id:
-        data.target_type === "USER"
-          ? resolveActualId("user", data.target_id)
-          : resolveActualId("group", data.target_id),
-      amount: data.amount,
-      is_unlimited: data.is_unlimited,
-      note: data.note ?? null,
+  return apiCall(async () => {
+    const created = await apiJson<InviteGrantResponse>("/invites/grants", {
+      method: "POST",
+      body: JSON.stringify({
+        target_type: data.target_type,
+        target_id:
+          data.target_type === "USER"
+            ? resolveActualId("user", data.target_id)
+            : resolveActualId("group", data.target_id),
+        amount: data.amount,
+        is_unlimited: data.is_unlimited,
+        note: data.note ?? null,
+      }),
     });
-    return {
-      id: rememberLegacyId("invite", created.id),
-      granter_uid: created.granted_by_user_id ? rememberLegacyStringId("user", created.granted_by_user_id) : "",
-      target_type: created.target_type as InviteQuotaGrantRead["target_type"],
-      target_id:
-        created.target_type === "USER"
-          ? rememberLegacyStringId("user", created.target_id)
-          : created.target_type === "GROUP"
-            ? rememberLegacyStringId("group", created.target_id)
-            : created.target_id,
-      amount: created.quota,
-      is_unlimited: created.is_unlimited,
-      note: created.note,
-      created_at: created.created_at,
-    };
+    return mapGrant(created);
+  });
+}
+
+export function revokeInviteGrant(grantId: number) {
+  return apiCall(async () => {
+    const created = await apiJson<InviteGrantResponse>(`/invites/grants/${resolveActualId("invite", grantId)}`, {
+      method: "DELETE",
+    });
+    return mapGrant(created);
   });
 }
 

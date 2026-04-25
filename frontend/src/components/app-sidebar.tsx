@@ -94,7 +94,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     hasAnyPermission(userInfo, ["plugins:read", "plugins:write", "plugins:run"])
       ? { title: t("pluginsAdmin"), url: "/admin/plugins", icon: <Puzzle /> }
       : null,
-    hasAnyPermission(userInfo, ["artifacts:cleanup", "roles:write", "prompt_templates:write"])
+    userInfo?.can_manage_system
       ? { title: t("settings"), url: "/settings", icon: <Settings2 /> }
       : null,
   ].filter(Boolean) as { title: string; url: string; icon: ReactNode }[];

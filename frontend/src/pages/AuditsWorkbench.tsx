@@ -21,6 +21,7 @@ import { getCocoons } from "@/api/cocoons";
 import type { AuditArtifactRead, AuditRunDetail, AuditRunListItem, AuditStepRead, AuditTimelineItem } from "@/api/types/audit";
 import type { CocoonRead } from "@/api/types/cocoons";
 import AccessCard from "@/components/AccessCard";
+import { PopupSelect } from "@/components/composes/PopupSelect";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -226,6 +227,18 @@ export default function AuditsWorkbenchPage() {
     () => cocoons.find((item) => String(item.id) === selectedCocoonId) || null,
     [cocoons, selectedCocoonId],
   );
+  const cocoonOptions = useMemo(
+    () => [
+      { value: "all", label: t("audits.allCocoons"), description: t("audits.description") },
+      ...cocoons.map((item) => ({
+        value: String(item.id),
+        label: item.name,
+        description: `#${item.id}`,
+        keywords: [String(item.id)],
+      })),
+    ],
+    [cocoons, t],
+  );
   const statusLabel = (value: string | null | undefined) =>
     value ? t(`audits.statusValues.${value}`, { defaultValue: value }) : "-";
   const triggerLabel = (value: string | null | undefined) =>
@@ -277,13 +290,16 @@ export default function AuditsWorkbenchPage() {
             <CardContent className="grid gap-4">
               <div className="grid gap-2">
                 <Label>{t("audits.selectCocoon")}</Label>
-                <Select value={selectedCocoonId} onValueChange={(value) => { setSelectedCocoonId(value); setSelectedRun(null); setPage(1); }}>
-                  <SelectTrigger><SelectValue placeholder={t("audits.selectCocoon")} /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t("audits.allCocoons")}</SelectItem>
-                    {cocoons.map((item) => <SelectItem key={item.id} value={String(item.id)}>{item.name} #{item.id}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <PopupSelect
+                  title={t("audits.selectCocoon")}
+                  description={t("audits.description")}
+                  placeholder={t("audits.selectCocoon")}
+                  searchPlaceholder={t("common.search")}
+                  emptyText={t("audits.allCocoons")}
+                  value={selectedCocoonId}
+                  onValueChange={(value) => { setSelectedCocoonId(value); setSelectedRun(null); setPage(1); }}
+                  options={cocoonOptions}
+                />
               </div>
               <div className="grid gap-2">
                 <Label>{t("common.keyword")}</Label>
@@ -381,7 +397,7 @@ export default function AuditsWorkbenchPage() {
                     <div className="font-medium">{item.label}</div>
                     <Badge variant="outline">{t(`audits.timelineKinds.${item.kind}`, { defaultValue: item.kind })}</Badge>
                   </div>
-                  <div className="text-xs text-muted-foreground">{formatDate(item.occurred_at)}{item.status ? ` · ${statusLabel(item.status)}` : ""}</div>
+                  <div className="text-xs text-muted-foreground">{formatDate(item.occurred_at)}{item.status ? ` / ${statusLabel(item.status)}` : ""}</div>
                 </div>
               ))}
               {!timeline.length ? <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">{t("audits.timelineEmpty")}</div> : null}
@@ -496,7 +512,7 @@ export default function AuditsWorkbenchPage() {
                             <div>
                               <div className="font-medium">{relationTitle(link.relation)}</div>
                               <div className="mt-1 text-xs text-muted-foreground">
-                                {source.title} → {target.title}
+                                {source.title} {"->"} {target.title}
                               </div>
                             </div>
                             <ChevronDown className="size-4 text-muted-foreground transition data-[state=open]:rotate-180" />

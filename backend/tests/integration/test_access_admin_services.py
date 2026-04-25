@@ -20,7 +20,14 @@ def test_user_and_role_services(client):
         )
         user = container.user_service.create_user(
             session,
-            UserCreate(username="svc-user", email="svc-user@example.com", password="secret1", role_id=role.id, is_active=True),
+            UserCreate(
+                username="svc-user",
+                email="svc-user@example.com",
+                password="secret1",
+                role_id=role.id,
+                permissions_json={"audits:read": True},
+                is_active=True,
+            ),
         )
         session.commit()
         role_id = role.id
@@ -38,11 +45,12 @@ def test_user_and_role_services(client):
             session,
             admin,
             user_id,
-            UserUpdate(is_active=False, password="secret2"),
+            UserUpdate(is_active=False, password="secret2", permissions_json={"users:read": False}),
         )
         session.commit()
         assert updated_role.name == "svc-role-2"
         assert updated_user.is_active is False
+        assert updated_user.permissions_json == {"users:read": False}
         assert any(item.id == user_id for item in container.user_service.list_users(session))
         assert any(item.id == role_id for item in container.role_service.list_roles(session))
 
@@ -55,7 +63,7 @@ def test_group_and_invite_services(client):
             session,
             UserCreate(username="invitee", email="invitee@example.com", password="secret1", role_id=None, is_active=True),
         )
-        group = container.group_service.create_group(session, GroupCreate(name="svc-group"))
+        group = container.group_service.create_group(session, GroupCreate(name="svc-group", description="service group"))
         member = container.group_service.add_group_member(
             session,
             group.id,
@@ -67,6 +75,7 @@ def test_group_and_invite_services(client):
                 code="SVC-INVITE",
                 quota_total=3,
                 expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1),
+                registration_group_id=group.id,
             ),
             admin,
         )
@@ -87,20 +96,28 @@ def test_group_and_invite_services(client):
         )
         scoped_invite = container.invite_service.create_invite(
             session,
-            InviteCreate(code="GROUP-INVITE", source_type="GROUP", source_id=group.id, quota_total=1),
+            InviteCreate(
+                code="GROUP-INVITE",
+                source_type="GROUP",
+                source_id=group.id,
+                quota_total=1,
+                registration_group_id=group.id,
+            ),
             admin,
         )
         revoked = container.invite_service.revoke_invite(session, "GROUP-INVITE")
+        revoked_grant = container.invite_service.revoke_grant(session, group_grant.id, admin)
         session.commit()
         assert member.group_id == group.id
         assert user_grant.target_type == "USER"
         assert group_grant.target_type == "GROUP"
         assert redeemed["quota_used"] == 2
         assert revoked.revoked_at is not None
+        assert revoked_grant.revoked_at is not None
         user_summary = container.invite_service.get_summary(session, "USER", target_user.id)
         group_summary = container.invite_service.get_summary(session, "GROUP", group.id)
         assert user_summary.invite_quota_remaining == 4
-        assert group_summary.invite_quota_remaining == 5
+        assert group_summary.invite_quota_remaining == 0
         assert any(item.id == group.id for item in container.group_service.list_groups(session))
         assert any(item.id == invite.id for item in container.invite_service.list_invites(session))
         assert any(item.id == user_grant.id for item in container.invite_service.list_grants(session))

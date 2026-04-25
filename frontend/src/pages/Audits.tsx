@@ -9,13 +9,13 @@ import { getCocoons } from "@/api/cocoons";
 import type { AiAuditTraceDetail, AiAuditTraceListItem } from "@/api/types/audit";
 import type { CocoonRead } from "@/api/types/cocoons";
 import AccessCard from "@/components/AccessCard";
+import { PopupSelect } from "@/components/composes/PopupSelect";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUserStore } from "@/store/useUserStore";
 
 function formatDate(value: string | null | undefined) {
@@ -87,6 +87,16 @@ export default function AuditsPage() {
   }
 
   const selectedCocoon = useMemo(() => cocoons.find((item) => String(item.id) === selectedCocoonId) || null, [cocoons, selectedCocoonId]);
+  const cocoonOptions = useMemo(
+    () =>
+      cocoons.map((item) => ({
+        value: String(item.id),
+        label: item.name,
+        description: `#${item.id}`,
+        keywords: [String(item.id)],
+      })),
+    [cocoons],
+  );
   const traceEntries = useMemo(() => (selectedRound?.trace && isRecord(selectedRound.trace) ? Object.entries(selectedRound.trace).filter(([, value]) => value !== undefined) : [] as Array<[string, unknown]>), [selectedRound]);
 
   function renderTraceValue(value: unknown, depth = 0): ReactNode {
@@ -113,7 +123,7 @@ export default function AuditsPage() {
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2 text-base"><FileSearch className="size-4 text-primary" />{t("audits.filters")}</CardTitle></CardHeader>
             <CardContent className="grid gap-4">
-              <div className="grid gap-2"><Label>{t("audits.selectCocoon")}</Label><Select value={selectedCocoonId} onValueChange={(value) => { setSelectedCocoonId(value); setPage(1); setSelectedRound(null); }}><SelectTrigger><SelectValue placeholder={t("audits.selectCocoon")} /></SelectTrigger><SelectContent>{cocoons.map((item) => <SelectItem key={item.id} value={String(item.id)}>{item.name} #{item.id}</SelectItem>)}</SelectContent></Select></div>
+              <div className="grid gap-2"><Label>{t("audits.selectCocoon")}</Label><PopupSelect title={t("audits.selectCocoon")} description={t("audits.description")} placeholder={t("audits.selectCocoon")} searchPlaceholder={t("common.search")} emptyText={t("audits.noCocoon")} value={selectedCocoonId} onValueChange={(value) => { setSelectedCocoonId(value); setPage(1); setSelectedRound(null); }} options={cocoonOptions} /></div>
               <div className="grid gap-2"><Label>{t("common.keyword")}</Label><Input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder={t("audits.keywordPlaceholder")} /></div>
               <div className="grid gap-2"><Label>{t("audits.roundUid")}</Label><Input value={roundUid} onChange={(event) => { setRoundUid(event.target.value); setPage(1); }} placeholder={t("audits.roundUidPlaceholder")} /></div>
             </CardContent>

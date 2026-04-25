@@ -8,9 +8,10 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from app.core.config import Settings
-from app.models import AuthSession, InviteCode, Role, User
+from app.models import AuthSession, InviteCode, Role, User, UserGroup, UserGroupMember
 from app.schemas.access.auth import RegisterRequest
 from app.services.access.auth_session_service import AuthSessionService
+from app.services.access.group_service import ROOT_GROUP_ID
 from app.services.security.encryption import hash_secret
 from tests.sqlite_helpers import make_sqlite_session_factory
 
@@ -185,7 +186,7 @@ def test_auth_session_service_register_validates_configuration_and_invite_state(
         assert invite_full.value.status_code == 400
 
 
-def test_auth_session_service_register_success_requires_user_role_and_consumes_invite():
+def test_auth_session_service_register_success_requires_user_role_consumes_invite_and_assigns_group():
     session_factory = _session_factory()
     token_service = _TokenService()
     service = AuthSessionService(
@@ -195,7 +196,7 @@ def test_auth_session_service_register_success_requires_user_role_and_consumes_i
     )
 
     with session_factory() as session:
-        session.add(InviteCode(code="ROLEMISS", quota_total=1))
+        session.add(InviteCode(code="ROLEMISS", quota_total=1, registration_group_id=ROOT_GROUP_ID))
         session.commit()
 
         with pytest.raises(HTTPException) as missing_role:
@@ -207,7 +208,13 @@ def test_auth_session_service_register_success_requires_user_role_and_consumes_i
 
         user_role = Role(name="user", permissions_json={})
         session.add(user_role)
-        session.add(InviteCode(code="READY123", quota_total=2))
+        session.add(UserGroup(id=ROOT_GROUP_ID, name="Root Group", owner_user_id=None, parent_group_id=None))
+        registration_group = UserGroup(name="invited-users", owner_user_id=None, parent_group_id=ROOT_GROUP_ID)
+        session.add(registration_group)
+        session.flush()
+        deleted_group_id = registration_group.id
+        session.add(InviteCode(code="READY123", quota_total=2, registration_group_id=deleted_group_id))
+        session.delete(registration_group)
         session.commit()
 
         tokens = service.register(
@@ -217,6 +224,7 @@ def test_auth_session_service_register_success_requires_user_role_and_consumes_i
         created_user = session.scalar(select(User).where(User.username == "registered-user"))
         invite = session.scalar(select(InviteCode).where(InviteCode.code == "READY123"))
         auth_session = session.scalar(select(AuthSession).where(AuthSession.user_id == created_user.id))
+        membership = session.scalar(select(UserGroupMember).where(UserGroupMember.user_id == created_user.id))
 
         assert tokens.token_type == "bearer"
         assert created_user is not None
@@ -224,3 +232,5 @@ def test_auth_session_service_register_success_requires_user_role_and_consumes_i
         assert invite is not None
         assert invite.quota_used == 1
         assert auth_session is not None
+        assert membership is not None
+        assert membership.group_id == ROOT_GROUP_ID

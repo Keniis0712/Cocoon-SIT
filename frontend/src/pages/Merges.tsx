@@ -10,6 +10,7 @@ import { getCocoons } from "@/api/cocoons";
 import { createMergeJob, getMergeJobDetail, listMergeJobs } from "@/api/merges";
 import type { CocoonRead } from "@/api/types/cocoons";
 import type { CocoonMergeCreatePayload, CocoonMergeJobDetail, CocoonMergeJobRead } from "@/api/types/operations";
+import { PopupSelect } from "@/components/composes/PopupSelect";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,16 @@ export default function MergesPage() {
     }
     return map;
   }, [cocoons]);
+  const cocoonOptions = useMemo(
+    () =>
+      cocoons.map((cocoon) => ({
+        value: String(cocoon.id),
+        label: cocoon.name,
+        description: `#${cocoon.id}`,
+        keywords: [String(cocoon.id)],
+      })),
+    [cocoons],
+  );
 
   useEffect(() => {
     void loadCocoons();
@@ -231,29 +242,29 @@ export default function MergesPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
                   <Label>{t("merges.sourceCocoon")}</Label>
-                  <Select value={form.source_cocoon_id} onValueChange={(value) => setForm((prev) => ({ ...prev, source_cocoon_id: value }))}>
-                    <SelectTrigger><SelectValue placeholder={t("merges.selectCocoon")} /></SelectTrigger>
-                    <SelectContent>
-                      {cocoons.map((cocoon) => (
-                        <SelectItem key={cocoon.id} value={String(cocoon.id)}>
-                          {cocoon.name} #{cocoon.id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <PopupSelect
+                    title={t("merges.sourceCocoon")}
+                    description={t("merges.createDescription")}
+                    placeholder={t("merges.selectCocoon")}
+                    searchPlaceholder={t("common.search")}
+                    emptyText={t("merges.empty")}
+                    value={form.source_cocoon_id}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, source_cocoon_id: value }))}
+                    options={cocoonOptions}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label>{t("merges.targetCocoon")}</Label>
-                  <Select value={form.target_cocoon_id} onValueChange={(value) => setForm((prev) => ({ ...prev, target_cocoon_id: value }))}>
-                    <SelectTrigger><SelectValue placeholder={t("merges.selectCocoon")} /></SelectTrigger>
-                    <SelectContent>
-                      {cocoons.map((cocoon) => (
-                        <SelectItem key={cocoon.id} value={String(cocoon.id)}>
-                          {cocoon.name} #{cocoon.id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <PopupSelect
+                    title={t("merges.targetCocoon")}
+                    description={t("merges.createDescription")}
+                    placeholder={t("merges.selectCocoon")}
+                    searchPlaceholder={t("common.search")}
+                    emptyText={t("merges.empty")}
+                    value={form.target_cocoon_id}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, target_cocoon_id: value }))}
+                    options={cocoonOptions}
+                  />
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">

@@ -5,11 +5,15 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.models import Role, User
+from app.services.access.group_service import GroupService
 from app.services.security.encryption import hash_secret
 
 
 class BootstrapAccessSeedService:
     """Seeds default roles and the bootstrap administrator."""
+
+    def __init__(self, group_service: GroupService | None = None) -> None:
+        self.group_service = group_service or GroupService()
 
     def ensure_defaults(self, session: Session, settings: Settings) -> User:
         admin_permissions = {
@@ -113,4 +117,5 @@ class BootstrapAccessSeedService:
         else:
             admin_user.role_id = admin_role.id
             admin_user.is_active = True
+        self.group_service.ensure_root_group(session)
         return admin_user

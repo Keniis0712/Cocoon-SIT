@@ -64,6 +64,16 @@ def create_invite_grant(
     return db.info["container"].invite_service.create_grant(db, payload, user)
 
 
+@router.delete("/grants/{grant_id}", response_model=InviteGrantOut)
+def revoke_invite_grant(
+    grant_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _=Depends(require_permission("users:write")),
+) -> InviteQuotaGrant:
+    return db.info["container"].invite_service.revoke_grant(db, grant_id, user)
+
+
 @router.get("/summary/me", response_model=InviteSummaryOut)
 def get_my_invite_summary(
     db: Session = Depends(get_db),

@@ -8,6 +8,7 @@ import { showErrorToast } from "@/api/client";
 import { listPromptTemplates, resetPromptTemplate, savePromptTemplate } from "@/api/prompts";
 import type { PromptTemplatePayload, PromptTemplateRead } from "@/api/types/prompts";
 import AccessCard from "@/components/AccessCard";
+import { useConfirmDialog } from "@/components/composes/useConfirmDialog";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,7 @@ export default function PromptTemplatesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PromptTemplateRead | null>(null);
   const [form, setForm] = useState<PromptTemplatePayload>(EMPTY_FORM);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   const canManage = Boolean(userInfo?.can_manage_prompts);
 
@@ -153,7 +155,14 @@ export default function PromptTemplatesPage() {
 
   async function handleReset(item: PromptTemplateRead) {
     const templateName = t(`prompts.types.${item.template_type}.name`, { defaultValue: item.name });
-    if (!window.confirm(t("prompts.resetConfirm", { name: templateName }))) {
+    const accepted = await confirm({
+      title: t("prompts.reset"),
+      description: t("prompts.resetConfirm", { name: templateName }),
+      confirmLabel: t("prompts.reset"),
+      cancelLabel: t("common.cancel"),
+      variant: "destructive",
+    });
+    if (!accepted) {
       return;
     }
 
@@ -365,6 +374,7 @@ export default function PromptTemplatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </PageFrame>
   );
 }

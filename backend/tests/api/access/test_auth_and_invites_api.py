@@ -20,6 +20,8 @@ def test_auth_refresh_me_and_missing_bearer(client):
     me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"})
     assert me.status_code == 200, me.text
     assert me.json()["username"] == "admin"
+    assert me.json()["role_name"] == "admin"
+    assert me.json()["permissions"]["cocoons:read"] is True
 
     missing = client.get("/api/v1/auth/me")
     assert missing.status_code == 401, missing.text
@@ -69,6 +71,7 @@ def test_invites_api_crud_and_summary_routes(client, auth_headers):
             "prefix": "apiinv",
             "quota_total": 3,
             "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
+            "registration_group_id": group_id,
         },
     )
     assert invite.status_code == 200, invite.text
@@ -123,7 +126,7 @@ def test_invites_api_crud_and_summary_routes(client, auth_headers):
     unused_invite = client.post(
         "/api/v1/invites",
         headers=auth_headers,
-        json={"prefix": "apiinv", "quota_total": 1},
+        json={"prefix": "apiinv", "quota_total": 1, "registration_group_id": group_id},
     )
     assert unused_invite.status_code == 200, unused_invite.text
     unused_code = unused_invite.json()["code"]
@@ -131,6 +134,10 @@ def test_invites_api_crud_and_summary_routes(client, auth_headers):
     revoke = client.delete(f"/api/v1/invites/{unused_code}", headers=auth_headers)
     assert revoke.status_code == 200, revoke.text
     assert revoke.json()["code"] == unused_code
+
+    revoked_grant = client.delete(f"/api/v1/invites/grants/{group_grant.json()['id']}", headers=auth_headers)
+    assert revoked_grant.status_code == 200, revoked_grant.text
+    assert revoked_grant.json()["revoked_at"] is not None
 
     with container.session_factory() as session:
         assert session.scalar(select(InviteCode).where(InviteCode.code == invite_code)) is not None

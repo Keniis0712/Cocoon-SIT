@@ -29,6 +29,7 @@ class UserService:
             email=payload.email,
             password_hash=hash_secret(payload.password),
             role_id=payload.role_id,
+            permissions_json=payload.permissions_json,
             is_active=payload.is_active,
         )
         session.add(user)
@@ -47,6 +48,8 @@ class UserService:
             user.email = payload.email
         if payload.role_id is not None:
             user.role_id = payload.role_id
+        if payload.permissions_json is not None:
+            user.permissions_json = payload.permissions_json
         if payload.is_active is not None:
             user.is_active = payload.is_active
         if payload.password is not None:
@@ -56,17 +59,21 @@ class UserService:
 
     def _validate_update(self, actor: User, user: User, payload: UserUpdate) -> None:
         role_change = payload.role_id is not None and payload.role_id != user.role_id
+        permission_change = (
+            payload.permissions_json is not None
+            and payload.permissions_json != (user.permissions_json or {})
+        )
         active_change = payload.is_active is not None and payload.is_active != user.is_active
 
-        if actor.id == user.id and (role_change or active_change):
+        if actor.id == user.id and (role_change or permission_change or active_change):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Users cannot change their own role or active status",
+                detail="Users cannot change their own role, permissions, or active status",
             )
-        if self._is_bootstrap_admin(user) and (role_change or active_change):
+        if self._is_bootstrap_admin(user) and (role_change or permission_change or active_change):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Bootstrap admin role and active status are managed by configuration",
+                detail="Bootstrap admin role, permissions, and active status are managed by configuration",
             )
 
     def _is_bootstrap_admin(self, user: User) -> bool:

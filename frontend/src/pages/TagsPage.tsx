@@ -7,6 +7,7 @@ import { listChatGroups } from "@/api/chatGroups";
 import { createTag, deleteTag, listTags, updateTag } from "@/api/tags";
 import type { TagPayload, TagRead } from "@/api/types/catalog";
 import type { ChatGroupRead } from "@/api/types/chat-groups";
+import { useConfirmDialog } from "@/components/composes/useConfirmDialog";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export default function TagsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TagRead | null>(null);
   const [form, setForm] = useState<TagPayload>(EMPTY_FORM);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   const visibleItems = useMemo(() => items.filter((item) => !item.is_system), [items]);
 
@@ -94,7 +96,14 @@ export default function TagsPage() {
   }
 
   async function handleDelete(item: TagRead) {
-    if (!window.confirm(`Delete tag "${item.name}"?`)) {
+    const accepted = await confirm({
+      title: "Delete Tag",
+      description: item.name,
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      variant: "destructive",
+    });
+    if (!accepted) {
       return;
     }
     try {
@@ -253,6 +262,7 @@ export default function TagsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </PageFrame>
   );
 }

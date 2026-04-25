@@ -14,6 +14,7 @@ import {
 } from "@/api/providers";
 import type { ModelProviderPayload, ModelProviderRead } from "@/api/types/providers";
 import AccessCard from "@/components/AccessCard";
+import { useConfirmDialog } from "@/components/composes/useConfirmDialog";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ export default function ProvidersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ModelProviderRead | null>(null);
   const [form, setForm] = useState<ModelProviderPayload>(EMPTY_FORM);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   const canManage = Boolean(userInfo?.can_manage_providers);
 
@@ -140,7 +142,14 @@ export default function ProvidersPage() {
   }
 
   async function handleDeleteProvider(item: ModelProviderRead) {
-    if (!window.confirm(t("providers:deleteConfirm", { name: item.name }))) {
+    const accepted = await confirm({
+      title: t("common:delete"),
+      description: t("providers:deleteConfirm", { name: item.name }),
+      confirmLabel: t("common:delete"),
+      cancelLabel: t("common:cancel"),
+      variant: "destructive",
+    });
+    if (!accepted) {
       return;
     }
     try {
@@ -282,6 +291,7 @@ export default function ProvidersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </PageFrame>
   );
 }

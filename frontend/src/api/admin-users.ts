@@ -1,6 +1,4 @@
-import type { Schemas } from "@cocoon-sit/ts-sdk";
-
-import { apiCall } from "./client";
+import { apiCall, apiJson } from "./client";
 import { rememberLegacyStringId, resolveActualId } from "./id-map";
 import type {
   AdminUserCreatePayload,
@@ -23,19 +21,27 @@ function makePage<T>(items: T[], page: number, pageSize: number): PageResp<T> {
   };
 }
 
-function roleLevel(roleName: string) {
+type ManagedUserResponse = {
+  id: string;
+  username: string;
+  email: string | null;
+  role_id: string | null;
+  role_name: string | null;
+  permissions_json: Record<string, boolean>;
+  effective_permissions: Record<string, boolean>;
+  is_active: boolean;
+  created_at: string;
+};
+
+function roleLevel(roleName: string | null) {
   if (roleName === "admin") return 0;
   if (roleName === "operator") return 1;
   return 2;
 }
 
-function rolePermissions(role: Schemas["RoleOut"] | null) {
-  return role?.permissions_json || {};
-}
-
-function mapUser(user: Schemas["UserOut"], role: Schemas["RoleOut"] | null): AdminUserRead {
-  const roleName = role?.name || "user";
-  const permissions = rolePermissions(role);
+function mapUser(user: ManagedUserResponse): AdminUserRead {
+  const roleName = user.role_name || null;
+  const permissions = user.effective_permissions || {};
   return {
     uid: rememberLegacyStringId("user", user.id),
     username: user.username,
@@ -47,6 +53,8 @@ function mapUser(user: Schemas["UserOut"], role: Schemas["RoleOut"] | null): Adm
     role_level: roleLevel(roleName),
     can_audit: Boolean(permissions["audits:read"]),
     is_active: user.is_active,
+    permissions_json: user.permissions_json || {},
+    effective_permissions: permissions,
     token_version: null,
     quota_tokens: null,
     invite_quota_remaining: null,
@@ -61,21 +69,24 @@ async function loadRoles() {
   return apiCall((client) => client.listRoles());
 }
 
+async function listManagedUsers() {
+  return apiJson<ManagedUserResponse[]>("/users");
+}
+
 export function listAdminUsers(
   page: number,
   page_size: number,
   params?: { q?: string; role?: string },
 ): Promise<PageResp<AdminUserRead>> {
-  return apiCall(async (client) => {
-    const [users, roles] = await Promise.all([client.listUsers(), loadRoles()]);
-    const roleMap = new Map(roles.map((item) => [item.id, item] as const));
+  return apiCall(async () => {
+    const users = await listManagedUsers();
     const items = users
-      .map((user) => mapUser(user, user.role_id ? roleMap.get(user.role_id) ?? null : null))
+      .map(mapUser)
       .filter((user) => {
         if (params?.q && !user.username.includes(params.q) && !(user.email || "").includes(params.q)) {
           return false;
         }
-        if (params?.role && user.role !== params.role) {
+        if (params?.role && (user.role || "") !== params.role) {
           return false;
         }
         return true;
@@ -87,15 +98,19 @@ export function listAdminUsers(
 export function createAdminUser(data: AdminUserCreatePayload): Promise<AdminUserRead> {
   return apiCall(async (client) => {
     const roles = await client.listRoles();
-    const role = roles.find((item) => item.name === data.role) ?? null;
-    const user = await client.createUser({
-      username: data.username,
-      email: data.email ?? null,
-      password: data.password,
-      role_id: role?.id ?? null,
-      is_active: true,
+    const role = data.role ? roles.find((item) => item.name === data.role) ?? null : null;
+    const user = await apiJson<ManagedUserResponse>("/users", {
+      method: "POST",
+      body: JSON.stringify({
+        username: data.username,
+        email: data.email ?? null,
+        password: data.password,
+        role_id: role?.id ?? null,
+        permissions_json: data.permissions_json || {},
+        is_active: true,
+      }),
     });
-    return mapUser(user, role);
+    return mapUser(user);
   });
 }
 
@@ -103,14 +118,17 @@ export function updateAdminUser(userUid: string, data: AdminUserUpdatePayload): 
   return apiCall(async (client) => {
     const roles = await client.listRoles();
     const role = data.role ? roles.find((item) => item.name === data.role) ?? null : null;
-    const user = await client.updateUser(resolveActualId("user", userUid), {
-      email: data.email ?? null,
-      role_id: data.role ? role?.id ?? null : undefined,
-      is_active: data.is_active ?? undefined,
-      password: data.password ?? undefined,
+    const user = await apiJson<ManagedUserResponse>(`/users/${resolveActualId("user", userUid)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        email: data.email ?? null,
+        role_id: data.role !== undefined ? role?.id ?? null : undefined,
+        permissions_json: data.permissions_json ?? undefined,
+        is_active: data.is_active ?? undefined,
+        password: data.password ?? undefined,
+      }),
     });
-    const resolvedRole = user.role_id ? roles.find((item) => item.id === user.role_id) ?? role : role;
-    return mapUser(user, resolvedRole ?? null);
+    return mapUser(user);
   });
 }
 

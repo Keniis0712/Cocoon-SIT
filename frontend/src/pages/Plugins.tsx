@@ -23,6 +23,7 @@ import {
 } from "@/api/plugins";
 import type { ChatGroupRead, CocoonRead } from "@/api/types";
 import type { ChatGroupPluginConfigRead, PluginTargetBindingRead, UserPluginRead } from "@/api/types/plugins";
+import { PopupSelect } from "@/components/composes/PopupSelect";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -285,6 +286,26 @@ export default function PluginsPage() {
   const selectedPlugin = useMemo(
     () => plugins.find((item) => item.id === selectedPluginId) ?? null,
     [plugins, selectedPluginId],
+  );
+  const cocoonOptions = useMemo(
+    () =>
+      cocoons.map((cocoon) => ({
+        value: String(cocoon.id),
+        label: cocoon.name,
+        description: String(cocoon.id),
+        keywords: [String(cocoon.id)],
+      })),
+    [cocoons],
+  );
+  const chatGroupOptions = useMemo(
+    () =>
+      chatGroups.map((room) => ({
+        value: room.id,
+        label: room.name,
+        description: room.id,
+        keywords: [room.id],
+      })),
+    [chatGroups],
   );
 
   useEffect(() => {
@@ -728,31 +749,27 @@ export default function PluginsPage() {
                     <div className="grid gap-2">
                       <Label>{t("plugins:targetObject")}</Label>
                       {bindingTargetType === "cocoon" ? (
-                        <Select value={selectedCocoonId} onValueChange={setSelectedCocoonId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder={t("plugins:selectCocoon")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {cocoons.map((cocoon) => (
-                              <SelectItem key={cocoon.id} value={String(cocoon.id)}>
-                                {cocoon.name} - {cocoon.id}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <PopupSelect
+                          title={t("plugins:selectCocoon")}
+                          description={t("plugins:targetBindingDescription")}
+                          placeholder={t("plugins:selectCocoon")}
+                          searchPlaceholder={t("common:search")}
+                          emptyText={t("plugins:noTargetBindings")}
+                          value={selectedCocoonId}
+                          onValueChange={setSelectedCocoonId}
+                          options={cocoonOptions}
+                        />
                       ) : (
-                        <Select value={selectedChatGroupId} onValueChange={setSelectedChatGroupId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder={t("plugins:selectChatGroup")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {chatGroups.map((room) => (
-                              <SelectItem key={room.id} value={room.id}>
-                                {room.name} - {room.id}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <PopupSelect
+                          title={t("plugins:selectChatGroup")}
+                          description={t("plugins:targetBindingDescription")}
+                          placeholder={t("plugins:selectChatGroup")}
+                          searchPlaceholder={t("common:search")}
+                          emptyText={t("plugins:noChatGroups")}
+                          value={selectedChatGroupId}
+                          onValueChange={setSelectedChatGroupId}
+                          options={chatGroupOptions}
+                        />
                       )}
                     </div>
 
@@ -817,18 +834,16 @@ export default function PluginsPage() {
                   <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                     <div className="grid gap-2">
                       <Label>{t("plugins:targetChatGroup")}</Label>
-                      <Select value={selectedChatGroupId} onValueChange={setSelectedChatGroupId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t("plugins:selectChatGroup")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {chatGroups.map((room) => (
-                            <SelectItem key={room.id} value={room.id}>
-                              {room.name} - {room.id}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <PopupSelect
+                        title={t("plugins:selectChatGroup")}
+                        description={t("plugins:groupConfigDescription")}
+                        placeholder={t("plugins:selectChatGroup")}
+                        searchPlaceholder={t("common:search")}
+                        emptyText={t("plugins:noChatGroups")}
+                        value={selectedChatGroupId}
+                        onValueChange={setSelectedChatGroupId}
+                        options={chatGroupOptions}
+                      />
                     </div>
                     <div
                       className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm transition ${

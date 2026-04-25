@@ -5,10 +5,12 @@ export interface AdminUserRead {
   parent_uid: string | null;
   user_path: string | null;
   invite_code: string | null;
-  role: string;
+  role: string | null;
   role_level: number;
   can_audit: boolean;
   is_active: boolean;
+  permissions_json: Record<string, boolean>;
+  effective_permissions: Record<string, boolean>;
   token_version: number | null;
   quota_tokens: number | null;
   invite_quota_remaining: number | null;
@@ -22,7 +24,8 @@ export interface AdminUserCreatePayload {
   username: string;
   password: string;
   email?: string | null;
-  role: string;
+  role?: string | null;
+  permissions_json?: Record<string, boolean>;
   role_level: number;
   can_audit: boolean;
   parent_uid?: string | null;
@@ -33,6 +36,7 @@ export interface AdminUserCreatePayload {
 export interface AdminUserUpdatePayload {
   email?: string | null;
   role?: string | null;
+  permissions_json?: Record<string, boolean> | null;
   role_level?: number | null;
   can_audit?: boolean | null;
   is_active?: boolean | null;
@@ -96,6 +100,7 @@ export interface InviteCodeRead {
   code: string;
   created_by_uid: string;
   parent_uid: string;
+  registration_group_id: string | null;
   source_type: "USER" | "GROUP" | "ADMIN_OVERRIDE" | string;
   source_id: string | null;
   expires_at: string | null;
@@ -107,6 +112,7 @@ export interface InviteCodeRead {
 
 export interface InviteCodeCreatePayload {
   created_for_uid?: string | null;
+  registration_group_id: string;
   source_type: "USER" | "GROUP" | "ADMIN_OVERRIDE";
   source_id?: string | null;
   expires_at?: string | null;
@@ -123,6 +129,7 @@ export interface InviteQuotaGrantRead {
   is_unlimited: boolean;
   note: string | null;
   created_at: string;
+  revoked_at: string | null;
 }
 
 export interface InviteQuotaGrantCreatePayload {

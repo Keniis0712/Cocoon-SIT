@@ -4,17 +4,18 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
-from app.models import User
+from app.models import Role, User
 from app.schemas.access.auth import (
+    CurrentUserOut,
     LoginRequest,
     ImBindTokenOut,
     PublicFeaturesOut,
     RefreshRequest,
     RegisterRequest,
     TokenPair,
-    UserOut,
 )
 from app.schemas.common import MessageResponse
+from app.services.security.rbac import list_permissions_for_user
 
 
 router = APIRouter()
@@ -52,9 +53,24 @@ def logout(
     return db.info["container"].auth_session_service.logout(db, payload.refresh_token)
 
 
-@router.get("/me", response_model=UserOut)
-def me(user: User = Depends(get_current_user)) -> User:
-    return user
+@router.get("/me", response_model=CurrentUserOut)
+def me(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CurrentUserOut:
+    role = db.get(Role, user.role_id) if user.role_id else None
+    permissions = {permission: True for permission in list_permissions_for_user(db, user)}
+    return CurrentUserOut(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        role_id=user.role_id,
+        permissions_json=user.permissions_json or {},
+        role_name=role.name if role else None,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        permissions=permissions,
+    )
 
 
 @router.post("/me/im-bind-token", response_model=ImBindTokenOut)

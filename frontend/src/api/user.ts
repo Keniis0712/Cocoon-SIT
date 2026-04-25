@@ -1,10 +1,21 @@
-import type { Schemas } from "@cocoon-sit/ts-sdk";
+import { ApiError } from "@cocoon-sit/ts-sdk";
 
-import { apiCall, apiJson, createAnonymousClient, createTokenClient } from "./client";
+import { apiCall, apiJson, createAnonymousClient, getApiBaseUrl, getErrorMessage } from "./client";
 import { rememberLegacyId, rememberLegacyStringId } from "./id-map";
 import type { PublicFeaturesRead } from "./types/providers";
 
 type PermissionMap = Record<string, boolean>;
+
+type AuthMeProfileResponse = {
+  id: string;
+  username: string;
+  email: string | null;
+  role_id: string | null;
+  role_name: string | null;
+  is_active: boolean;
+  created_at: string;
+  permissions: PermissionMap;
+};
 
 export interface SessionUser {
   access_token: string;
@@ -65,23 +76,17 @@ function roleLevel(roleName: string) {
   return 2;
 }
 
-function rolePermissions(role: Schemas["RoleOut"] | null): PermissionMap {
-  return role?.permissions_json || {};
-}
-
-function buildMeResponse(
-  user: Schemas["UserOut"],
-  role: Schemas["RoleOut"] | null,
-): MeResponse {
-  const permissions = rolePermissions(role);
+function buildMeResponse(profile: AuthMeProfileResponse): MeResponse {
+  const permissions = profile.permissions || {};
+  const roleName = profile.role_name || (Object.keys(permissions).length > 0 ? "direct" : "user");
   return {
-    uid: rememberLegacyStringId("user", user.id),
-    username: user.username,
-    email: user.email ?? null,
+    uid: rememberLegacyStringId("user", profile.id),
+    username: profile.username,
+    email: profile.email ?? null,
     parent_uid: null,
     user_path: null,
-    role: role?.name || "user",
-    role_level: roleLevel(role?.name || "user"),
+    role: roleName,
+    role_level: roleLevel(roleName),
     can_audit: Boolean(permissions["audits:read"]),
     can_manage_system: Boolean(
       permissions["settings:read"] ||
@@ -98,67 +103,66 @@ function buildMeResponse(
     permissions,
     invite_quota_remaining: null,
     invite_quota_unlimited: null,
-    created_at: user.created_at,
+    created_at: profile.created_at,
   };
 }
 
-async function fetchProfile(accessToken: string) {
-  const client = createTokenClient(accessToken);
-  const user = await client.me();
-  let role: Schemas["RoleOut"] | null = null;
+async function fetchProfileWithAccessToken(accessToken: string): Promise<AuthMeProfileResponse> {
+  const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/me`, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
 
-  if (user.role_id) {
+  const rawText = await response.text();
+  let payload: unknown = null;
+  if (rawText) {
     try {
-      const roles = await client.listRoles();
-      role = roles.find((item) => item.id === user.role_id) ?? null;
+      payload = JSON.parse(rawText);
     } catch {
-      role = null;
+      payload = rawText;
     }
   }
 
-  return buildMeResponse(user, role);
+  if (!response.ok) {
+    throw new Error(getErrorMessage(new ApiError(response.status, payload)));
+  }
+
+  return payload as AuthMeProfileResponse;
 }
 
 export async function login(username: string, password: string): Promise<SessionUser> {
   const tokenPair = await createAnonymousClient().login({ username, password });
-  const profile = await fetchProfile(tokenPair.access_token);
+  const profile = await fetchProfileWithAccessToken(tokenPair.access_token);
+  const session = buildMeResponse(profile);
 
   return {
     access_token: tokenPair.access_token,
     refresh_token: tokenPair.refresh_token,
     token_type: "bearer",
     expires_in_seconds: 0,
-    ...profile,
+    ...session,
   };
 }
 
 export async function register(data: RegisterPayload): Promise<SessionUser> {
   const tokenPair = await createAnonymousClient().register(data);
-  const profile = await fetchProfile(tokenPair.access_token);
+  const profile = await fetchProfileWithAccessToken(tokenPair.access_token);
+  const session = buildMeResponse(profile);
 
   return {
     access_token: tokenPair.access_token,
     refresh_token: tokenPair.refresh_token,
     token_type: "bearer",
     expires_in_seconds: 0,
-    ...profile,
+    ...session,
   };
 }
 
 export async function me(): Promise<MeResponse> {
-  return apiCall(async (client) => {
-    const user = await client.me();
-    let role: Schemas["RoleOut"] | null = null;
-    if (user.role_id) {
-      try {
-        const roles = await client.listRoles();
-        role = roles.find((item) => item.id === user.role_id) ?? null;
-      } catch {
-        role = null;
-      }
-    }
-    return buildMeResponse(user, role);
-  });
+  const profile = await apiJson<AuthMeProfileResponse>("/auth/me");
+  return buildMeResponse(profile);
 }
 
 export async function createImBindToken(): Promise<ImBindTokenResponse> {

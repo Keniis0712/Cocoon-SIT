@@ -27,6 +27,7 @@ import { resolveActualId } from "@/api/id-map";
 import type { GroupRead } from "@/api/types";
 import type { AdminPluginDetailRead, AdminPluginListItemRead, AdminPluginSharedPackageRead, PluginGroupVisibilityRead } from "@/api/types/plugins";
 import AccessCard from "@/components/AccessCard";
+import { PopupSelect } from "@/components/composes/PopupSelect";
 import PageFrame from "@/components/PageFrame";
 import {
   AlertDialog,
@@ -121,6 +122,16 @@ export default function AdminPluginsPage() {
   const groupNameByActualId = useMemo(() => {
     return new Map(groups.map((group) => [resolveActualId("group", group.gid), group.name] as const));
   }, [groups]);
+  const groupOptions = useMemo(
+    () =>
+      groups.map((group) => ({
+        value: group.gid,
+        label: group.name,
+        description: group.group_path || group.gid,
+        keywords: [group.gid],
+      })),
+    [groups],
+  );
 
   useEffect(() => {
     if (!canView) {
@@ -1021,18 +1032,16 @@ export default function AdminPluginsPage() {
                 <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
                   <div className="grid gap-2">
                     <Label>{t("plugins:groupField")}</Label>
-                    <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("plugins:selectGroup")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {groups.map((group) => (
-                          <SelectItem key={group.gid} value={group.gid}>
-                            {group.name} · {group.gid}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <PopupSelect
+                      title={t("plugins:selectGroup")}
+                      description={t("plugins:groupVisibilityDescription")}
+                      placeholder={t("plugins:selectGroup")}
+                      searchPlaceholder={t("common:search")}
+                      emptyText={t("plugins:noGroupVisibility")}
+                      value={selectedGroupId}
+                      onValueChange={setSelectedGroupId}
+                      options={groupOptions}
+                    />
                   </div>
                   <div className="flex h-10 items-center gap-2 rounded-lg border border-border/70 px-3 text-sm">
                     {newGroupVisibility ? <Eye className="size-4" /> : <EyeOff className="size-4" />}

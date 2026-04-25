@@ -11,6 +11,8 @@ import { listModelProviders } from "@/api/providers";
 import type { CharacterRead } from "@/api/types/catalog";
 import type { ChatGroupPayload, ChatGroupRead, ChatGroupUpdatePayload } from "@/api/types/chat-groups";
 import type { ModelProviderRead } from "@/api/types/providers";
+import { PopupSelect } from "@/components/composes/PopupSelect";
+import { useConfirmDialog } from "@/components/composes/useConfirmDialog";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +21,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { resolveActualId } from "@/api/id-map";
 
 type DialogMode = "create" | "edit";
@@ -72,8 +73,28 @@ export default function ChatGroupsPage() {
   const [dialogMode, setDialogMode] = useState<DialogMode>("create");
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState<GroupFormState>(EMPTY_FORM);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   const modelOptions = useMemo(() => buildModelOptions(providers), [providers]);
+  const characterOptions = useMemo(
+    () =>
+      characters.map((character) => ({
+        value: String(character.id),
+        label: character.name,
+        description: character.description || `#${character.id}`,
+        keywords: [String(character.id)],
+      })),
+    [characters],
+  );
+  const modelSelectOptions = useMemo(
+    () =>
+      modelOptions.map((model) => ({
+        value: model.id,
+        label: model.label,
+        keywords: [model.id],
+      })),
+    [modelOptions],
+  );
   const selectedRoom = useMemo(
     () => rooms.find((item) => item.id === selectedRoomId) || null,
     [rooms, selectedRoomId],
@@ -185,7 +206,14 @@ export default function ChatGroupsPage() {
     if (!selectedRoom) {
       return;
     }
-    if (!window.confirm(t("chatGroups:deleteConfirm", { name: selectedRoom.name }))) {
+    const accepted = await confirm({
+      title: t("common:delete"),
+      description: t("chatGroups:deleteConfirm", { name: selectedRoom.name }),
+      confirmLabel: t("common:delete"),
+      cancelLabel: t("common:cancel"),
+      variant: "destructive",
+    });
+    if (!accepted) {
       return;
     }
     try {
@@ -214,6 +242,7 @@ export default function ChatGroupsPage() {
         </>
       }
     >
+      {confirmDialog}
       <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <Card className="overflow-hidden border-border/70 bg-card/90">
           <div className="border-b border-border/70">
@@ -366,36 +395,29 @@ export default function ChatGroupsPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label>{t("chatGroups:characterFieldLabel")}</Label>
-                <Select value={form.character_id} onValueChange={(value) => setForm((prev) => ({ ...prev, character_id: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("chatGroups:selectCharacter")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {characters.map((character) => (
-                      <SelectItem key={character.id} value={String(character.id)}>
-                        {character.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PopupSelect
+                  title={t("chatGroups:selectCharacter")}
+                  description={t("chatGroups:dialogDescription")}
+                  placeholder={t("chatGroups:selectCharacter")}
+                  searchPlaceholder={t("common:search")}
+                  emptyText={t("chatGroups:emptyRooms")}
+                  value={form.character_id}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, character_id: value }))}
+                  options={characterOptions}
+                />
               </div>
               <div className="grid gap-2">
                 <Label>{t("common:model")}</Label>
-                <Select
+                <PopupSelect
+                  title={t("common:selectModel")}
+                  description={t("chatGroups:dialogDescription")}
+                  placeholder={t("common:selectModel")}
+                  searchPlaceholder={t("common:search")}
+                  emptyText={t("chatGroups:emptyRooms")}
                   value={form.selected_model_id}
                   onValueChange={(value) => setForm((prev) => ({ ...prev, selected_model_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("common:selectModel")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {modelOptions.map((model) => (
-                      <SelectItem key={model.id} value={model.id}>
-                        {model.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={modelSelectOptions}
+                />
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">

@@ -1,9 +1,5 @@
-import { apiCall } from "./client";
-import {
-  rememberLegacyId,
-  rememberLegacyStringId,
-  resolveActualId,
-} from "./id-map";
+import { apiCall, apiJson } from "./client";
+import { rememberLegacyId, rememberLegacyStringId, resolveActualId } from "./id-map";
 import type {
   GroupCreatePayload,
   GroupMemberRead,
@@ -26,67 +22,77 @@ function makePage<T>(items: T[], page: number, pageSize: number): PageResp<T> {
   };
 }
 
+type GroupResponse = {
+  id: string;
+  name: string;
+  owner_user_id: string | null;
+  parent_group_id: string | null;
+  group_path: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function mapGroup(item: GroupResponse): GroupRead {
+  return {
+    gid: rememberLegacyStringId("group", item.id),
+    name: item.name,
+    owner_uid: item.owner_user_id ? rememberLegacyStringId("user", item.owner_user_id) : "",
+    parent_group_id: item.parent_group_id ? rememberLegacyStringId("group", item.parent_group_id) : null,
+    group_path: item.group_path,
+    invite_quota_remaining: null,
+    invite_quota_unlimited: null,
+    description: item.description,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  };
+}
+
 export function listGroups(page: number, page_size: number, params?: { q?: string }): Promise<PageResp<GroupRead>> {
-  return apiCall(async (client) => {
-    const items = (await client.listGroups())
-      .map((item) => ({
-        gid: rememberLegacyStringId("group", item.id),
-        name: item.name,
-        owner_uid: item.owner_user_id ? rememberLegacyStringId("user", item.owner_user_id) : "",
-        parent_group_id: null,
-        group_path: null,
-        invite_quota_remaining: null,
-        invite_quota_unlimited: null,
-        description: null,
-        created_at: item.created_at,
-        updated_at: item.created_at,
-      }))
+  return apiCall(async () => {
+    const items = (await apiJson<GroupResponse[]>("/groups"))
+      .map(mapGroup)
       .filter((item) => !params?.q || item.name.includes(params.q));
     return makePage(items, page, page_size);
   });
 }
 
 export function createGroup(data: GroupCreatePayload): Promise<GroupRead> {
-  return apiCall(async (client) => {
-    const group = await client.createGroup({ name: data.name.trim() });
-    return {
-      gid: rememberLegacyStringId("group", group.id),
-      name: group.name,
-      owner_uid: group.owner_user_id ? rememberLegacyStringId("user", group.owner_user_id) : "",
-      parent_group_id: null,
-      group_path: null,
-      invite_quota_remaining: null,
-      invite_quota_unlimited: null,
-      description: null,
-      created_at: group.created_at,
-      updated_at: group.created_at,
-    };
-  });
-}
-
-export function updateGroup(_gid: string, _data: GroupUpdatePayload): Promise<GroupRead> {
-  return apiCall(async (client) => {
-    const updated = await client.updateGroup(resolveActualId("group", _gid), {
-      name: _data.name ?? undefined,
+  return apiCall(async () => {
+    const group = await apiJson<GroupResponse>("/groups", {
+      method: "POST",
+      body: JSON.stringify({
+        name: data.name.trim(),
+        parent_group_id: data.parent_group_id ? resolveActualId("group", data.parent_group_id) : null,
+        description: data.description ?? null,
+      }),
     });
-    return {
-      gid: rememberLegacyStringId("group", updated.id),
-      name: updated.name,
-      owner_uid: updated.owner_user_id ? rememberLegacyStringId("user", updated.owner_user_id) : "",
-      parent_group_id: null,
-      group_path: null,
-      invite_quota_remaining: null,
-      invite_quota_unlimited: null,
-      description: null,
-      created_at: updated.created_at,
-      updated_at: updated.created_at,
-    };
+    return mapGroup(group);
   });
 }
 
-export function deleteGroup(_gid: string) {
+export function updateGroup(gid: string, data: GroupUpdatePayload): Promise<GroupRead> {
+  return apiCall(async () => {
+    const updated = await apiJson<GroupResponse>(`/groups/${resolveActualId("group", gid)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        name: data.name ?? undefined,
+        parent_group_id:
+          data.parent_group_id === undefined
+            ? undefined
+            : data.parent_group_id
+              ? resolveActualId("group", data.parent_group_id)
+              : null,
+        description: data.description === undefined ? undefined : data.description,
+      }),
+    });
+    return mapGroup(updated);
+  });
+}
+
+export function deleteGroup(gid: string) {
   return apiCall(async (client) => {
-    await client.deleteGroup(resolveActualId("group", _gid));
+    await client.deleteGroup(resolveActualId("group", gid));
   });
 }
 
@@ -117,9 +123,9 @@ export function addGroupMember(gid: string, user_uid: string): Promise<GroupMemb
   });
 }
 
-export function removeGroupMember(_gid: string, _user_uid: string) {
+export function removeGroupMember(gid: string, user_uid: string) {
   return apiCall(async (client) => {
-    const item = await client.removeGroupMember(resolveActualId("group", _gid), resolveActualId("user", _user_uid));
+    const item = await client.removeGroupMember(resolveActualId("group", gid), resolveActualId("user", user_uid));
     return {
       id: rememberLegacyId("group-member", item.id),
       group_id: rememberLegacyStringId("group", item.group_id),

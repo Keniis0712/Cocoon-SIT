@@ -48,8 +48,19 @@ class UserOut(ORMModel):
     username: str
     email: str | None
     role_id: str | None
+    permissions_json: dict[str, bool] = Field(default_factory=dict)
     is_active: bool
     created_at: datetime
+
+
+class ManagedUserOut(UserOut):
+    role_name: str | None = None
+    effective_permissions: dict[str, bool] = Field(default_factory=dict)
+
+
+class CurrentUserOut(UserOut):
+    role_name: str | None = None
+    permissions: dict[str, bool] = Field(default_factory=dict)
 
 
 class ImBindTokenOut(BaseModel):
@@ -63,6 +74,7 @@ class UserCreate(BaseModel):
     email: EmailStr | None = None
     password: str = Field(min_length=4)
     role_id: str | None = None
+    permissions_json: dict[str, bool] = Field(default_factory=dict)
     is_active: bool = True
 
 
@@ -70,6 +82,7 @@ class UserUpdate(BaseModel):
     username: str | None = Field(default=None, min_length=1)
     email: EmailStr | None = None
     role_id: str | None = None
+    permissions_json: dict[str, bool] | None = None
     is_active: bool | None = None
     password: str | None = Field(default=None, min_length=4)
 

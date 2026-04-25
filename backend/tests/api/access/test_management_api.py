@@ -24,11 +24,15 @@ def test_roles_users_and_groups_api_crud(client, auth_headers):
             "email": "api-user@example.com",
             "password": "secret1",
             "role_id": role_id,
+            "permissions_json": {"audits:read": True},
             "is_active": True,
         },
     )
     assert user_response.status_code == 200, user_response.text
     user_id = user_response.json()["id"]
+    assert user_response.json()["permissions_json"]["audits:read"] is True
+    assert user_response.json()["effective_permissions"]["users:write"] is True
+    assert user_response.json()["effective_permissions"]["audits:read"] is True
 
     users_response = client.get("/api/v1/users", headers=auth_headers)
     assert users_response.status_code == 200, users_response.text
@@ -45,14 +49,20 @@ def test_roles_users_and_groups_api_crud(client, auth_headers):
     user_update = client.patch(
         f"/api/v1/users/{user_id}",
         headers=auth_headers,
-        json={"is_active": False, "password": "secret2"},
+        json={"is_active": False, "password": "secret2", "permissions_json": {"users:write": False}},
     )
     assert user_update.status_code == 200, user_update.text
     assert user_update.json()["is_active"] is False
+    assert user_update.json()["effective_permissions"]["users:write"] is False
 
-    group_response = client.post("/api/v1/groups", headers=auth_headers, json={"name": "api-group"})
+    group_response = client.post(
+        "/api/v1/groups",
+        headers=auth_headers,
+        json={"name": "api-group", "description": "api group"},
+    )
     assert group_response.status_code == 200, group_response.text
     group_id = group_response.json()["id"]
+    assert group_response.json()["group_path"]
 
     groups_response = client.get("/api/v1/groups", headers=auth_headers)
     assert groups_response.status_code == 200, groups_response.text
@@ -61,10 +71,11 @@ def test_roles_users_and_groups_api_crud(client, auth_headers):
     group_update = client.patch(
         f"/api/v1/groups/{group_id}",
         headers=auth_headers,
-        json={"name": "api-group-updated"},
+        json={"name": "api-group-updated", "description": "updated"},
     )
     assert group_update.status_code == 200, group_update.text
     assert group_update.json()["name"] == "api-group-updated"
+    assert group_update.json()["description"] == "updated"
 
     member_add = client.post(
         f"/api/v1/groups/{group_id}/members",
@@ -107,4 +118,4 @@ def test_users_api_blocks_self_role_and_status_changes(client, auth_headers):
     )
 
     assert response.status_code == 403, response.text
-    assert response.envelope_json()["msg"] == "Users cannot change their own role or active status"
+    assert response.envelope_json()["msg"] == "Users cannot change their own role, permissions, or active status"

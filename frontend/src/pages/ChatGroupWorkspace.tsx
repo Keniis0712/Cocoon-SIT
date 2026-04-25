@@ -32,6 +32,7 @@ import type { ChatGroupMemberRead, ChatGroupRead } from "@/api/types/chat-groups
 import type { ModelProviderRead } from "@/api/types/providers";
 import type { WakeupTaskRead } from "@/api/types/wakeups";
 import { listChatGroupWakeups } from "@/api/wakeups";
+import { useConfirmDialog } from "@/components/composes/useConfirmDialog";
 import PageFrame from "@/components/PageFrame";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,6 +91,7 @@ export default function ChatGroupWorkspacePage() {
   const [isSending, setIsSending] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [memberDialog, setMemberDialog] = useState<MemberDialogState>({ open: false, userId: "", role: "member" });
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   const session = useChatSessionStore((state) => state.sessions[sessionKey] ?? null);
   const ensureSession = useChatSessionStore((state) => state.ensureSession);
@@ -375,7 +377,14 @@ export default function ChatGroupWorkspacePage() {
   }
 
   async function handleRemoveMember(member: ChatGroupMemberRead) {
-    if (!window.confirm(t("removeMemberConfirm", { name: memberNameMap.get(member.user_id) || member.user_id }))) {
+    const accepted = await confirm({
+      title: t("removeMember"),
+      description: t("removeMemberConfirm", { name: memberNameMap.get(member.user_id) || member.user_id }),
+      confirmLabel: t("removeMember"),
+      cancelLabel: t("common.cancel", { defaultValue: "Cancel" }),
+      variant: "destructive",
+    });
+    if (!accepted) {
       return;
     }
     try {
@@ -462,6 +471,7 @@ export default function ChatGroupWorkspacePage() {
         </>
       }
     >
+      {confirmDialog}
       <div className="grid gap-4 xl:grid-cols-[1.6fr_0.9fr]">
         <Card className="min-h-[78vh] overflow-hidden border-border/70 bg-card/90">
           <div className="border-b border-border/70 bg-linear-to-r from-cyan-500/12 via-orange-500/8 to-transparent">

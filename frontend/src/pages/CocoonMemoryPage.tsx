@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { showErrorToast } from "@/api/client";
 import { deleteCocoonMemory, getCocoon, getCocoonMemories } from "@/api/cocoons";
 import type { CocoonRead, MemoryChunkRead } from "@/api/types/cocoons";
+import { useConfirmDialog } from "@/components/composes/useConfirmDialog";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ export default function CocoonMemoryPage() {
   const [cocoon, setCocoon] = useState<CocoonRead | null>(null);
   const [items, setItems] = useState<MemoryChunkRead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     if (!Number.isFinite(cocoonId) || cocoonId <= 0) {
@@ -52,7 +54,14 @@ export default function CocoonMemoryPage() {
   }
 
   async function handleDeleteMemory(memory: MemoryChunkRead) {
-    if (!window.confirm(t("deleteMemoryConfirm", { id: memory.id }))) {
+    const accepted = await confirm({
+      title: t("deleteMemory"),
+      description: t("deleteMemoryConfirm", { id: memory.id }),
+      confirmLabel: t("deleteMemory"),
+      cancelLabel: t("common.cancel", { defaultValue: "Cancel" }),
+      variant: "destructive",
+    });
+    if (!accepted) {
       return;
     }
     try {
@@ -118,6 +127,7 @@ export default function CocoonMemoryPage() {
           )}
         </CardContent>
       </Card>
+      {confirmDialog}
     </PageFrame>
   );
 }

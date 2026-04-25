@@ -12,6 +12,8 @@ import { listModelProviders } from "@/api/providers";
 import type { CharacterRead } from "@/api/types/catalog";
 import type { CocoonPayload, CocoonRead, CocoonTreeNode } from "@/api/types/cocoons";
 import type { ModelProviderRead } from "@/api/types/providers";
+import { PopupSelect } from "@/components/composes/PopupSelect";
+import { useConfirmDialog } from "@/components/composes/useConfirmDialog";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +22,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type TreeNodeState = CocoonTreeNode & {
   childIds: number[];
@@ -125,8 +126,38 @@ export default function CocoonsPage() {
   const [dialogMode, setDialogMode] = useState<CocoonDialogMode>("create-root");
   const [form, setForm] = useState<CocoonFormState>(EMPTY_ROOT_FORM);
   const [isSaving, setIsSaving] = useState(false);
+  const { confirm, confirmDialog } = useConfirmDialog();
 
   const modelOptions = useMemo(() => buildModelOptions(providers), [providers]);
+  const characterSelectOptions = useMemo(() => {
+    const baseOptions =
+      dialogMode === "create-child"
+        ? [{ value: INHERIT, label: t("cocoons.inheritParent"), description: t("cocoons.roleInheritanceHint") }]
+        : [{ value: UNSET, label: t("cocoons.selectRole"), description: t("common.default") }];
+    return [
+      ...baseOptions,
+      ...characters.map((character) => ({
+        value: String(character.id),
+        label: character.name,
+        description: character.description || `#${character.id}`,
+        keywords: [String(character.id)],
+      })),
+    ];
+  }, [characters, dialogMode, t]);
+  const modelSelectOptions = useMemo(() => {
+    const baseOptions =
+      dialogMode === "create-child"
+        ? [{ value: INHERIT, label: t("cocoons.inheritParent"), description: t("cocoons.dialogCreateChildDescription") }]
+        : [{ value: UNSET, label: t("cocoons.selectModel"), description: t("common.default") }];
+    return [
+      ...baseOptions,
+      ...modelOptions.map((model) => ({
+        value: String(model.id),
+        label: model.label,
+        keywords: [String(model.id)],
+      })),
+    ];
+  }, [dialogMode, modelOptions, t]);
 
   useEffect(() => {
     void fetchReferenceData();
@@ -320,7 +351,14 @@ export default function CocoonsPage() {
 
   async function handleDeleteSelectedCocoon() {
     if (!selectedCocoon) return;
-    if (!window.confirm(t("cocoons.confirmDeletePrompt", { name: selectedCocoon.name }))) {
+    const accepted = await confirm({
+      title: t("common.delete"),
+      description: t("cocoons.confirmDeletePrompt", { name: selectedCocoon.name }),
+      confirmLabel: t("common.delete"),
+      cancelLabel: t("common.cancel"),
+      variant: "destructive",
+    });
+    if (!accepted) {
       return;
     }
     try {
@@ -410,6 +448,7 @@ export default function CocoonsPage() {
         </>
       }
     >
+      {confirmDialog}
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Card className="min-h-[72vh] border-border/70 bg-card/90">
           <CardHeader>
@@ -570,48 +609,37 @@ export default function CocoonsPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label>{t("common.role")}</Label>
-                <Select value={form.character_id} onValueChange={(value) => setForm((prev) => ({ ...prev, character_id: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("cocoons.selectRole")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dialogMode === "create-child" ? (
-                      <SelectItem value={INHERIT}>{t("cocoons.inheritParent")}</SelectItem>
-                    ) : null}
-                    {dialogMode !== "create-child" ? (
-                      <SelectItem value={UNSET}>{t("cocoons.selectRole")}</SelectItem>
-                    ) : null}
-                    {characters.map((character) => (
-                      <SelectItem key={character.id} value={String(character.id)}>
-                        {character.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PopupSelect
+                  title={t("cocoons.selectRole")}
+                  description={t(
+                    dialogMode === "create-child"
+                      ? "cocoons.dialogCreateChildDescription"
+                      : "cocoons.dialogDefaultDescription",
+                  )}
+                  placeholder={t("cocoons.selectRole")}
+                  searchPlaceholder={t("common.search")}
+                  emptyText={t("cocoons.treeEmpty")}
+                  value={form.character_id}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, character_id: value }))}
+                  options={characterSelectOptions}
+                />
               </div>
               <div className="grid gap-2">
                 <Label>{t("common.model")}</Label>
-                <Select
+                <PopupSelect
+                  title={t("cocoons.selectModel")}
+                  description={t(
+                    dialogMode === "create-child"
+                      ? "cocoons.dialogCreateChildDescription"
+                      : "cocoons.dialogDefaultDescription",
+                  )}
+                  placeholder={t("cocoons.selectModel")}
+                  searchPlaceholder={t("common.search")}
+                  emptyText={t("cocoons.treeEmpty")}
                   value={form.selected_model_id}
                   onValueChange={(value) => setForm((prev) => ({ ...prev, selected_model_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("cocoons.selectModel")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dialogMode === "create-child" ? (
-                      <SelectItem value={INHERIT}>{t("cocoons.inheritParent")}</SelectItem>
-                    ) : null}
-                    {dialogMode !== "create-child" ? (
-                      <SelectItem value={UNSET}>{t("cocoons.selectModel")}</SelectItem>
-                    ) : null}
-                    {modelOptions.map((model) => (
-                      <SelectItem key={model.id} value={String(model.id)}>
-                        {model.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={modelSelectOptions}
+                />
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">

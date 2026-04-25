@@ -13,6 +13,7 @@ class InviteCreate(BaseModel):
     quota_total: int = Field(default=1, ge=1)
     expires_at: datetime | None = None
     created_for_user_id: str | None = None
+    registration_group_id: str = Field(min_length=1)
     source_type: str = Field(default="ADMIN_OVERRIDE", min_length=1)
     source_id: str | None = None
 
@@ -46,6 +47,7 @@ class InviteOut(ORMModel):
     code: str
     created_by_user_id: str | None
     created_for_user_id: str | None
+    registration_group_id: str | None
     source_type: str
     source_id: str | None
     quota_total: int
@@ -68,6 +70,7 @@ class InviteGrantOut(ORMModel):
     is_unlimited: bool
     note: str | None
     created_at: datetime
+    revoked_at: datetime | None
 
 
 class InviteSummaryOut(ORMModel):

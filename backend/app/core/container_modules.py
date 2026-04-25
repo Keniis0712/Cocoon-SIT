@@ -82,16 +82,17 @@ def wire_security_services(container) -> None:
 
 def wire_access_services(container) -> None:
     container.system_settings_service = SystemSettingsService(container.settings)
+    container.group_service = GroupService()
     container.auth_session_service = AuthSessionService(
         container.token_service,
         container.settings,
         system_settings_service=container.system_settings_service,
+        group_service=container.group_service,
     )
     container.im_bind_token_service = ImBindTokenService()
     container.user_service = UserService(container.settings)
     container.role_service = RoleService()
-    container.group_service = GroupService()
-    container.invite_service = InviteService()
+    container.invite_service = InviteService(container.group_service)
 
 
 def wire_prompt_and_audit_services(container) -> None:

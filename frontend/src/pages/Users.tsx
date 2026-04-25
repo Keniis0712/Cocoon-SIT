@@ -8,6 +8,7 @@ import { showErrorToast } from "@/api/client";
 import { listRoles } from "@/api/roles";
 import type { AdminUserCreatePayload, AdminUserRead, AdminUserUpdatePayload, RoleRead } from "@/api/types/access";
 import AccessCard from "@/components/AccessCard";
+import { PopupSelect } from "@/components/composes/PopupSelect";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { groupPermissions, listKnownPermissions, permissionLabel } from "@/lib/permission-catalog";
 import { useUserStore } from "@/store/useUserStore";
 
 type UserFormState = {
@@ -24,16 +26,21 @@ type UserFormState = {
   email: string;
   password: string;
   role: string;
+  permissions_json: Record<string, boolean>;
   is_active: boolean;
 };
 
+type PermissionMode = "inherit" | "allow" | "deny";
+
 const ALL_ROLES = "__all";
+const NO_ROLE = "__none";
 
 const EMPTY_FORM: UserFormState = {
   username: "",
   email: "",
   password: "",
-  role: "",
+  role: NO_ROLE,
+  permissions_json: {},
   is_active: true,
 };
 
@@ -44,26 +51,20 @@ function formatTime(value: string | null | undefined) {
 function parsePermissions(value: string) {
   try {
     const parsed = JSON.parse(value) as Record<string, unknown>;
-    return Object.entries(parsed).filter(([, allowed]) => Boolean(allowed));
+    return Object.entries(parsed).filter(([, allowed]) => Boolean(allowed)).map(([key]) => key);
   } catch {
-    return [] as Array<[string, unknown]>;
+    return [] as string[];
   }
 }
 
-function humanizePermission(key: string, t: (key: string) => string) {
-  const mapping: Record<string, string> = {
-    manage_users: t("me.capabilityUsers"),
-    manage_system: t("me.capabilitySystem"),
-    manage_providers: t("me.capabilityProviders"),
-    manage_prompts: t("users.promptCapability"),
-  };
-  return mapping[key] || key;
+function roleValue(roleName: string | null | undefined) {
+  return roleName || NO_ROLE;
 }
 
 function humanizeRoleDescription(role: RoleRead, t: (key: string, options?: Record<string, unknown>) => string) {
   const fallback = role.description || t("users.noRoleDescription");
   if (role.code === "admin") return t("users.systemRoleDescriptions.admin", { defaultValue: fallback });
-  if (role.code === "reseller") return t("users.systemRoleDescriptions.reseller", { defaultValue: fallback });
+  if (role.code === "operator") return t("users.systemRoleDescriptions.operator", { defaultValue: fallback });
   if (role.code === "user") return t("users.systemRoleDescriptions.user", { defaultValue: fallback });
   return fallback;
 }
@@ -104,6 +105,70 @@ export default function UsersPage() {
     void fetchUsers();
   }, [canManageUsers, page, query, roleFilter]);
 
+  const currentRole = useMemo(
+    () => roles.find((role) => role.name === (form.role === NO_ROLE ? null : form.role)) ?? null,
+    [form.role, roles],
+  );
+
+  const knownPermissionKeys = useMemo(() => {
+    const fromRoles = roles.flatMap((role) => parsePermissions(role.permissions_json));
+    const fromUsers = users.flatMap((user) => [
+      ...Object.keys(user.permissions_json || {}),
+      ...Object.keys(user.effective_permissions || {}),
+    ]);
+    const fromCurrentUser = Object.keys(userInfo?.permissions || {});
+    return listKnownPermissions([...fromRoles, ...fromUsers, ...fromCurrentUser]);
+  }, [roles, users, userInfo?.permissions]);
+
+  const permissionGroups = useMemo(() => groupPermissions(knownPermissionKeys), [knownPermissionKeys]);
+  const roleOptions = useMemo(
+    () => [
+      { value: ALL_ROLES, label: t("users.allRoles"), description: t("users.roleReferenceDescription") },
+      ...roles.map((role) => ({
+        value: role.name,
+        label: role.name,
+        description: humanizeRoleDescription(role, t),
+        keywords: [role.code],
+      })),
+    ],
+    [roles, t],
+  );
+  const assignableRoleOptions = useMemo(
+    () => [
+      { value: NO_ROLE, label: t("users.noRoleAssigned"), description: t("users.noRoleDescription") },
+      ...roles.map((role) => ({
+        value: role.name,
+        label: role.name,
+        description: humanizeRoleDescription(role, t),
+        keywords: [role.code],
+      })),
+    ],
+    [roles, t],
+  );
+
+  const currentRolePermissions = useMemo(() => {
+    if (!currentRole) return {} as Record<string, boolean>;
+    return Object.fromEntries(parsePermissions(currentRole.permissions_json).map((key) => [key, true]));
+  }, [currentRole]);
+
+  const directPermissionCount = useMemo(
+    () => Object.values(form.permissions_json).filter((value) => value === true).length,
+    [form.permissions_json],
+  );
+
+  const deniedPermissionCount = useMemo(
+    () => Object.values(form.permissions_json).filter((value) => value === false).length,
+    [form.permissions_json],
+  );
+
+  const effectivePermissionCount = useMemo(
+    () =>
+      knownPermissionKeys.filter((key) =>
+        form.permissions_json[key] !== undefined ? form.permissions_json[key] : Boolean(currentRolePermissions[key]),
+      ).length,
+    [currentRolePermissions, form.permissions_json, knownPermissionKeys],
+  );
+
   async function fetchUsers() {
     setIsLoading(true);
     try {
@@ -122,7 +187,8 @@ export default function UsersPage() {
     setEditing(null);
     setForm({
       ...EMPTY_FORM,
-      role: roles[0]?.code || "user",
+      role: roleValue(roles.find((role) => role.code === "user")?.name ?? roles[0]?.name ?? null),
+      permissions_json: {},
       is_active: true,
     });
     setDialogOpen(true);
@@ -134,10 +200,30 @@ export default function UsersPage() {
       username: item.username,
       email: item.email || "",
       password: "",
-      role: item.role,
+      role: roleValue(item.role),
+      permissions_json: { ...(item.permissions_json || {}) },
       is_active: item.is_active,
     });
     setDialogOpen(true);
+  }
+
+  function permissionMode(key: string): PermissionMode {
+    const value = form.permissions_json[key];
+    if (value === true) return "allow";
+    if (value === false) return "deny";
+    return "inherit";
+  }
+
+  function setPermissionMode(key: string, value: PermissionMode) {
+    setForm((prev) => {
+      const permissions_json = { ...prev.permissions_json };
+      if (value === "inherit") {
+        delete permissions_json[key];
+      } else {
+        permissions_json[key] = value === "allow";
+      }
+      return { ...prev, permissions_json };
+    });
   }
 
   async function saveUser() {
@@ -146,7 +232,8 @@ export default function UsersPage() {
       if (editing) {
         const payload: AdminUserUpdatePayload = {
           email: form.email.trim() || null,
-          role: form.role,
+          role: form.role === NO_ROLE ? null : form.role,
+          permissions_json: form.permissions_json,
           is_active: form.is_active,
           password: form.password.trim() || undefined,
         };
@@ -157,7 +244,8 @@ export default function UsersPage() {
           username: form.username.trim(),
           email: form.email.trim() || null,
           password: form.password,
-          role: form.role,
+          role: form.role === NO_ROLE ? null : form.role,
+          permissions_json: form.permissions_json,
           role_level: 2,
           can_audit: false,
         };
@@ -221,25 +309,19 @@ export default function UsersPage() {
               </div>
               <div className="grid gap-2">
                 <Label>{t("common.role")}</Label>
-                <Select
+                <PopupSelect
+                  title={t("common.role")}
+                  description={t("users.roleReferenceDescription")}
+                  placeholder={t("users.allRoles")}
+                  searchPlaceholder={t("common.search")}
+                  emptyText={t("users.noRoles")}
                   value={roleFilter}
                   onValueChange={(value) => {
                     setRoleFilter(value);
                     setPage(1);
                   }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("users.allRoles")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ALL_ROLES}>{t("users.allRoles")}</SelectItem>
-                    {roles.map((role) => (
-                      <SelectItem key={role.code} value={role.code}>
-                        {role.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={roleOptions}
+                />
               </div>
               <Button variant="outline" onClick={() => void fetchUsers()}>
                 {t("users.refreshList")}
@@ -273,48 +355,73 @@ export default function UsersPage() {
               ) : users.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">{t("users.empty")}</div>
               ) : (
-                users.map((item) => (
-                  <div key={item.uid} className="rounded-2xl border border-border/70 bg-background/40 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2 text-base font-semibold">
-                          <UserRound className="size-4 text-primary" />
-                          {item.username}
+                users.map((item) => {
+                  const effectivePermissions = Object.entries(item.effective_permissions || {}).filter(([, allowed]) => allowed);
+                  return (
+                    <div key={item.uid} className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 text-base font-semibold">
+                            <UserRound className="size-4 text-primary" />
+                            {item.username}
+                          </div>
+                          <div className="mt-1 break-all text-sm text-muted-foreground">{item.email || t("users.noEmail")}</div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <Badge variant="outline">{item.uid}</Badge>
+                            <Badge>{item.role || t("users.noRoleAssigned")}</Badge>
+                            {item.can_audit ? <Badge variant="secondary">{t("users.canAudit")}</Badge> : null}
+                            {Object.keys(item.permissions_json || {}).length > 0 ? (
+                              <Badge variant="outline">
+                                {t("users.directPermissionCount", { count: Object.keys(item.permissions_json).length })}
+                              </Badge>
+                            ) : null}
+                            <Badge variant="secondary">
+                              {t("users.effectivePermissionCount", { count: effectivePermissions.length })}
+                            </Badge>
+                            {item.is_active ? (
+                              <Badge variant="secondary">{t("users.active")}</Badge>
+                            ) : (
+                              <Badge variant="destructive">{t("users.inactive")}</Badge>
+                            )}
+                          </div>
                         </div>
-                        <div className="mt-1 break-all text-sm text-muted-foreground">{item.email || t("users.noEmail")}</div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <Badge variant="outline">{item.uid}</Badge>
-                          <Badge>{item.role}</Badge>
-                          {item.can_audit ? <Badge variant="secondary">{t("users.canAudit")}</Badge> : null}
-                          {item.is_active ? (
-                            <Badge variant="secondary">{t("users.active")}</Badge>
-                          ) : (
-                            <Badge variant="destructive">{t("users.inactive")}</Badge>
-                          )}
+                        <Button variant="outline" size="sm" onClick={() => openEditDialog(item)}>
+                          {t("users.editUser")}
+                        </Button>
+                      </div>
+                      <div className="mt-4 grid gap-3 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-3">
+                        <div>
+                          <div className="text-xs uppercase tracking-wide">{t("common.createdAt")}</div>
+                          <div className="mt-1 text-foreground/90">{formatTime(item.created_at)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs uppercase tracking-wide">{t("common.status")}</div>
+                          <div className="mt-1 text-foreground/90">
+                            {item.is_active ? t("users.active") : t("users.inactive")}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs uppercase tracking-wide">{t("common.role")}</div>
+                          <div className="mt-1 text-foreground/90">{item.role || t("users.noRoleAssigned")}</div>
+                        </div>
+                        <div className="md:col-span-2 xl:col-span-3">
+                          <div className="text-xs uppercase tracking-wide">{t("users.effectivePermissions")}</div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {effectivePermissions.length > 0 ? (
+                              effectivePermissions.map(([key]) => (
+                                <Badge key={key} variant="secondary">
+                                  {permissionLabel(key)}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge variant="outline">{t("users.noEffectivePermissions")}</Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => openEditDialog(item)}>
-                        {t("users.editUser")}
-                      </Button>
                     </div>
-                    <div className="mt-4 grid gap-3 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-3">
-                      <div>
-                        <div className="text-xs uppercase tracking-wide">{t("common.createdAt")}</div>
-                        <div className="mt-1 text-foreground/90">{formatTime(item.created_at)}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-wide">{t("common.status")}</div>
-                        <div className="mt-1 text-foreground/90">
-                          {item.is_active ? t("users.active") : t("users.inactive")}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-wide">{t("common.role")}</div>
-                        <div className="mt-1 text-foreground/90">{item.role}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </CardContent>
           </Card>
@@ -353,9 +460,9 @@ export default function UsersPage() {
                       <div className="mt-3 text-muted-foreground">{humanizeRoleDescription(role, t)}</div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {permissions.length > 0 ? (
-                          permissions.map(([key]) => (
+                          permissions.map((key) => (
                             <Badge key={key} variant="secondary">
-                              {humanizePermission(key, t)}
+                              {permissionLabel(key)}
                             </Badge>
                           ))
                         ) : (
@@ -372,14 +479,14 @@ export default function UsersPage() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>{editing ? t("users.dialogEditTitle") : t("users.dialogCreateTitle")}</DialogTitle>
             <DialogDescription>
               {editing ? t("users.dialogEditDescription") : t("users.dialogCreateDescription")}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-2">
+          <div className="grid max-h-[70vh] gap-4 overflow-y-auto py-2 pr-1">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="admin-user-username">{t("me.username")}</Label>
@@ -404,22 +511,17 @@ export default function UsersPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label>{t("common.role")}</Label>
-                <Select
+                <PopupSelect
+                  title={t("common.role")}
+                  description={t("users.dialogEditDescription")}
+                  placeholder={t("common.selectRole")}
+                  searchPlaceholder={t("common.search")}
+                  emptyText={t("users.noRoles")}
                   value={form.role}
                   disabled={isEditingSelf}
                   onValueChange={(value) => setForm((prev) => ({ ...prev, role: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("common.selectRole")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roles.map((role) => (
-                      <SelectItem key={role.code} value={role.code}>
-                        {role.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={assignableRoleOptions}
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="admin-user-password">{editing ? t("users.newPassword") : t("users.initialPassword")}</Label>
@@ -431,6 +533,63 @@ export default function UsersPage() {
                   onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
                 />
               </div>
+            </div>
+
+            <div className="grid gap-3 rounded-xl border border-border/70 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="font-medium">{t("users.permissionOverridesTitle")}</div>
+                  <div className="mt-1 text-sm text-muted-foreground">{t("users.permissionOverridesDescription")}</div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">{t("users.directPermissionCount", { count: directPermissionCount })}</Badge>
+                  <Badge variant="outline">{t("users.deniedPermissionCount", { count: deniedPermissionCount })}</Badge>
+                  <Badge>{t("users.effectivePermissionCount", { count: effectivePermissionCount })}</Badge>
+                </div>
+              </div>
+
+              {permissionGroups.map((group) => (
+                <div key={group.resource} className="rounded-xl border border-border/60 p-3">
+                  <div className="mb-3 font-medium">{group.label}</div>
+                  <div className="grid gap-3">
+                    {group.permissions.map((key) => {
+                      const baseAllowed = Boolean(currentRolePermissions[key]);
+                      const mode = permissionMode(key);
+                      const effectiveAllowed = mode === "inherit" ? baseAllowed : mode === "allow";
+                      return (
+                        <div
+                          key={key}
+                          className="grid gap-2 rounded-lg border border-border/50 p-3 md:grid-cols-[1fr_180px_auto] md:items-center"
+                        >
+                          <div>
+                            <div className="font-medium">{permissionLabel(key)}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {baseAllowed ? t("users.inheritedFromRole") : t("users.notGrantedByRole")}
+                            </div>
+                          </div>
+                          <Select
+                            value={mode}
+                            disabled={isEditingSelf}
+                            onValueChange={(value) => setPermissionMode(key, value as PermissionMode)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="inherit">{t("users.permissionModeInherit")}</SelectItem>
+                              <SelectItem value="allow">{t("users.permissionModeAllow")}</SelectItem>
+                              <SelectItem value="deny">{t("users.permissionModeDeny")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Badge variant={effectiveAllowed ? "secondary" : "outline"}>
+                            {effectiveAllowed ? t("users.permissionEffectiveAllow") : t("users.permissionEffectiveDeny")}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
 
             {editing ? (
@@ -451,7 +610,6 @@ export default function UsersPage() {
             <Button
               disabled={
                 isSaving ||
-                !form.role ||
                 (!editing && (!form.username.trim() || form.password.length < 8)) ||
                 Boolean(editing && form.password.length > 0 && form.password.length < 8)
               }
