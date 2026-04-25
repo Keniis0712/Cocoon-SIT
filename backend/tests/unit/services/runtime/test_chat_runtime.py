@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from app.services.runtime.chat_runtime import ChatRuntime
+from app.services.runtime.orchestration.chat_runtime import ChatRuntime
 from app.services.runtime.types import MemoryCandidate, MetaDecision, TagReference
 
 

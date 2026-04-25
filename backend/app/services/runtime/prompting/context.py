@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services.runtime.prompting_helpers import (
+from app.services.runtime.prompting.helpers import (
     _compact_pending_wakeup_payload,
     _compact_runtime_event_payload,
     _compact_wakeup_context_payload,

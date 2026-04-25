@@ -3,7 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from app.models import ActionDispatch, Character, Cocoon, SessionState, User
-from app.services.runtime.side_effects import SideEffects
+from app.services.runtime.orchestration.side_effects import SideEffects
 from app.services.runtime.types import ContextPackage, MemoryCandidate, MetaDecision, RuntimeEvent
 from tests.sqlite_helpers import make_sqlite_session_factory
 

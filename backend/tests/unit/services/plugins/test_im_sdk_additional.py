@@ -5,7 +5,7 @@ from queue import Empty
 
 import pytest
 
-from app.services.plugins.im_sdk import (
+from app.services.plugins.sdk.im_sdk import (
     ImDeliveryResult,
     ImGroupMessage,
     ImInboundRoute,

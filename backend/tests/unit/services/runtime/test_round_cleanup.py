@@ -17,7 +17,7 @@ from app.models import (
     Message,
     MessageTag,
 )
-from app.services.runtime.round_cleanup import RoundCleanupService
+from app.services.runtime.orchestration.round_cleanup import RoundCleanupService
 from tests.sqlite_helpers import make_sqlite_session_factory
 
 

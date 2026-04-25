@@ -92,3 +92,19 @@ def test_roles_users_and_groups_api_crud(client, auth_headers):
         assert session.scalar(
             select(UserGroupMember).where(UserGroupMember.group_id == group_id, UserGroupMember.user_id == user_id)
         ) is None
+
+
+def test_users_api_blocks_self_role_and_status_changes(client, auth_headers):
+    with client.app.state.container.session_factory() as session:
+        admin = session.scalar(select(User).where(User.username == "admin"))
+        assert admin is not None
+        admin_id = admin.id
+
+    response = client.patch(
+        f"/api/v1/users/{admin_id}",
+        headers=auth_headers,
+        json={"is_active": False},
+    )
+
+    assert response.status_code == 403, response.text
+    assert response.envelope_json()["msg"] == "Users cannot change their own role or active status"

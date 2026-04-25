@@ -8,7 +8,7 @@ from app.services.memory.service import MemoryService
 from app.services.runtime.context.external_context_service import ExternalContextService
 from app.services.runtime.context.message_window_service import MessageWindowService
 from app.services.runtime.types import ContextPackage, RuntimeEvent
-from app.services.runtime.wakeup_tasks import list_pending_wakeup_tasks
+from app.services.runtime.scheduling.wakeup_tasks import list_pending_wakeup_tasks
 from app.services.workspace.targets import ensure_session_state
 
 

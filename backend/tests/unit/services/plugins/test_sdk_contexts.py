@@ -1,8 +1,8 @@
 import asyncio
 
-import app.services.plugins.im_sdk_runtime as im_sdk_module
-from app.services.plugins.external_sdk import ExternalEventContext
-from app.services.plugins.im_sdk import (
+import app.services.plugins.sdk.im_sdk_runtime as im_sdk_module
+from app.services.plugins.sdk.external_sdk import ExternalEventContext
+from app.services.plugins.sdk.im_sdk import (
     ImDeliveryResult,
     ImInboundRoute,
     ImPluginContext,

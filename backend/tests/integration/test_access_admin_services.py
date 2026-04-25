@@ -27,6 +27,8 @@ def test_user_and_role_services(client):
         user_id = user.id
 
     with container.session_factory() as session:
+        admin = session.scalars(select(User).where(User.username == "admin")).first()
+        assert admin is not None
         updated_role = container.role_service.update_role(
             session,
             role_id,
@@ -34,6 +36,7 @@ def test_user_and_role_services(client):
         )
         updated_user = container.user_service.update_user(
             session,
+            admin,
             user_id,
             UserUpdate(is_active=False, password="secret2"),
         )

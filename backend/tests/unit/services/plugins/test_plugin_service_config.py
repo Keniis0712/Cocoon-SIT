@@ -123,7 +123,7 @@ def test_plugin_service_update_plugin_config_validates_admin_plugin_settings(tmp
         session.commit()
 
         monkeypatch.setattr(
-            "app.services.plugins.service_install_mixin.validate_plugin_settings",
+            "app.services.plugins.service.install_mixin.validate_plugin_settings",
             lambda *args, **kwargs: "bad runtime config",
         )
 
@@ -148,7 +148,7 @@ def test_plugin_service_validate_admin_plugin_config_runs_settings_validation(
         session.commit()
 
         monkeypatch.setattr(
-            "app.services.plugins.service_install_mixin.validate_plugin_settings",
+            "app.services.plugins.service.install_mixin.validate_plugin_settings",
             lambda *args, **kwargs: "bad runtime config",
         )
 

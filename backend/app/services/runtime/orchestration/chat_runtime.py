@@ -10,14 +10,14 @@ from typing_extensions import TypedDict
 from app.models import ActionDispatch, Message
 from app.models.entities import ActionStatus
 from app.services.audit.service import AuditService
-from app.services.runtime.context_builder import ContextBuilder
-from app.services.runtime.generator_node import GeneratorNode
-from app.services.runtime.meta_node import MetaNode
-from app.services.runtime.reply_delivery_service import ReplyDeliveryService
-from app.services.runtime.round_preparation_service import RoundPreparationService
-from app.services.runtime.scheduler_node import SchedulerNode
-from app.services.runtime.side_effects import SideEffects
-from app.services.runtime.state_patch_service import StatePatchService
+from app.services.runtime.context.builder import ContextBuilder
+from app.services.runtime.generation.generator_node import GeneratorNode
+from app.services.runtime.meta.node import MetaNode
+from app.services.runtime.orchestration.reply_delivery_service import ReplyDeliveryService
+from app.services.runtime.orchestration.round_preparation_service import RoundPreparationService
+from app.services.runtime.orchestration.side_effects import SideEffects
+from app.services.runtime.orchestration.state_patch_service import StatePatchService
+from app.services.runtime.scheduling.scheduler_node import SchedulerNode
 from app.services.runtime.types import ContextPackage, GenerationOutput, MemoryCandidate, MetaDecision
 
 

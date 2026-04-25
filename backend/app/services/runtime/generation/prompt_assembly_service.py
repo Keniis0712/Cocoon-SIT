@@ -9,7 +9,10 @@ from sqlalchemy.orm import Session
 
 from app.models import PromptTemplate, PromptTemplateRevision
 from app.services.prompts.service import PromptTemplateService
-from app.services.runtime.prompting import build_provider_message_payload, build_runtime_prompt_variables
+from app.services.runtime.prompting.prompting import (
+    build_provider_message_payload,
+    build_runtime_prompt_variables,
+)
 from app.services.runtime.types import ContextPackage
 
 

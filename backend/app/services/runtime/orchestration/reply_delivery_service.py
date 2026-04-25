@@ -6,7 +6,7 @@ from app.models import ActionDispatch, AuditRun, Message
 from app.services.plugins.im_delivery_service import PluginImDeliveryService
 from app.services.audit.service import AuditService
 from app.services.realtime.hub import RealtimeHub
-from app.services.runtime.side_effects import SideEffects
+from app.services.runtime.orchestration.side_effects import SideEffects
 from app.services.runtime.types import ContextPackage, GenerationOutput
 
 

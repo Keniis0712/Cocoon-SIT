@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.models import ChatGroupRoom, Cocoon, WakeupTask
 from app.schemas.observability.wakeups import WakeupTaskOut
-from app.services.runtime.wakeup_tasks import is_ai_scheduled_wakeup
+from app.services.runtime.scheduling.wakeup_tasks import is_ai_scheduled_wakeup
 
 
 def serialize_wakeup_task(session: Session, task: WakeupTask) -> WakeupTaskOut:

@@ -110,4 +110,7 @@ class BootstrapAccessSeedService:
             )
             session.add(admin_user)
             session.flush()
+        else:
+            admin_user.role_id = admin_role.id
+            admin_user.is_active = True
         return admin_user

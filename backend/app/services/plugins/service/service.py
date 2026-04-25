@@ -3,11 +3,11 @@ from __future__ import annotations
 from app.core.config import Settings
 from app.services.plugins.dependency_builder import DependencyBuilder
 from app.services.plugins.manager import PluginRuntimeManager
-from app.services.plugins.service_access_mixin import PluginServiceAccessMixin
-from app.services.plugins.service_admin_mixin import PluginServiceAdminMixin
-from app.services.plugins.service_event_mixin import PluginServiceEventMixin
-from app.services.plugins.service_install_mixin import PluginServiceInstallMixin
-from app.services.plugins.service_user_mixin import PluginServiceUserMixin
+from app.services.plugins.service.access_mixin import PluginServiceAccessMixin
+from app.services.plugins.service.admin_mixin import PluginServiceAdminMixin
+from app.services.plugins.service.event_mixin import PluginServiceEventMixin
+from app.services.plugins.service.install_mixin import PluginServiceInstallMixin
+from app.services.plugins.service.user_mixin import PluginServiceUserMixin
 
 
 class PluginService(

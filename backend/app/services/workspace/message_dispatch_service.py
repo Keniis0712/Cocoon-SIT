@@ -13,7 +13,7 @@ from app.models.entities import ActionStatus
 from app.services.catalog.system_settings_service import SystemSettingsService
 from app.services.jobs.chat_dispatch import ChatDispatchQueue
 from app.services.realtime.hub import RealtimeHub
-from app.services.runtime.wakeup_tasks import cancel_wakeup_tasks
+from app.services.runtime.scheduling.wakeup_tasks import cancel_wakeup_tasks
 from app.services.workspace.message_dispatch_base import MessageDispatchBase
 from app.services.workspace.targets import ensure_session_state
 

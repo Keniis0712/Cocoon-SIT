@@ -7,10 +7,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from app.services.plugins.bootstrap import bootstrap_module
+from app.services.plugins.runtime.bootstrap import bootstrap_module
 from app.services.plugins.errors import PluginUserVisibleError
-from app.services.plugins.external_sdk import ExternalEventContext
-from app.services.plugins.im_sdk import ImPluginContext
+from app.services.plugins.sdk.external_sdk import ExternalEventContext
+from app.services.plugins.sdk.im_sdk import ImPluginContext
 
 
 @dataclass

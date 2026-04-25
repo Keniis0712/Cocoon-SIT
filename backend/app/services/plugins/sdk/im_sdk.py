@@ -3,7 +3,7 @@ from __future__ import annotations
 from multiprocessing.queues import Queue
 from typing import Any
 
-from app.services.plugins.im_sdk_models import (
+from app.services.plugins.sdk.im_sdk_models import (
     ImDeliveryResult,
     ImGroupMessage,
     ImInboundRoute,
@@ -13,11 +13,11 @@ from app.services.plugins.im_sdk_models import (
     ImRouteHandler,
     LifecycleHandler,
 )
-from app.services.plugins.im_sdk_models import (
+from app.services.plugins.sdk.im_sdk_models import (
     utc_now_iso as _utc_now_iso,
 )
-from app.services.plugins.im_sdk_rpc import ImPluginRpcMixin
-from app.services.plugins.im_sdk_runtime import ImPluginRuntimeMixin
+from app.services.plugins.sdk.im_sdk_rpc import ImPluginRpcMixin
+from app.services.plugins.sdk.im_sdk_runtime import ImPluginRuntimeMixin
 
 
 class ImPluginContext(ImPluginRpcMixin, ImPluginRuntimeMixin):

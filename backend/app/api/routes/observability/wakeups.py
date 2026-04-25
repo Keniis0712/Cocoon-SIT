@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db, require_permission
 from app.api.wakeup_serialization import serialize_wakeup_task
 from app.schemas.observability.wakeups import WakeupTaskOut
-from app.services.runtime.wakeup_tasks import list_wakeup_tasks
+from app.services.runtime.scheduling.wakeup_tasks import list_wakeup_tasks
 
 
 router = APIRouter()

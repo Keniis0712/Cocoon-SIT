@@ -42,7 +42,7 @@ from app.schemas.workspace.chat_groups import (
     MessageRetractResult,
 )
 from app.schemas.workspace.cocoons import ChatMessageCreate, ChatMessageOut
-from app.services.runtime.wakeup_tasks import list_wakeup_tasks
+from app.services.runtime.scheduling.wakeup_tasks import list_wakeup_tasks
 from app.services.workspace.targets import get_session_state
 
 

@@ -15,17 +15,17 @@ from app.core.config import Settings
 from app.models import PluginDefinition, PluginVersion
 from app.services.access.im_bind_token_service import ImBindTokenService
 from app.services.plugins.external_wakeup_service import ExternalWakeupService
-from app.services.plugins.manager_access_mixin import PluginManagerAccessMixin
-from app.services.plugins.manager_event_mixin import PluginEventRuntimeMixin
-from app.services.plugins.manager_im_delivery_mixin import PluginImDeliveryMixin
-from app.services.plugins.manager_im_rpc_mixin import PluginImRpcMixin
-from app.services.plugins.manager_models import (
+from app.services.plugins.manager.access_mixin import PluginManagerAccessMixin
+from app.services.plugins.manager.event_mixin import PluginEventRuntimeMixin
+from app.services.plugins.manager.im_delivery_mixin import PluginImDeliveryMixin
+from app.services.plugins.manager.im_rpc_mixin import PluginImRpcMixin
+from app.services.plugins.manager.models import (
     DaemonHandle,
     ShortLivedScope,
     next_cron_run,
     validate_cron_expression,
 )
-from app.services.plugins.manager_process_mixin import PluginProcessRuntimeMixin
+from app.services.plugins.manager.process_mixin import PluginProcessRuntimeMixin
 from app.services.workspace.message_dispatch_service import MessageDispatchService
 
 logger = logging.getLogger(__name__)

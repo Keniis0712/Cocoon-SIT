@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from app.services.providers.base import ProviderStructuredResponse, ProviderUsage
-from app.services.runtime.meta_node import MetaNode
+from app.services.runtime.meta.node import MetaNode
 from app.services.runtime.prompting import build_provider_message_payload
 from app.services.runtime.types import ContextPackage, RuntimeEvent
 
@@ -73,11 +73,11 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
     audit_calls = []
 
     monkeypatch.setattr(
-        "app.services.runtime.meta_node.record_prompt_render_artifacts",
+        "app.services.runtime.meta.node.record_prompt_render_artifacts",
         lambda *args, **kwargs: record_calls.append((args, kwargs)),
     )
     monkeypatch.setattr(
-        "app.services.runtime.meta_node.build_runtime_prompt_variables",
+        "app.services.runtime.meta.node.build_runtime_prompt_variables",
         lambda context, provider_capabilities: prompt_var_calls.append((context, provider_capabilities)) or {"x": 1},
     )
 
@@ -182,8 +182,8 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
 
 
 def test_meta_node_evaluate_falls_back_when_provider_returns_invalid_payload(monkeypatch):
-    monkeypatch.setattr("app.services.runtime.meta_node.record_prompt_render_artifacts", lambda *args, **kwargs: None)
-    monkeypatch.setattr("app.services.runtime.meta_node.build_runtime_prompt_variables", lambda *args, **kwargs: {})
+    monkeypatch.setattr("app.services.runtime.meta.node.record_prompt_render_artifacts", lambda *args, **kwargs: None)
+    monkeypatch.setattr("app.services.runtime.meta.node.build_runtime_prompt_variables", lambda *args, **kwargs: {})
 
     provider = SimpleNamespace(
         generate_structured=lambda **kwargs: ProviderStructuredResponse(

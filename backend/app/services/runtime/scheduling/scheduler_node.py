@@ -9,7 +9,11 @@ from app.models import DurableJob, WakeupTask
 from app.models.entities import DurableJobStatus, DurableJobType
 from app.services.jobs.durable_jobs import DurableJobService
 from app.services.runtime.types import ContextPackage, MetaDecision
-from app.services.runtime.wakeup_tasks import cancel_wakeup_tasks, list_pending_wakeup_tasks, sync_current_wakeup_task_id
+from app.services.runtime.scheduling.wakeup_tasks import (
+    cancel_wakeup_tasks,
+    list_pending_wakeup_tasks,
+    sync_current_wakeup_task_id,
+)
 from app.services.workspace.targets import resolve_target_type
 
 

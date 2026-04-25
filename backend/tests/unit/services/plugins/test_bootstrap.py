@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import sys
 
-from app.services.plugins.bootstrap import bootstrap_module
+from app.services.plugins.runtime.bootstrap import bootstrap_module
 
 
 def _write_manifest(path: Path, *, paths: list[str]) -> Path:

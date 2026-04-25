@@ -7,7 +7,7 @@ from queue import Empty
 from typing import Any
 from uuid import uuid4
 
-from app.services.plugins.im_sdk_models import (
+from app.services.plugins.sdk.im_sdk_models import (
     ImDeliveryResult,
     ImGroupMessage,
     ImInboundRoute,

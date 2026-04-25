@@ -85,6 +85,7 @@ export default function UsersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUserRead | null>(null);
   const [form, setForm] = useState<UserFormState>(EMPTY_FORM);
+  const isEditingSelf = Boolean(editing && userInfo?.uid && editing.uid === userInfo.uid);
 
   useEffect(() => {
     if (!canManageUsers) return;
@@ -403,7 +404,11 @@ export default function UsersPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label>{t("common.role")}</Label>
-                <Select value={form.role} onValueChange={(value) => setForm((prev) => ({ ...prev, role: value }))}>
+                <Select
+                  value={form.role}
+                  disabled={isEditingSelf}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, role: value }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder={t("common.selectRole")} />
                   </SelectTrigger>
@@ -432,6 +437,7 @@ export default function UsersPage() {
               <label className="flex items-center gap-3 rounded-lg border border-border/70 px-3 py-3 text-sm">
                 <Checkbox
                   checked={form.is_active}
+                  disabled={isEditingSelf}
                   onCheckedChange={(checked) => setForm((prev) => ({ ...prev, is_active: Boolean(checked) }))}
                 />
                 <span>{t("users.keepUserActive")}</span>

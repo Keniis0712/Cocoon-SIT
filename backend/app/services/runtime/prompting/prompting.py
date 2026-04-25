@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from app.services.runtime.prompting_artifacts import record_prompt_render_artifacts
-from app.services.runtime.prompting_context import (
+from app.services.runtime.prompting.artifacts import record_prompt_render_artifacts
+from app.services.runtime.prompting.context import (
     _character_settings_payload,
     _merge_context_payload,
     _participant_alias,
@@ -13,7 +13,7 @@ from app.services.runtime.prompting_context import (
     build_runtime_prompt_variables,
     build_structured_prompt_context,
 )
-from app.services.runtime.prompting_helpers import (
+from app.services.runtime.prompting.helpers import (
     _compact_pending_wakeup_payload,
     _compact_runtime_event_payload,
     _compact_wakeup_context_payload,

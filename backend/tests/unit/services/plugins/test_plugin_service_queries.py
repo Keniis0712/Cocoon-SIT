@@ -214,7 +214,7 @@ def test_plugin_service_enable_does_not_validate_admin_plugin_settings(tmp_path,
             raise AssertionError("enable should not trigger admin settings validation")
 
         monkeypatch.setattr(
-            "app.services.plugins.service_install_mixin.validate_plugin_settings", _unexpected
+            "app.services.plugins.service.install_mixin.validate_plugin_settings", _unexpected
         )
 
         detail = service.enable_plugin(session, plugin.id)

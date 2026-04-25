@@ -15,7 +15,7 @@ from app.models import (
     Message,
     MessageTag,
 )
-from app.services.runtime.round_cleanup import RoundCleanupService
+from app.services.runtime.orchestration.round_cleanup import RoundCleanupService
 
 pytestmark = pytest.mark.integration
 

@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from app.services.providers.base import ProviderStructuredResponse, ProviderUsage
-from app.services.runtime.generator_node import GeneratorNode
+from app.services.runtime.generation.generator_node import GeneratorNode
 from app.services.runtime.types import ContextPackage, MetaDecision, RuntimeEvent
 
 
@@ -43,7 +43,7 @@ def test_generator_node_generate_records_artifacts_and_uses_structured_fallback(
     audit_calls = []
 
     monkeypatch.setattr(
-        "app.services.runtime.generator_node.record_prompt_render_artifacts",
+        "app.services.runtime.generation.generator_node.record_prompt_render_artifacts",
         lambda *args, **kwargs: record_calls.append((args, kwargs)),
     )
 

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.services.audit.service import AuditService
 from app.services.prompts.service import PromptTemplateService
-from app.services.runtime.prompting import (
+from app.services.runtime.prompting.prompting import (
     build_provider_message_payload,
     build_structured_prompt_context,
     build_runtime_prompt_variables,

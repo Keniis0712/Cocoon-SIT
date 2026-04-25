@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.models import Character, ChatGroupRoom, Cocoon, SessionState, TagRegistry
-from app.services.runtime.context_builder import ContextBuilder
+from app.services.runtime.context.builder import ContextBuilder
 from app.services.runtime.types import RuntimeEvent
 from tests.sqlite_helpers import make_sqlite_session_factory
 
@@ -67,7 +67,7 @@ def test_context_builder_builds_chat_group_context_with_tags_and_pending_wakeups
         ),
     )
     monkeypatch.setattr(
-        "app.services.runtime.context_builder.list_pending_wakeup_tasks",
+        "app.services.runtime.context.builder.list_pending_wakeup_tasks",
         lambda session, cocoon_id=None, chat_group_id=None: [wakeup_task],
     )
 
@@ -153,7 +153,7 @@ def test_context_builder_limits_cocoon_memory_lookup_to_current_cocoon(monkeypat
         external_context_service=SimpleNamespace(build=lambda session, event: {}),
     )
     monkeypatch.setattr(
-        "app.services.runtime.context_builder.list_pending_wakeup_tasks",
+        "app.services.runtime.context.builder.list_pending_wakeup_tasks",
         lambda session, cocoon_id=None, chat_group_id=None: [],
     )
 

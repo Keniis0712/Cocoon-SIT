@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.models import ActionDispatch, AuditRun
 from app.services.audit.service import AuditService
-from app.services.runtime.round_cleanup import RoundCleanupService
+from app.services.runtime.orchestration.round_cleanup import RoundCleanupService
 from app.services.runtime.types import RuntimeEvent
 
 

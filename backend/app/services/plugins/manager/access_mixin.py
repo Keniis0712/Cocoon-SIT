@@ -20,7 +20,7 @@ from app.models import (
     User,
     UserGroupMember,
 )
-from app.services.plugins.manager_models import ShortLivedScope
+from app.services.plugins.manager.models import ShortLivedScope
 from app.services.security.authorization_service import AuthorizationService
 
 logger = logging.getLogger(__name__)

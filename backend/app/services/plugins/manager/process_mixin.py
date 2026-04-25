@@ -8,7 +8,7 @@ from app.models import (
     PluginDefinition,
     PluginVersion,
 )
-from app.services.plugins.manager_models import DaemonHandle
+from app.services.plugins.manager.models import DaemonHandle
 from app.services.plugins.runtime import run_external_daemon, run_im_plugin
 
 logger = logging.getLogger(__name__)

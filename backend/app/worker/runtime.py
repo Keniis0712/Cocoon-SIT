@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.services.jobs.chat_dispatch import ChatDispatchQueue
 from app.services.jobs.durable_jobs import DurableJobService
 from app.services.realtime.hub import RealtimeHub
-from app.services.runtime.chat_runtime import ChatRuntime
+from app.services.runtime.orchestration.chat_runtime import ChatRuntime
 from app.worker.chat_dispatch_worker_service import ChatDispatchWorkerService
 from app.worker.durable_executor import DurableJobExecutor
 from app.worker.durable_job_worker_service import DurableJobWorkerService

@@ -205,7 +205,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from app.services.plugins.im_sdk import ImDeliveryResult, ImInboundRoute, ImPrivateMessage
+from app.services.plugins.sdk.im_sdk import ImDeliveryResult, ImInboundRoute, ImPrivateMessage
 
 
 async def run(ctx):

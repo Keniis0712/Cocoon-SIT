@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from app.services.runtime.reply_delivery_service import ReplyDeliveryService
+from app.services.runtime.orchestration.reply_delivery_service import ReplyDeliveryService
 from app.services.runtime.types import ContextPackage, GenerationOutput, RuntimeEvent
 
 

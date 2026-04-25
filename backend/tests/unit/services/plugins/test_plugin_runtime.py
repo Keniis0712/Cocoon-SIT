@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.plugins import runtime
+import app.services.plugins.runtime.runtime as runtime
 from app.services.plugins.errors import PluginUserVisibleError
 
 
@@ -32,7 +32,7 @@ def test_run_short_lived_event_supports_sync_and_async(monkeypatch):
         return {"summary": "sync wakeup"}
 
     module = SimpleNamespace(async_event=async_event, sync_event=sync_event)
-    monkeypatch.setattr("app.services.plugins.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
+    monkeypatch.setattr("app.services.plugins.runtime.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
 
     sync_result = runtime.run_short_lived_event(
         manifest_path="manifest.json",
@@ -116,8 +116,8 @@ def test_run_external_daemon_and_im_plugin(monkeypatch):
 
     queue = _Queue()
     module = SimpleNamespace(daemon_one=daemon_one, daemon_two=daemon_two, im_async=im_async, im_sync=im_sync)
-    monkeypatch.setattr("app.services.plugins.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
-    monkeypatch.setattr("app.services.plugins.runtime._heartbeat_loop", lambda outbound_queue: asyncio.sleep(0))
+    monkeypatch.setattr("app.services.plugins.runtime.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
+    monkeypatch.setattr("app.services.plugins.runtime.runtime._heartbeat_loop", lambda outbound_queue: asyncio.sleep(0))
 
     runtime.run_external_daemon(
         manifest_path="manifest.json",
@@ -168,8 +168,8 @@ def test_runtime_reports_user_visible_errors_for_daemon_and_im(monkeypatch):
 
     queue = _Queue()
     module = SimpleNamespace(daemon_user_error=daemon_user_error, im_user_error=im_user_error)
-    monkeypatch.setattr("app.services.plugins.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
-    monkeypatch.setattr("app.services.plugins.runtime._heartbeat_loop", lambda outbound_queue: asyncio.sleep(0))
+    monkeypatch.setattr("app.services.plugins.runtime.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
+    monkeypatch.setattr("app.services.plugins.runtime.runtime._heartbeat_loop", lambda outbound_queue: asyncio.sleep(0))
 
     runtime.run_external_daemon(
         manifest_path="manifest.json",
@@ -212,7 +212,7 @@ def test_validate_plugin_functions_checks_external_and_im_manifests(monkeypatch)
         return None
 
     module = SimpleNamespace(daemon_ok=daemon_ok, short_ok=short_ok, im_ok=im_ok, validate_settings=validate_settings)
-    monkeypatch.setattr("app.services.plugins.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
+    monkeypatch.setattr("app.services.plugins.runtime.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
 
     runtime.validate_plugin_functions(
         manifest_path="manifest.json",
@@ -276,7 +276,7 @@ def test_validate_plugin_settings_supports_sync_and_async(monkeypatch):
         return None
 
     module = SimpleNamespace(validate_async=validate_async, validate_sync=validate_sync)
-    monkeypatch.setattr("app.services.plugins.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
+    monkeypatch.setattr("app.services.plugins.runtime.runtime.bootstrap_module", lambda manifest_path, entry_module: module)
 
     result = runtime.validate_plugin_settings(
         manifest_path="manifest.json",

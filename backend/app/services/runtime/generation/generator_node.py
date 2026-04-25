@@ -9,7 +9,10 @@ from sqlalchemy.orm import Session
 from app.services.audit.service import AuditService
 from app.services.providers.registry import ProviderRegistry
 from app.services.runtime.generation.prompt_assembly_service import PromptAssemblyService
-from app.services.runtime.prompting import build_structured_prompt_context, record_prompt_render_artifacts
+from app.services.runtime.prompting.prompting import (
+    build_structured_prompt_context,
+    record_prompt_render_artifacts,
+)
 from app.services.runtime.structured_models import GenerationStructuredOutputModel
 from app.services.runtime.types import ContextPackage, GenerationOutput
 from app.services.runtime.types import MetaDecision

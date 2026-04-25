@@ -38,7 +38,7 @@ from app.schemas.workspace.cocoons import (
     CocoonUpdate,
     SessionStateOut,
 )
-from app.services.runtime.wakeup_tasks import list_wakeup_tasks
+from app.services.runtime.scheduling.wakeup_tasks import list_wakeup_tasks
 from app.services.workspace.targets import ensure_session_state, get_session_state as load_session_state
 
 

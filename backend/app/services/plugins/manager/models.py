@@ -27,16 +27,15 @@ def _parse_cron_field(
             start, end = int(raw_start), int(raw_end)
         else:
             start = end = int(part)
-        if sunday_alias:
-            if start == 7:
-                start = 0
-            if end == 7:
-                end = 0
         if start < minimum or start > maximum or end < minimum or end > maximum:
             raise ValueError("cron field out of range")
         if start > end:
             raise ValueError("cron ranges must be ascending")
-        values.update(range(start, end + 1, step))
+        raw_values = range(start, end + 1, step)
+        if sunday_alias:
+            values.update(0 if item == 7 else item for item in raw_values)
+        else:
+            values.update(raw_values)
     return values
 
 

@@ -2,8 +2,8 @@ import pytest
 from sqlalchemy import select
 
 from app.models import ActionDispatch, AuditArtifact, AuditRun, Character, Cocoon, MemoryChunk, SessionState, TagRegistry
-from app.services.runtime.reply_delivery_service import ReplyDeliveryService
-from app.services.runtime.state_patch_service import StatePatchService
+from app.services.runtime.orchestration.reply_delivery_service import ReplyDeliveryService
+from app.services.runtime.orchestration.state_patch_service import StatePatchService
 from app.services.runtime.types import (
     ContextPackage,
     GenerationOutput,

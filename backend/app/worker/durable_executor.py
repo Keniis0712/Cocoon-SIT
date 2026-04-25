@@ -8,8 +8,8 @@ from app.services.audit.service import AuditService
 from app.services.jobs.durable_jobs import DurableJobService
 from app.services.prompts.service import PromptTemplateService
 from app.services.providers.registry import ProviderRegistry
-from app.services.runtime.chat_runtime import ChatRuntime
-from app.services.runtime.round_cleanup import RoundCleanupService
+from app.services.runtime.orchestration.chat_runtime import ChatRuntime
+from app.services.runtime.orchestration.round_cleanup import RoundCleanupService
 from app.worker.jobs.artifact_cleanup_job_service import ArtifactCleanupJobService
 from app.worker.jobs.compaction_job_service import CompactionJobService
 from app.worker.jobs.rollback_job_service import RollbackJobService

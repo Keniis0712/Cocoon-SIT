@@ -8,7 +8,7 @@ import pytest
 from app.models import SessionState, WakeupTask
 from app.models.entities import DurableJobStatus
 from app.services.jobs.durable_jobs import DurableJobService
-from app.services.runtime.scheduler_node import SchedulerNode
+from app.services.runtime.scheduling.scheduler_node import SchedulerNode
 from app.services.runtime.types import ContextPackage, MetaDecision, RuntimeEvent
 from tests.sqlite_helpers import make_sqlite_session_factory
 

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.models import SessionState
 from app.services.realtime.hub import RealtimeHub
-from app.services.runtime.side_effects import SideEffects
+from app.services.runtime.orchestration.side_effects import SideEffects
 from app.services.runtime.types import ContextPackage, MetaDecision
 from app.services.workspace.targets import target_channel_key
 

@@ -15,7 +15,7 @@ from app.models import (
     PluginVersion,
 )
 from app.services.plugins.errors import PluginUserVisibleError
-from app.services.plugins.manager_models import next_cron_run
+from app.services.plugins.manager.models import next_cron_run
 from app.services.plugins.runtime import run_short_lived_event
 
 logger = logging.getLogger(__name__)

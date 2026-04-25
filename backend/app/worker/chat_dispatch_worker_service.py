@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.models import ActionDispatch, FailedRound
 from app.models.entities import ActionStatus
 from app.services.jobs.chat_dispatch import ChatDispatchQueue
-from app.services.runtime.chat_runtime import ChatRuntime
+from app.services.runtime.orchestration.chat_runtime import ChatRuntime
 
 
 class ChatDispatchWorkerService:

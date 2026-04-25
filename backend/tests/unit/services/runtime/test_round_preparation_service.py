@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from app.models import ActionDispatch
-from app.services.runtime.round_preparation_service import RoundPreparationService
+from app.services.runtime.orchestration.round_preparation_service import RoundPreparationService
 
 
 def test_prepare_cleans_up_edit_rounds_and_starts_audit_run():

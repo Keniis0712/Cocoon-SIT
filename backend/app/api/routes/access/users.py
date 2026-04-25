@@ -31,6 +31,6 @@ def update_user(
     user_id: str,
     payload: UserUpdate,
     db: Session = Depends(get_db),
-    _=Depends(require_permission("users:write")),
+    user: User = Depends(require_permission("users:write")),
 ) -> User:
-    return db.info["container"].user_service.update_user(db, user_id, payload)
+    return db.info["container"].user_service.update_user(db, user, user_id, payload)

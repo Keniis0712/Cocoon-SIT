@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.models import CocoonMergeJob, CocoonPullJob, DurableJob, SessionState, WakeupTask
 from app.models.entities import DurableJobStatus
-from app.services.runtime.wakeup_tasks import sync_current_wakeup_task_id
-from app.services.runtime.chat_runtime import ChatRuntime
+from app.services.runtime.orchestration.chat_runtime import ChatRuntime
+from app.services.runtime.scheduling.wakeup_tasks import sync_current_wakeup_task_id
 from app.services.workspace.targets import get_session_state
 from app.worker.jobs.runtime_action_service import RuntimeActionService
 

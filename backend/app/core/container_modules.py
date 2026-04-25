@@ -33,19 +33,19 @@ from app.services.providers.registry import ProviderRegistry
 from app.services.realtime.connection_manager import ConnectionManager
 from app.services.realtime.event_delivery_service import EventDeliveryService
 from app.services.realtime.hub import RealtimeHub
-from app.services.runtime.chat_runtime import ChatRuntime
+from app.services.runtime.orchestration.chat_runtime import ChatRuntime
 from app.services.runtime.context.external_context_service import ExternalContextService
 from app.services.runtime.context.message_window_service import MessageWindowService
-from app.services.runtime.context_builder import ContextBuilder
+from app.services.runtime.context.builder import ContextBuilder
 from app.services.runtime.generation.prompt_assembly_service import PromptAssemblyService
-from app.services.runtime.generator_node import GeneratorNode
-from app.services.runtime.meta_node import MetaNode
-from app.services.runtime.reply_delivery_service import ReplyDeliveryService
-from app.services.runtime.round_preparation_service import RoundPreparationService
-from app.services.runtime.round_cleanup import RoundCleanupService
-from app.services.runtime.scheduler_node import SchedulerNode
-from app.services.runtime.side_effects import SideEffects
-from app.services.runtime.state_patch_service import StatePatchService
+from app.services.runtime.generation.generator_node import GeneratorNode
+from app.services.runtime.meta.node import MetaNode
+from app.services.runtime.orchestration.reply_delivery_service import ReplyDeliveryService
+from app.services.runtime.orchestration.round_preparation_service import RoundPreparationService
+from app.services.runtime.orchestration.round_cleanup import RoundCleanupService
+from app.services.runtime.orchestration.side_effects import SideEffects
+from app.services.runtime.orchestration.state_patch_service import StatePatchService
+from app.services.runtime.scheduling.scheduler_node import SchedulerNode
 from app.services.security.encryption import SecretCipher
 from app.services.security.authorization_service import AuthorizationService
 from app.services.security.token_authentication_service import TokenAuthenticationService
@@ -87,7 +87,7 @@ def wire_access_services(container) -> None:
         system_settings_service=container.system_settings_service,
     )
     container.im_bind_token_service = ImBindTokenService()
-    container.user_service = UserService()
+    container.user_service = UserService(container.settings)
     container.role_service = RoleService()
     container.group_service = GroupService()
     container.invite_service = InviteService()

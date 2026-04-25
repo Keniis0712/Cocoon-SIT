@@ -124,7 +124,7 @@ def test_plugin_service_delete_and_validate_payload_cleanup(tmp_path, monkeypatc
     removed_paths = []
 
     monkeypatch.setattr(
-        "app.services.plugins.service_admin_mixin.shutil.rmtree",
+        "app.services.plugins.service.admin_mixin.shutil.rmtree",
         lambda path, ignore_errors=True: removed_paths.append(Path(path)),
     )
 
@@ -161,7 +161,7 @@ def test_plugin_service_delete_and_validate_payload_cleanup(tmp_path, monkeypatc
     assert Path("plugin-data/demo") in removed_paths
 
     monkeypatch.setattr(
-        "app.services.plugins.service_install_mixin.validate_json_schema_value",
+        "app.services.plugins.service.install_mixin.validate_json_schema_value",
         lambda schema, payload, location: (_ for _ in ()).throw(
             PluginSchemaValidationError("bad schema")
         ),

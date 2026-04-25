@@ -19,7 +19,7 @@ from app.models import (
     PluginVersion,
     UserGroupMember,
 )
-from app.services.runtime.scheduler_node import SchedulerNode
+from app.services.runtime.scheduling.scheduler_node import SchedulerNode
 
 logger = logging.getLogger(__name__)
 
