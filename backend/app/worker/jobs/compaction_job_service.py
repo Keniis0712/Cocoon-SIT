@@ -90,7 +90,7 @@ class CompactionJobService:
                         "brief": all_tags[tag_id].brief,
                     }
                     for tag_id in state.active_tags_json
-                    if tag_id in all_tags and not all_tags[tag_id].is_system
+                    if tag_id in all_tags
                 ],
             },
             "tag_catalog": prompt_tag_catalog,

@@ -295,14 +295,20 @@ def test_runtime_prompt_exposes_readable_tag_metadata(
         payload = _read_artifact_payload(meta_variables)["variables"]
         active_tags = payload["session_state"]["active_tags"]
         assert active_tags
-        assert active_tags[0]["name"] == "focus-readable"
-        assert active_tags[0]["brief"] == "Readable focus tag"
-        assert active_tags[0]["visibility"]["description"]
+        active_tag_names = [item["name"] for item in active_tags]
+        assert active_tag_names[0] == "default"
+        assert "focus-readable" in active_tag_names
+        focus_active_tag = next(item for item in active_tags if item["name"] == "focus-readable")
+        assert focus_active_tag["brief"] == "Readable focus tag"
+        assert focus_active_tag["visibility"]["description"]
         assert payload["tag_catalog"]
-        assert payload["tag_catalog"][0]["tag_id"] == "focus-readable"
+        tag_catalog_ids = [item["tag_id"] for item in payload["tag_catalog"]]
+        assert tag_catalog_ids[0] == "default"
+        assert "focus-readable" in tag_catalog_ids
 
         visible_message = payload["visible_messages"][0]
         assert "tag_refs" not in visible_message
         assert "tag_visibility" not in visible_message
         if visible_message["tags"]:
-            assert visible_message["tags"][0]["name"] == "focus-readable"
+            visible_tag_names = [item["name"] for item in visible_message["tags"]]
+            assert visible_tag_names[0] == "default"

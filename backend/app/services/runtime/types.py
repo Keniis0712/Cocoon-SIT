@@ -64,6 +64,7 @@ class MetaDecision:
     persona_patch: dict[str, Any]
     tag_ops: list["TagOperation"]
     internal_thought: str
+    event_summary: str | None = None
     next_wakeup_hints: list[dict[str, Any]] = field(default_factory=list)
     cancel_wakeup_task_ids: list[str] = field(default_factory=list)
     generation_brief: str | None = None

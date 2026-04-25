@@ -103,6 +103,11 @@ class MetaNode:
             return self._fallback_decision(context, latest_content)
         relation_delta_int = int(parsed.relation_delta if latest_content or parsed.relation_delta else 0)
         internal_thought = str(parsed.internal_thought or "Structured meta decision completed.")
+        event_summary = self._normalize_event_summary(
+            context,
+            decision=parsed.decision,
+            raw_summary=parsed.event_summary,
+        )
         return MetaDecision(
             decision=parsed.decision,
             relation_delta=relation_delta_int,
@@ -113,6 +118,7 @@ class MetaNode:
                 if int(item.tag_index) > 0
             ],
             internal_thought=internal_thought,
+            event_summary=event_summary,
             next_wakeup_hints=self._normalize_wakeup_hints(parsed.schedule_wakeups),
             cancel_wakeup_task_ids=[str(item) for item in parsed.cancel_wakeup_task_ids if str(item).strip()],
             generation_brief=parsed.generation_brief,
@@ -151,8 +157,9 @@ class MetaNode:
             "Decide whether the assistant should reply now or stay silent.\n"
             "If the current event is an idle wakeup and re-engagement feels appropriate, you may choose to reply proactively.\n"
             "Only propose wakeups that have a concrete reason.\n"
-            "When editing tags, you may only use tag indexes from the allowed tag catalog shown in the context.\n"
+            "When editing tags, you may only use tag indexes from the allowed tag catalog shown in the context, including system tags when they are present.\n"
             "Never invent new tag names or output free-text tags.\n"
+            "If the current event is a wakeup and you choose silence, you must still provide a concise event_summary so future rounds do not lose the wakeup context.\n"
             f"{context_summary}\n"
             "CONTEXT_JSON_START\n"
             f"{context_json}\n"
@@ -161,6 +168,30 @@ class MetaNode:
             f"{rendered_prompt}\n"
             "PROMPT_TEXT_END"
         )
+
+    def _normalize_event_summary(
+        self,
+        context: ContextPackage,
+        *,
+        decision: str,
+        raw_summary: str | None,
+    ) -> str | None:
+        normalized = str(raw_summary or "").strip()
+        if normalized:
+            return normalized
+        if decision != "silence" or context.runtime_event.event_type != "wakeup":
+            return None
+        wakeup_context = context.external_context.get("wakeup_context")
+        if isinstance(wakeup_context, dict):
+            for key in ("idle_summary", "summary", "reason"):
+                value = str(wakeup_context.get(key) or "").strip()
+                if value:
+                    return value
+        for key in ("summary", "reason"):
+            value = str(context.runtime_event.payload.get(key) or "").strip()
+            if value:
+                return value
+        return "Wakeup event evaluated without a visible reply."
 
     def _fallback_decision(self, context: ContextPackage, latest_content: str) -> MetaDecision:
         event_type = context.runtime_event.event_type
@@ -172,6 +203,7 @@ class MetaNode:
                 persona_patch={"last_wakeup_reason": reason[:120]},
                 tag_ops=[],
                 internal_thought="Fallback wakeup meta decision.",
+                event_summary=None,
                 next_wakeup_hints=[],
                 cancel_wakeup_task_ids=[],
                 generation_brief=None,
@@ -183,6 +215,7 @@ class MetaNode:
                 persona_patch={"last_pull_source": context.runtime_event.payload.get("source_cocoon_id")},
                 tag_ops=[],
                 internal_thought="Fallback pull meta decision.",
+                event_summary=None,
                 next_wakeup_hints=[],
                 cancel_wakeup_task_ids=[],
                 generation_brief=None,
@@ -194,6 +227,7 @@ class MetaNode:
                 persona_patch={"last_merge_source": context.runtime_event.payload.get("source_cocoon_id")},
                 tag_ops=[],
                 internal_thought="Fallback merge meta decision.",
+                event_summary=None,
                 next_wakeup_hints=[],
                 cancel_wakeup_task_ids=[],
                 generation_brief=None,
@@ -204,6 +238,7 @@ class MetaNode:
             persona_patch={"last_seen_intent": latest_content[:120]},
             tag_ops=[],
             internal_thought="Fallback chat meta decision.",
+            event_summary=None,
             next_wakeup_hints=[],
             cancel_wakeup_task_ids=[],
             generation_brief=None,

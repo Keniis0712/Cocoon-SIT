@@ -158,19 +158,22 @@ def _participant_alias(context: ContextPackage, sender_user_id: str | None) -> s
 def _runtime_message_payload(
     message, context: ContextPackage, catalog: dict[str, dict[str, Any]]
 ) -> dict[str, Any]:
-    tag_refs = [
-        tag_ref for tag_ref in list(message.tags_json or []) if not bool((catalog.get(tag_ref) or {}).get("is_system"))
-    ]
+    tag_refs = list(message.tags_json or [])
     retracted_suffix = (
         "\n\n[system note: this message was later retracted]" if message.is_retracted else ""
     )
     payload = {
         "role": message.role,
         "content": f"{message.content}{retracted_suffix}",
+        "is_thought": bool(getattr(message, "is_thought", False)),
         "is_retracted": message.is_retracted,
         "tags": _serialize_tags(tag_refs, context, catalog),
         "mentionable_in_current_target": _mentionable_for_target(tag_refs, context, catalog),
     }
+    if payload["is_thought"] and isinstance(getattr(message, "retraction_note", None), str):
+        event_summary = message.retraction_note.strip()
+        if event_summary:
+            payload["event_summary"] = event_summary
     if alias := _participant_alias(context, getattr(message, "sender_user_id", None)):
         payload["speaker"] = alias
     return payload
@@ -179,9 +182,7 @@ def _runtime_message_payload(
 def _runtime_memory_payload(
     memory, context: ContextPackage, catalog: dict[str, dict[str, Any]]
 ) -> dict[str, Any]:
-    tag_refs = [
-        tag_ref for tag_ref in list(memory.tags_json or []) if not bool((catalog.get(tag_ref) or {}).get("is_system"))
-    ]
+    tag_refs = list(memory.tags_json or [])
     return {
         "scope": memory.scope,
         "summary": memory.summary,
@@ -202,11 +203,7 @@ def _merge_context_payload(
     source_state_payload = source_state if isinstance(source_state, dict) else {}
     source_active_tags = source_state_payload.get("active_tags_json")
     tag_refs = (
-        [
-            tag_ref
-            for tag_ref in source_active_tags
-            if not bool((catalog.get(tag_ref) or {}).get("is_system"))
-        ]
+        list(source_active_tags)
         if isinstance(source_active_tags, list)
         else []
     )
@@ -266,13 +263,21 @@ def _pending_wakeup_payload(tasks: list[dict[str, Any]] | None) -> list[dict[str
 
 def build_provider_message_payload(message, context: ContextPackage) -> dict[str, str]:
     content = message.content
+    role = message.role
+    if getattr(message, "is_thought", False):
+        role = "system"
+        content = f"[assistant_thought] {content}"
+        if isinstance(getattr(message, "retraction_note", None), str):
+            event_summary = message.retraction_note.strip()
+            if event_summary:
+                content = f"{content}\n\n[wakeup_event_summary] {event_summary}"
     if message.role == "user" and (
         alias := _participant_alias(context, getattr(message, "sender_user_id", None))
     ):
         content = f"[speaker:{alias}] {content}"
     if message.is_retracted:
         content = f"{content}\n\n[system note: this message was later retracted]"
-    return {"role": message.role, "content": content}
+    return {"role": role, "content": content}
 
 
 def build_runtime_prompt_variables(
@@ -291,15 +296,7 @@ def build_runtime_prompt_variables(
         "session_state": {
             "relation_score": context.session_state.relation_score,
             "persona": context.session_state.persona_json,
-            "active_tags": _serialize_tags(
-                [
-                    tag_ref
-                    for tag_ref in list(context.session_state.active_tags_json or [])
-                    if not bool((catalog.get(tag_ref) or {}).get("is_system"))
-                ],
-                context,
-                catalog,
-            ),
+            "active_tags": _serialize_tags(list(context.session_state.active_tags_json or []), context, catalog),
             "tag_catalog": _prompt_tag_catalog(context),
         },
         "tag_catalog": _prompt_tag_catalog(context),

@@ -164,6 +164,7 @@ class MockChatProvider(ChatProvider):
         runtime_event = context.get("runtime_event") or {}
         pending_wakeups = context.get("pending_wakeups") or []
         tag_catalog = context.get("tag_catalog") or []
+        wakeup_context = context.get("wakeup_context") or {}
         latest_user = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
         decision = "reply"
         wakeups: list[dict[str, Any]] = []
@@ -198,6 +199,11 @@ class MockChatProvider(ChatProvider):
                 "persona_patch": {"last_seen_intent": latest_user[:120]},
                 "tag_ops": tag_ops,
                 "internal_thought": "Mock structured meta output.",
+                "event_summary": (
+                    str(runtime_event.get("reason") or wakeup_context.get("reason") or "Wakeup evaluated without reply")
+                    if decision == "silence" and runtime_event.get("event_type") == "wakeup"
+                    else None
+                ),
                 "schedule_wakeups": wakeups,
                 "cancel_wakeup_task_ids": cancel_ids,
                 "generation_brief": latest_user[:200] or None,

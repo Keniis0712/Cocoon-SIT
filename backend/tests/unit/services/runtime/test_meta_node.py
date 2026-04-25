@@ -62,6 +62,7 @@ def test_meta_node_fallback_decision_covers_runtime_events():
 
     assert wakeup.decision == "reply"
     assert wakeup.persona_patch == {"last_wakeup_reason": "scheduled wakeup"}
+    assert wakeup.event_summary is None
     assert pull.persona_patch == {"last_pull_source": "source-1"}
     assert merge.persona_patch == {"last_merge_source": "source-1"}
     assert silent.decision == "silence"
@@ -98,6 +99,7 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
                         {"action": "remove", "tag_index": 0},
                     ],
                     "internal_thought": "",
+                    "event_summary": None,
                     "schedule_wakeups": [
                         {"delay_minutes": 5, "reason": "follow up in a few minutes"},
                         {"delay_minutes": 10},
@@ -158,6 +160,7 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
     assert result.persona_patch == {"last_seen_intent": "hello"}
     assert [(item.action, item.tag_index) for item in result.tag_ops] == [("add", 1)]
     assert result.internal_thought == "Structured meta decision completed."
+    assert result.event_summary is None
     assert result.next_wakeup_hints == [{"delay_minutes": 5, "reason": "follow up in a few minutes", "payload_json": {}}]
     assert result.cancel_wakeup_task_ids == ["wake-1", "wake-2"]
     assert result.generation_brief == "brief"
@@ -204,3 +207,58 @@ def test_meta_node_evaluate_falls_back_when_provider_returns_invalid_payload(mon
 
     assert result.decision == "silence"
     assert result.persona_patch == {"last_seen_intent": "/silent later"}
+
+
+def test_meta_node_normalizes_wakeup_event_summary_when_silent(monkeypatch):
+    monkeypatch.setattr("app.services.runtime.meta.node.record_prompt_render_artifacts", lambda *args, **kwargs: None)
+    monkeypatch.setattr("app.services.runtime.meta.node.build_runtime_prompt_variables", lambda *args, **kwargs: {})
+
+    provider = SimpleNamespace(
+        generate_structured=lambda **kwargs: ProviderStructuredResponse(
+            text="ignored",
+            parsed={
+                "decision": "silence",
+                "relation_delta": 0,
+                "persona_patch": {},
+                "tag_ops": [],
+                "internal_thought": "Hold this wakeup quietly.",
+                "event_summary": "",
+                "schedule_wakeups": [],
+                "cancel_wakeup_task_ids": [],
+                "generation_brief": None,
+            },
+            raw_response={},
+            usage=ProviderUsage(),
+        )
+    )
+    provider_registry = SimpleNamespace(
+        resolve_chat_provider=lambda session, model_id: (
+            provider,
+            SimpleNamespace(model_name="gpt-meta"),
+            SimpleNamespace(kind="mock", capabilities_json={}),
+            {},
+        )
+    )
+    prompt_service = SimpleNamespace(
+        render=lambda **kwargs: (
+            {"id": "meta-template"},
+            {"id": "meta-revision"},
+            {"session_state": {}, "wakeup_context": {"reason": "idle timeout"}},
+            "rendered meta prompt",
+        )
+    )
+    audit_service = SimpleNamespace(record_json_artifact=lambda *args, **kwargs: None)
+    node = MetaNode(prompt_service, audit_service, provider_registry)
+
+    context = _build_context(event_type="wakeup", latest_user="", target_type="cocoon")
+    context.external_context["wakeup_context"] = {"reason": "idle timeout"}
+
+    result = node.evaluate(
+        session=object(),
+        context=context,
+        audit_run="run-1",
+        audit_step="step-1",
+    )
+
+    assert result.decision == "silence"
+    assert result.event_summary == "idle timeout"

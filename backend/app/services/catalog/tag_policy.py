@@ -270,7 +270,7 @@ def serialize_prompt_tag_catalog(
         session,
         target_type=target_type,
         target_id=target_id,
-        include_system=False,
+        include_system=True,
     )
     catalog: list[dict[str, str | int]] = []
     by_index: dict[int, dict[str, str]] = {}

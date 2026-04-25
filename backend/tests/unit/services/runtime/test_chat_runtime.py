@@ -13,6 +13,7 @@ def _meta(*, decision: str = "reply") -> MetaDecision:
         persona_patch={},
         tag_ops=[TagOperation(action="add", tag_index=1)],
         internal_thought="",
+        event_summary=None,
     )
 
 
@@ -30,6 +31,7 @@ def _runtime():
         finish_step=lambda session, step, status: calls.append(("finish_step", step.id, status)),
     )
     side_effects = SimpleNamespace(
+        persist_thought_message=lambda *args, **kwargs: SimpleNamespace(id="thought-1"),
         record_side_effects_result=lambda *args, **kwargs: calls.append(("record_side_effects_result", kwargs)),
         finish_action=lambda session, action, audit_run, status: calls.append(("finish_action", action.id, status)),
     )

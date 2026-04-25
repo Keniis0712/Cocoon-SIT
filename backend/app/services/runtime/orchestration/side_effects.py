@@ -68,6 +68,25 @@ class SideEffects:
             "current_wakeup_task_id": state.current_wakeup_task_id,
         }
 
+    def persist_thought_message(
+        self,
+        session: Session,
+        context: ContextPackage,
+        action: ActionDispatch,
+        meta: MetaDecision,
+    ) -> Message:
+        thought_text = str(meta.internal_thought or "").strip() or "Structured meta decision completed."
+        event_summary = str(meta.event_summary or "").strip() or None
+        return self._persist_message(
+            session,
+            context=context,
+            action=action,
+            role="assistant",
+            content=thought_text,
+            is_thought=True,
+            retraction_note=event_summary,
+        )
+
     def persist_generated_message(
         self,
         session: Session,
@@ -81,19 +100,13 @@ class SideEffects:
             role = "system"
         elif event_type == "merge":
             role = "system"
-        message = Message(
-            cocoon_id=context.runtime_event.cocoon_id,
-            chat_group_id=context.runtime_event.chat_group_id,
-            action_id=action.id,
+        return self._persist_message(
+            session,
+            context=context,
+            action=action,
             role=role,
             content=generation.reply_text,
-            tags_json=context.session_state.active_tags_json,
         )
-        session.add(message)
-        session.flush()
-        for tag in context.session_state.active_tags_json:
-            session.add(MessageTag(message_id=message.id, tag_id=tag))
-        return message
 
     def persist_memory_candidates(
         self,
@@ -211,6 +224,7 @@ class SideEffects:
         *,
         action: ActionDispatch,
         message: Message | None = None,
+        thought_message: Message | None = None,
         memories: list[MemoryChunk] | None = None,
         scheduler_result: dict | None = None,
     ) -> None:
@@ -220,6 +234,7 @@ class SideEffects:
             "target_type": "chat_group" if action.chat_group_id else "cocoon",
             "target_id": action.chat_group_id or action.cocoon_id,
             "final_message_id": message.id if message else None,
+            "thought_message_id": thought_message.id if thought_message else None,
             "memory_chunk_ids": [memory.id for memory in memories or []],
             "scheduler_result": scheduler_result or {},
         }
@@ -250,3 +265,30 @@ class SideEffects:
         action.finished_at = datetime.now(UTC).replace(tzinfo=None)
         self.audit_service.finish_run(session, audit_run, status)
         session.flush()
+
+    def _persist_message(
+        self,
+        session: Session,
+        *,
+        context: ContextPackage,
+        action: ActionDispatch,
+        role: str,
+        content: str,
+        is_thought: bool = False,
+        retraction_note: str | None = None,
+    ) -> Message:
+        message = Message(
+            cocoon_id=context.runtime_event.cocoon_id,
+            chat_group_id=context.runtime_event.chat_group_id,
+            action_id=action.id,
+            role=role,
+            content=content,
+            is_thought=is_thought,
+            retraction_note=retraction_note,
+            tags_json=context.session_state.active_tags_json,
+        )
+        session.add(message)
+        session.flush()
+        for tag in context.session_state.active_tags_json:
+            session.add(MessageTag(message_id=message.id, tag_id=tag))
+        return message

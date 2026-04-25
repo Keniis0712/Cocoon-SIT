@@ -30,6 +30,7 @@ class RuntimeGraphState(TypedDict, total=False):
     meta: MetaDecision
     scheduler_result: dict[str, Any]
     generation: GenerationOutput
+    thought_message: Message | None
     message: Message | None
 
 
@@ -165,6 +166,7 @@ class ChatRuntime:
                 "persona_patch": meta.persona_patch,
                 "tag_ops": [{"action": op.action, "tag_index": op.tag_index} for op in meta.tag_ops],
                 "internal_thought": meta.internal_thought,
+                "event_summary": meta.event_summary,
                 "next_wakeup_hints": meta.next_wakeup_hints,
                 "cancel_wakeup_task_ids": meta.cancel_wakeup_task_ids,
                 "generation_brief": meta.generation_brief,
@@ -187,10 +189,12 @@ class ChatRuntime:
         )
         scheduler_step = self.audit_service.start_step(session, audit_run, "scheduler_node")
         scheduler_result = self.scheduler_node.schedule(session, context, meta)
+        thought_message = self.side_effects.persist_thought_message(session, context, action, meta)
         self.logger.info(
-            "Scheduler result action_id=%s result=%s",
+            "Scheduler result action_id=%s result=%s thought_message_id=%s",
             action.id,
             scheduler_result,
+            thought_message.id,
         )
         self.audit_service.record_json_artifact(
             session,
@@ -202,7 +206,7 @@ class ChatRuntime:
             metadata_json=scheduler_result,
         )
         self.audit_service.finish_step(session, scheduler_step, ActionStatus.completed)
-        return {"scheduler_result": scheduler_result}
+        return {"scheduler_result": scheduler_result, "thought_message": thought_message}
 
     def _run_generator_node(self, state: RuntimeGraphState) -> RuntimeGraphState:
         session = state["session"]
@@ -243,6 +247,7 @@ class ChatRuntime:
             context.session_state,
             action=action,
             message=state.get("message"),
+            thought_message=state.get("thought_message"),
             scheduler_result=state.get("scheduler_result"),
         )
         self.state_patch_service.publish_snapshot(
@@ -254,9 +259,10 @@ class ChatRuntime:
         self.audit_service.finish_step(session, side_effects_step, ActionStatus.completed)
         self.side_effects.finish_action(session, action, audit_run, ActionStatus.completed)
         self.logger.info(
-            "Side effects finished action_id=%s final_message_id=%s",
+            "Side effects finished action_id=%s final_message_id=%s thought_message_id=%s",
             action.id,
             getattr(state.get("message"), "id", None),
+            getattr(state.get("thought_message"), "id", None),
         )
         return {}
 

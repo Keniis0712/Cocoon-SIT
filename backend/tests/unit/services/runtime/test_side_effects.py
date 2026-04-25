@@ -127,3 +127,68 @@ def test_side_effects_prefers_valid_context_memory_owner_over_invalid_model_owne
 
         assert len(memories) == 1
         assert memories[0].owner_user_id == user.id
+
+
+def test_persist_thought_message_stores_internal_thought_and_wakeup_summary():
+    session_factory = _session_factory()
+    side_effects = SideEffects(
+        audit_service=SimpleNamespace(),
+        memory_service=SimpleNamespace(index_memory_chunk=lambda *args, **kwargs: None),
+    )
+
+    with session_factory() as session:
+        user = User(id="user-1", username="owner", password_hash="hash")
+        character = Character(
+            id="character-1",
+            name="Guide",
+            prompt_summary="",
+            settings_json={},
+            created_by_user_id=user.id,
+        )
+        cocoon = Cocoon(
+            id="cocoon-1",
+            name="Solo",
+            owner_user_id=user.id,
+            character_id=character.id,
+            selected_model_id="model-1",
+        )
+        state = SessionState(cocoon_id=cocoon.id, persona_json={}, active_tags_json=["focus"])
+        action = ActionDispatch(cocoon_id=cocoon.id, event_type="wakeup", payload_json={})
+        session.add_all([user, character, cocoon, state, action])
+        session.flush()
+
+        context = ContextPackage(
+            runtime_event=RuntimeEvent(
+                event_type="wakeup",
+                cocoon_id=cocoon.id,
+                chat_group_id=None,
+                action_id="action-1",
+                payload={"reason": "scheduled reminder"},
+            ),
+            conversation=cocoon,
+            character=character,
+            session_state=state,
+            visible_messages=[],
+            memory_context=[],
+            external_context={},
+        )
+
+        message = side_effects.persist_thought_message(
+            session,
+            context,
+            action,
+            MetaDecision(
+                decision="silence",
+                relation_delta=0,
+                persona_patch={},
+                tag_ops=[],
+                internal_thought="Keep the reminder queued quietly.",
+                event_summary="Scheduled reminder observed without sending a visible reply.",
+            ),
+        )
+
+        assert message.is_thought is True
+        assert message.role == "assistant"
+        assert message.content == "Keep the reminder queued quietly."
+        assert message.retraction_note == "Scheduled reminder observed without sending a visible reply."
+        assert message.tags_json == ["focus"]

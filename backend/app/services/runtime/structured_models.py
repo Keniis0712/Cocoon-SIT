@@ -39,6 +39,7 @@ class MetaStructuredOutputModel(BaseModel):
     persona_patch: dict[str, Any] = Field(default_factory=dict)
     tag_ops: list[TagOperationModel] = Field(default_factory=list)
     internal_thought: StrictStr = ""
+    event_summary: StrictStr | None = None
     schedule_wakeups: list[ScheduledWakeupModel | dict[str, Any]] = Field(default_factory=list)
     cancel_wakeup_task_ids: list[StrictStr] = Field(default_factory=list)
     generation_brief: StrictStr | None = None

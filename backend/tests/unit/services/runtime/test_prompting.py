@@ -10,6 +10,7 @@ from app.services.runtime.prompting import (
     _serialize_tags,
     _tag_catalog,
     _visibility_description,
+    build_provider_message_payload,
     build_runtime_clock_payload,
     build_runtime_prompt_variables,
     record_prompt_render_artifacts,
@@ -41,7 +42,7 @@ def _build_context(*, target_type: str = "chat_group") -> ContextPackage:
         session_state=SimpleNamespace(
             relation_score=3,
             persona_json={"mood": "curious"},
-            active_tags_json=["tag-public", "tag-group"],
+            active_tags_json=["tag-system", "tag-public", "tag-group"],
         ),
         visible_messages=[],
         memory_context=[],
@@ -56,6 +57,13 @@ def _build_context(*, target_type: str = "chat_group") -> ContextPackage:
                 }
             },
             "tag_catalog_by_ref": {
+                "tag-system": {
+                    "brief": "default fallback",
+                    "visibility": "public",
+                    "tag_id": "default",
+                    "is_system": True,
+                    "visible_in_target": True,
+                },
                 "tag-public": {
                     "brief": "safe tag",
                     "visibility": "public",
@@ -73,6 +81,14 @@ def _build_context(*, target_type: str = "chat_group") -> ContextPackage:
                     "is_isolated": True,
                     "visible_in_target": False,
                 },
+            },
+            "prompt_tag_catalog": [
+                {"index": 1, "id": "tag-system", "tag_id": "default", "brief": "default fallback"},
+                {"index": 2, "id": "tag-public", "tag_id": "focus", "brief": "safe tag"},
+            ],
+            "prompt_tag_catalog_by_index": {
+                1: {"id": "tag-system", "tag_id": "default"},
+                2: {"id": "tag-public", "tag_id": "focus"},
             },
         },
     )
@@ -95,11 +111,13 @@ def test_prompting_serializes_tags_messages_and_memory():
     context = _build_context(target_type="cocoon")
     catalog = _tag_catalog(context)
     message = SimpleNamespace(
-        role="user",
-        content="Hello there",
-        sender_user_id="user-1",
-        is_retracted=True,
-        tags_json=["tag-public", "tag-group"],
+        role="assistant",
+        content="Private reasoning",
+        sender_user_id=None,
+        is_thought=True,
+        retraction_note="The wakeup checked in after a long silence.",
+        is_retracted=False,
+        tags_json=["tag-system", "tag-public", "tag-group"],
     )
     memory = SimpleNamespace(
         scope="dialogue",
@@ -113,17 +131,22 @@ def test_prompting_serializes_tags_messages_and_memory():
     )
 
     serialized_tag = _serialize_tag("tag-public", context, catalog)
-    serialized_tags = _serialize_tags(["tag-public", "tag-group"], context, catalog)
+    serialized_tags = _serialize_tags(["tag-system", "tag-public", "tag-group"], context, catalog)
     message_payload = _runtime_message_payload(message, context, catalog)
     memory_payload = _runtime_memory_payload(memory, context, catalog)
+    provider_payload = build_provider_message_payload(message, context)
 
     assert serialized_tag["name"] == "Public Tag"
     assert serialized_tag["mentionable_in_current_target"] is True
-    assert serialized_tags[1]["name"] == "group-id"
-    assert "[system note: this message was later retracted]" in message_payload["content"]
-    assert message_payload["speaker"] == "you"
-    assert "sender_user_id" not in message_payload
+    assert serialized_tags[0]["name"] == "default"
+    assert serialized_tags[2]["name"] == "group-id"
+    assert message_payload["is_thought"] is True
+    assert message_payload["event_summary"] == "The wakeup checked in after a long silence."
+    assert "speaker" not in message_payload
     assert message_payload["mentionable_in_current_target"] is True
+    assert provider_payload["role"] == "system"
+    assert "[assistant_thought] Private reasoning" in provider_payload["content"]
+    assert "[wakeup_event_summary] The wakeup checked in after a long silence." in provider_payload["content"]
     assert memory_payload["source"] == "cocoon"
     assert memory_payload["mentionable_in_current_target"] is False
     assert memory_payload["tags"][0]["is_isolated"] is True
@@ -137,8 +160,10 @@ def test_build_runtime_prompt_variables_builds_full_payload():
             role="user",
             content="Hi",
             sender_user_id="user-1",
+            is_thought=False,
+            retraction_note=None,
             is_retracted=False,
-            tags_json=["tag-public"],
+            tags_json=["tag-system", "tag-public"],
         )
     ]
     context.memory_context = [
@@ -165,7 +190,9 @@ def test_build_runtime_prompt_variables_builds_full_payload():
 
     assert payload["character_settings"]["prompt_summary"] == "friendly companion"
     assert payload["conversation_target"] == {"type": "cocoon", "name": "Demo Cocoon"}
-    assert payload["visible_messages"][0]["tags"][0]["name"] == "Public Tag"
+    assert payload["session_state"]["active_tags"][0]["name"] == "default"
+    assert payload["tag_catalog"][0]["tag_id"] == "default"
+    assert payload["visible_messages"][0]["tags"][0]["name"] == "default"
     assert payload["visible_messages"][0]["speaker"] == "you"
     assert payload["memory_context"][0]["source"] == "chat_group"
     assert payload["runtime_event"]["source"] == "user"
@@ -199,7 +226,7 @@ def test_build_runtime_prompt_variables_handles_non_dict_catalog_and_merge_paylo
 
     payload = build_runtime_prompt_variables(context)
 
-    assert payload["session_state"]["active_tags"][0]["name"] == "tag-public"
+    assert payload["session_state"]["active_tags"][0]["name"] == "tag-system"
     assert payload["merge_context"] == "plain"
 
 
