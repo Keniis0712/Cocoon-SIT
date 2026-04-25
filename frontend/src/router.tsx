@@ -15,6 +15,8 @@ const CocoonsPage = lazy(() => import("@/pages/Cocoons"));
 const EmbeddingProvidersPage = lazy(() => import("@/pages/EmbeddingProvidersPage"));
 const GroupsPage = lazy(() => import("@/pages/Groups"));
 const InsightsPage = lazy(() => import("@/pages/Insights"));
+const InviteGrantHistoryPage = lazy(() => import("@/pages/InviteGrantHistory"));
+const InviteQuotaPage = lazy(() => import("@/pages/InviteQuotas"));
 const InvitesPage = lazy(() => import("@/pages/Invites"));
 const LoginPage = lazy(() => import("@/pages/Login"));
 const MePage = lazy(() => import("@/pages/Me"));
@@ -72,6 +74,8 @@ export const router = createBrowserRouter([
       { path: "/characters", element: renderLazyPage(CharactersPage) },
       { path: "/groups", element: renderLazyPage(GroupsPage) },
       { path: "/invites", element: renderLazyPage(InvitesPage) },
+      { path: "/invites/grants", element: renderLazyPage(InviteGrantHistoryPage) },
+      { path: "/invites/quotas", element: renderLazyPage(InviteQuotaPage) },
       { path: "/merges", element: renderLazyPage(MergesPage) },
       { path: "/providers", element: renderLazyPage(ProvidersPage) },
       { path: "/prompt-templates", element: renderLazyPage(PromptTemplatesPage) },

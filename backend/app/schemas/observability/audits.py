@@ -31,6 +31,10 @@ class AuditRunOut(ORMModel):
     cocoon_id: str | None
     chat_group_id: str | None = None
     action_id: str | None
+    user_message_id: str | None = None
+    assistant_message_id: str | None = None
+    trigger_input: str | None = None
+    assistant_output: str | None = None
     operation_type: str
     status: str
     started_at: datetime

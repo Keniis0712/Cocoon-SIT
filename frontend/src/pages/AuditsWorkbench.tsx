@@ -371,7 +371,7 @@ export default function AuditsWorkbenchPage() {
                     <span>{formatDate(item.created_at)}</span>
                   </div>
                   <div className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                    {item.internal_thought || item.user_message?.content || item.assistant_message?.content || item.round_uid || t("audits.noSummary")}
+                    {item.internal_thought || item.user_message?.content || item.assistant_message?.content || item.trigger_input || item.round_uid || t("audits.noSummary")}
                   </div>
                 </button>
               )) : null}
@@ -432,7 +432,7 @@ export default function AuditsWorkbenchPage() {
                   <Card className="border-border/70 bg-background/40">
                     <CardHeader><CardTitle className="text-base">{t("audits.userTriggerInput")}</CardTitle></CardHeader>
                     <CardContent className="whitespace-pre-wrap text-sm leading-6">
-                      {selectedRun.user_message?.content || selectedRun.trigger_event_uid || "-"}
+                      {selectedRun.user_message?.content || selectedRun.trigger_input || selectedRun.trigger_event_uid || "-"}
                     </CardContent>
                   </Card>
                   <Card className="border-border/70 bg-background/40">

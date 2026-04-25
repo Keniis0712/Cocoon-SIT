@@ -83,6 +83,10 @@ export default function GroupsPage() {
     [groups, selectedGroupId],
   );
   const groupNameMap = useMemo(() => new Map(groups.map((group) => [group.gid, group.name])), [groups]);
+  const userLabelMap = useMemo(
+    () => new Map(users.map((item) => [item.uid, `${item.username} / ${item.uid}`])),
+    [users],
+  );
 
   useEffect(() => {
     void bootstrap();
@@ -320,7 +324,11 @@ export default function GroupsPage() {
                       </Badge>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <Badge variant="secondary">{t("groups.ownerUid")}: {group.owner_uid || "-"}</Badge>
+                      {group.owner_uid ? (
+                        <Badge variant="secondary">{t("groups.ownerUid")}: {userLabelMap.get(group.owner_uid) || group.owner_uid}</Badge>
+                      ) : (
+                        <Badge variant="secondary">{t("groups.ownerUid")}: -</Badge>
+                      )}
                       {group.description ? <Badge variant="outline">{group.description}</Badge> : null}
                     </div>
                   </button>
@@ -342,7 +350,7 @@ export default function GroupsPage() {
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-2xl border border-border/70 p-4 text-sm">
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("groups.ownerUid")}</div>
-                      <div className="mt-2 break-all font-medium">{selectedGroup.owner_uid || "-"}</div>
+                      <div className="mt-2 break-all font-medium">{selectedGroup.owner_uid ? userLabelMap.get(selectedGroup.owner_uid) || selectedGroup.owner_uid : "-"}</div>
                     </div>
                     <div className="rounded-2xl border border-border/70 p-4 text-sm">
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("groups.parentGroup")}</div>
@@ -421,7 +429,7 @@ export default function GroupsPage() {
                   members.map((member) => (
                     <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-border/70 bg-background/30 p-4 text-sm">
                       <div>
-                        <div className="font-medium">{member.user_uid}</div>
+                        <div className="font-medium">{userLabelMap.get(member.user_uid) || member.user_uid}</div>
                         <div className="mt-1 text-muted-foreground">{formatTime(member.created_at)}</div>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => void handleRemoveMember(member.user_uid)}>

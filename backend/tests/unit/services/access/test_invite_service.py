@@ -6,8 +6,8 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from app.models import InviteCode, InviteQuotaGrant, Role, User, UserGroup
-from app.schemas.access.invites import InviteCreate, InviteGrantCreate, InviteRedeemRequest
+from app.models import InviteCode, InviteQuotaAccount, InviteQuotaGrant, Role, User, UserGroup
+from app.schemas.access.invites import InviteCreate, InviteGrantCreate, InviteQuotaUpdate, InviteRedeemRequest
 from app.services.access.group_service import ROOT_GROUP_ID
 from app.services.access.invite_service import InviteService
 from tests.sqlite_helpers import make_sqlite_session_factory
@@ -66,23 +66,15 @@ def test_invite_service_create_invite_validates_sources_and_lists_by_newest():
             )
         assert unsupported_source.value.status_code == 400
 
-        session.add(
-            InviteQuotaGrant(
-                granted_by_user_id=actor.id,
-                target_type="USER",
-                target_id=target.id,
-                quota=3,
-                is_unlimited=False,
-            )
+        service.create_grant(
+            session,
+            InviteGrantCreate(target_type="USER", target_id=target.id, amount=3),
+            actor,
         )
-        session.add(
-            InviteQuotaGrant(
-                granted_by_user_id=actor.id,
-                target_type="GROUP",
-                target_id=group_id,
-                quota=5,
-                is_unlimited=False,
-            )
+        service.create_grant(
+            session,
+            InviteGrantCreate(target_type="GROUP", target_id=group_id, amount=5),
+            actor,
         )
         session.commit()
 
@@ -156,14 +148,10 @@ def test_invite_service_group_sources_require_existing_group_and_available_quota
             )
         assert missing_group.value.status_code == 404
 
-        session.add(
-            InviteQuotaGrant(
-                granted_by_user_id=actor.id,
-                target_type="GROUP",
-                target_id=group_id,
-                quota=1,
-                is_unlimited=False,
-            )
+        service.create_grant(
+            session,
+            InviteGrantCreate(target_type="GROUP", target_id=group_id, amount=1),
+            actor,
         )
         session.commit()
 
@@ -304,27 +292,8 @@ def test_invite_service_summary_and_redeem_cover_remaining_branches():
         session.add(group)
         session.flush()
 
-        session.add(
-            InviteQuotaGrant(
-                granted_by_user_id=actor.id,
-                target_type="USER",
-                target_id=user.id,
-                quota=6,
-                is_unlimited=False,
-            )
-        )
-        session.add(
-            InviteQuotaGrant(
-                granted_by_user_id=actor.id,
-                target_type="GROUP",
-                target_id=group.id,
-                quota=0,
-                is_unlimited=True,
-            )
-        )
         session.add_all(
             [
-                InviteCode(code="USERSRC", quota_total=2, source_type="USER", source_id=user.id),
                 InviteCode(code="REVOKED", quota_total=1, revoked_at=datetime.now(UTC).replace(tzinfo=None)),
                 InviteCode(
                     code="EXPIRED",
@@ -347,6 +316,30 @@ def test_invite_service_summary_and_redeem_cover_remaining_branches():
         with pytest.raises(HTTPException) as bad_summary:
             service.get_summary(session, "ORG", "org-1")
         assert bad_summary.value.status_code == 400
+
+        service.create_grant(
+            session,
+            InviteGrantCreate(target_type="USER", target_id=user_id, amount=6),
+            actor,
+        )
+        service.create_grant(
+            session,
+            InviteGrantCreate(target_type="GROUP", target_id=group_id, amount=1, is_unlimited=True),
+            actor,
+        )
+        service.create_invite(
+            session,
+            InviteCreate(
+                code="USERSRC",
+                quota_total=2,
+                source_type="USER",
+                source_id=user_id,
+                registration_group_id=group_id,
+                expires_at=(datetime.now(UTC) + timedelta(days=1)).replace(tzinfo=None),
+            ),
+            actor,
+        )
+        session.commit()
 
         user_summary = service.get_summary(session, "USER", user_id)
         group_summary = service.get_summary(session, "GROUP", group_id)
@@ -378,3 +371,70 @@ def test_invite_service_summary_and_redeem_cover_remaining_branches():
         assert ready_invite.quota_used == 2
         assert grant is not None
         assert grant.target_id == user_id
+        assert service.get_summary(session, "USER", user_id).invite_quota_remaining == 6
+
+
+def test_invite_service_update_summary_requires_admin_and_updates_account():
+    session_factory = _session_factory()
+    service = InviteService()
+
+    with session_factory() as session:
+        admin_role = Role(name="admin", permissions_json={})
+        member_role = Role(name="member", permissions_json={})
+        session.add_all([admin_role, member_role])
+        session.flush()
+        admin = User(username="admin-user", password_hash="hash", role_id=admin_role.id)
+        member = User(username="member-user", password_hash="hash", role_id=member_role.id)
+        session.add_all([admin, member])
+        session.flush()
+        group = UserGroup(name="quota-group", owner_user_id=member.id)
+        session.add(group)
+        session.commit()
+        admin_id = admin.id
+        member_id = member.id
+        group_id = group.id
+
+    with session_factory() as session:
+        admin = session.get(User, admin_id)
+        member = session.get(User, member_id)
+        assert admin is not None
+        assert member is not None
+
+        with pytest.raises(HTTPException) as forbidden:
+            service.update_summary(
+                session,
+                "USER",
+                member_id,
+                InviteQuotaUpdate(invite_quota_remaining=9),
+                member,
+            )
+        assert forbidden.value.status_code == 403
+
+        user_summary = service.update_summary(
+            session,
+            "USER",
+            member_id,
+            InviteQuotaUpdate(invite_quota_remaining=9, invite_quota_unlimited=True),
+            admin,
+        )
+        group_summary = service.update_summary(
+            session,
+            "GROUP",
+            group_id,
+            InviteQuotaUpdate(invite_quota_remaining=3, invite_quota_unlimited=False),
+            admin,
+        )
+        user_account = session.scalar(
+            select(InviteQuotaAccount).where(
+                InviteQuotaAccount.target_type == "USER",
+                InviteQuotaAccount.target_id == member_id,
+            )
+        )
+
+        assert user_summary.invite_quota_remaining == 9
+        assert user_summary.invite_quota_unlimited is True
+        assert group_summary.invite_quota_remaining == 3
+        assert group_summary.invite_quota_unlimited is False
+        assert user_account is not None
+        assert user_account.remaining_quota == 9
+        assert user_account.is_unlimited is True

@@ -6,7 +6,6 @@ function mapSettings(item: {
   allow_registration: boolean;
   max_chat_turns: number;
   allowed_model_ids: string[];
-  default_cocoon_temperature: number;
   default_max_context_messages: number;
   default_auto_compaction_enabled: boolean;
   private_chat_debounce_seconds: number;
@@ -19,7 +18,6 @@ function mapSettings(item: {
     allow_registration: item.allow_registration,
     max_chat_turns: item.max_chat_turns,
     allowed_model_ids: (item.allowed_model_ids || []).map((modelId) => rememberLegacyId("model", modelId)),
-    default_cocoon_temperature: item.default_cocoon_temperature,
     default_max_context_messages: item.default_max_context_messages,
     default_auto_compaction_enabled: item.default_auto_compaction_enabled,
     private_chat_debounce_seconds: item.private_chat_debounce_seconds,

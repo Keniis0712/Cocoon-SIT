@@ -3,9 +3,11 @@ import { rememberLegacyId, rememberLegacyStringId, resolveActualId } from "./id-
 import type {
   InviteCodeCreatePayload,
   InviteCodeRead,
+  InviteQuotaAccountRead,
   InviteQuotaGrantCreatePayload,
   InviteQuotaGrantRead,
   InviteSummary,
+  InviteQuotaUpdatePayload,
   PageResp,
 } from "./types";
 
@@ -50,6 +52,14 @@ type InviteGrantResponse = {
   revoked_at: string | null;
 };
 
+type InviteQuotaAccountResponse = {
+  target_type: string;
+  target_id: string;
+  invite_quota_remaining: number;
+  invite_quota_unlimited: boolean;
+  updated_at: string;
+};
+
 function mapInvite(item: InviteCodeResponse): InviteCodeRead {
   return {
     code: item.code,
@@ -91,6 +101,21 @@ function mapGrant(item: InviteGrantResponse): InviteQuotaGrantRead {
     note: item.note,
     created_at: item.created_at,
     revoked_at: item.revoked_at,
+  };
+}
+
+function mapQuotaAccount(item: InviteQuotaAccountResponse): InviteQuotaAccountRead {
+  return {
+    target_type: item.target_type as InviteQuotaAccountRead["target_type"],
+    target_id:
+      item.target_type === "USER"
+        ? rememberLegacyStringId("user", item.target_id)
+        : item.target_type === "GROUP"
+          ? rememberLegacyStringId("group", item.target_id)
+          : item.target_id,
+    invite_quota_remaining: item.invite_quota_remaining,
+    invite_quota_unlimited: item.invite_quota_unlimited,
+    updated_at: item.updated_at,
   };
 }
 
@@ -170,6 +195,43 @@ export function revokeInviteGrant(grantId: number) {
       method: "DELETE",
     });
     return mapGrant(created);
+  });
+}
+
+export function listInviteQuotaAccounts(): Promise<InviteQuotaAccountRead[]> {
+  return apiCall(async () => {
+    const items = await apiJson<InviteQuotaAccountResponse[]>("/invites/quotas");
+    return items.map(mapQuotaAccount);
+  });
+}
+
+export function updateInviteQuota(
+  targetType: "USER" | "GROUP",
+  targetId: string,
+  data: InviteQuotaUpdatePayload,
+): Promise<InviteSummary> {
+  return apiCall(async () => {
+    const summary = await apiJson<InviteQuotaAccountResponse>(
+      `/invites/quotas/${targetType}/${targetType === "USER" ? resolveActualId("user", targetId) : resolveActualId("group", targetId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          invite_quota_remaining: data.invite_quota_remaining,
+          invite_quota_unlimited: data.invite_quota_unlimited,
+        }),
+      },
+    );
+    return {
+      target_type: summary.target_type as InviteSummary["target_type"],
+      target_id:
+        summary.target_type === "USER"
+          ? rememberLegacyStringId("user", summary.target_id)
+          : summary.target_type === "GROUP"
+            ? rememberLegacyStringId("group", summary.target_id)
+            : summary.target_id,
+      invite_quota_remaining: summary.invite_quota_remaining,
+      invite_quota_unlimited: summary.invite_quota_unlimited,
+    };
   });
 }
 

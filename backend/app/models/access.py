@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, JsonDefaultMixin, TimestampMixin
@@ -82,6 +82,19 @@ class InviteQuotaGrant(Base, TimestampMixin):
     is_unlimited: Mapped[bool] = mapped_column(Boolean, default=False)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+
+
+class InviteQuotaAccount(Base, TimestampMixin):
+    __tablename__ = "invite_quota_accounts"
+    __table_args__ = (
+        UniqueConstraint("target_type", "target_id", name="uq_invite_quota_accounts_target"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    target_type: Mapped[str] = mapped_column(String(32), default="USER")
+    target_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    remaining_quota: Mapped[int] = mapped_column(Integer, default=0)
+    is_unlimited: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class UserGroup(Base, TimestampMixin):

@@ -69,6 +69,8 @@
   "userPathPlaceholder": "Generated after creation",
   "unlimitedInviteQuota": "Grant unlimited invite quota",
   "keepUserActive": "Keep user active",
+  "expandPermissions": "Show all permissions",
+  "collapsePermissions": "Collapse permissions",
   "roleLevelValues": {
     "0": "Admin",
     "1": "Reseller",

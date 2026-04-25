@@ -11,6 +11,7 @@ import { listPromptTemplates } from "@/api/prompts";
 import { getSystemSettings, updateSystemSettings } from "@/api/settings";
 import type { ModelProviderRead } from "@/api/types/providers";
 import type { SystemSettingsRead, SystemSettingsUpdate } from "@/api/types/settings";
+import { PopupMultiSelect } from "@/components/composes/PopupMultiSelect";
 import AccessCard from "@/components/AccessCard";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,16 @@ export default function SettingsPage() {
   const allModels = useMemo(
     () => providers.flatMap((provider) => provider.available_models.map((model) => ({ ...model, provider }))),
     [providers],
+  );
+  const modelWhitelistOptions = useMemo(
+    () =>
+      allModels.map((model) => ({
+        value: String(model.id),
+        label: model.model_name,
+        description: model.provider.name,
+        keywords: [String(model.id), model.provider.name],
+      })),
+    [allModels],
   );
 
   useEffect(() => {
@@ -89,7 +100,6 @@ export default function SettingsPage() {
         allow_registration: form.allow_registration,
         max_chat_turns: form.max_chat_turns,
         allowed_model_ids: form.allowed_model_ids,
-        default_cocoon_temperature: form.default_cocoon_temperature,
         default_max_context_messages: form.default_max_context_messages,
         default_auto_compaction_enabled: form.default_auto_compaction_enabled,
         private_chat_debounce_seconds: form.private_chat_debounce_seconds,
@@ -104,18 +114,6 @@ export default function SettingsPage() {
     } finally {
       setIsSaving(false);
     }
-  }
-
-  function toggleAllowedModel(modelId: number, checked: boolean) {
-    setForm((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      const nextIds = checked
-        ? Array.from(new Set([...prev.allowed_model_ids, modelId]))
-        : prev.allowed_model_ids.filter((item) => item !== modelId);
-      return { ...prev, allowed_model_ids: nextIds };
-    });
   }
 
   if (!canManage) {
@@ -172,21 +170,6 @@ export default function SettingsPage() {
                         setForm((prev) =>
                           prev
                             ? { ...prev, private_chat_debounce_seconds: Number(event.target.value || 0) }
-                            : prev
-                        )
-                      }
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>{t("settings.defaultCocoonTemperature")}</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={String(form.default_cocoon_temperature)}
-                      onChange={(event) =>
-                        setForm((prev) =>
-                          prev
-                            ? { ...prev, default_cocoon_temperature: Number(event.target.value || 0) }
                             : prev
                         )
                       }
@@ -260,23 +243,18 @@ export default function SettingsPage() {
                     <div className="text-sm text-muted-foreground">{t("settings.modelWhitelistDescription")}</div>
                   </div>
                   {allModels.length ? (
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {allModels.map((model) => (
-                        <label
-                          key={model.id}
-                          className="flex items-start gap-3 rounded-xl border border-border/70 px-4 py-4 text-sm"
-                        >
-                          <Checkbox
-                            checked={form.allowed_model_ids.includes(model.id)}
-                            onCheckedChange={(checked) => toggleAllowedModel(model.id, Boolean(checked))}
-                          />
-                          <div>
-                            <div className="font-medium">{model.model_name}</div>
-                            <div className="text-muted-foreground">{model.provider.name}</div>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
+                    <PopupMultiSelect
+                      title={t("settings.modelWhitelistTitle")}
+                      description={t("settings.modelWhitelistDescription")}
+                      placeholder={t("settings.modelWhitelistTitle")}
+                      searchPlaceholder={t("common.search")}
+                      emptyText={t("settings.noModelsAvailable")}
+                      value={form.allowed_model_ids.map((item) => String(item))}
+                      onValueChange={(value) =>
+                        setForm((prev) => (prev ? { ...prev, allowed_model_ids: value.map((item) => Number(item)) } : prev))
+                      }
+                      options={modelWhitelistOptions}
+                    />
                   ) : (
                     <div className="rounded-xl border border-dashed border-border/70 px-4 py-4 text-sm text-muted-foreground">
                       {t("settings.noModelsAvailable")}

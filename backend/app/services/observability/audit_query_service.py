@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AuditArtifact, AuditLink, AuditRun, AuditStep
+from app.models import ActionDispatch, AuditArtifact, AuditLink, AuditRun, AuditStep, Message
 from app.models import User
 from app.schemas.observability.audits import (
     AuditArtifactOut,
@@ -52,11 +52,53 @@ class AuditQueryService:
             created_at=artifact.created_at,
         )
 
+    def _build_run_out(self, session: Session, run: AuditRun) -> AuditRunOut:
+        user_message = session.scalar(
+            select(Message)
+            .where(
+                Message.action_id == run.action_id,
+                Message.role == "user",
+            )
+            .order_by(Message.created_at.asc())
+            .limit(1)
+        ) if run.action_id else None
+        assistant_message = session.scalar(
+            select(Message)
+            .where(
+                Message.action_id == run.action_id,
+                Message.is_thought.is_(False),
+                Message.role.in_(("assistant", "system")),
+            )
+            .order_by(Message.created_at.desc())
+            .limit(1)
+        ) if run.action_id else None
+        trigger_input = user_message.content if user_message else None
+        if trigger_input is None and run.action_id:
+            action = session.get(ActionDispatch, run.action_id)
+            if action and isinstance(action.payload_json, dict):
+                candidate = action.payload_json.get("content")
+                if isinstance(candidate, str) and candidate.strip():
+                    trigger_input = candidate
+        return AuditRunOut(
+            id=run.id,
+            cocoon_id=run.cocoon_id,
+            chat_group_id=run.chat_group_id,
+            action_id=run.action_id,
+            user_message_id=user_message.id if user_message else None,
+            assistant_message_id=assistant_message.id if assistant_message else None,
+            trigger_input=trigger_input,
+            assistant_output=assistant_message.content if assistant_message else None,
+            operation_type=run.operation_type,
+            status=run.status,
+            started_at=run.started_at,
+            finished_at=run.finished_at,
+        )
+
     def list_runs(self, session: Session, user: User | None = None) -> list[AuditRunOut]:
         runs = list(session.scalars(select(AuditRun).order_by(AuditRun.started_at.desc())).all())
         if user is not None:
             runs = self.authorization_service.filter_visible_audit_runs(session, user, runs)
-        return [AuditRunOut.model_validate(run) for run in runs]
+        return [self._build_run_out(session, run) for run in runs]
 
     def get_run_detail(self, session: Session, run_id: str, user: User | None = None) -> AuditRunDetail:
         run = session.get(AuditRun, run_id)
@@ -68,7 +110,7 @@ class AuditQueryService:
         artifacts = list(session.scalars(select(AuditArtifact).where(AuditArtifact.run_id == run.id)).all())
         links = list(session.scalars(select(AuditLink).where(AuditLink.run_id == run.id)).all())
         return AuditRunDetail(
-            run=AuditRunOut.model_validate(run),
+            run=self._build_run_out(session, run),
             steps=[AuditStepOut.model_validate(step) for step in steps],
             artifacts=[self._build_artifact_out(artifact) for artifact in artifacts],
             links=[AuditLinkOut.model_validate(link) for link in links],

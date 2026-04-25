@@ -1,6 +1,7 @@
 from app.models.access import (
     AuthSession,
     InviteCode,
+    InviteQuotaAccount,
     InviteQuotaGrant,
     Role,
     User,
@@ -92,6 +93,7 @@ __all__ = [
     "EmbeddingProvider",
     "FailedRound",
     "InviteCode",
+    "InviteQuotaAccount",
     "InviteQuotaGrant",
     "MemoryChunk",
     "MemoryEmbedding",

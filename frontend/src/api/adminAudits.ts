@@ -23,6 +23,10 @@ type RawAuditRun = {
   id: string;
   cocoon_id: string | null;
   action_id: string | null;
+  user_message_id?: string | null;
+  assistant_message_id?: string | null;
+  trigger_input?: string | null;
+  assistant_output?: string | null;
   operation_type: string;
   status: string;
   started_at: string;
@@ -72,13 +76,16 @@ function findArtifact(artifacts: RawAuditArtifact[], kind: string) {
 }
 
 function mapAuditRun(item: RawAuditRun): AuditRunListItem {
+  const userMessageContent = typeof item.trigger_input === "string" ? item.trigger_input : null;
+  const assistantOutput = typeof item.assistant_output === "string" ? item.assistant_output : null;
   return {
     id: rememberLegacyId("audit", item.id),
     round_uid: item.id,
     cocoon_id: item.cocoon_id ? rememberLegacyId("cocoon", item.cocoon_id) : 0,
-    user_message_id: null,
-    assistant_message_id: null,
+    user_message_id: item.user_message_id ? rememberLegacyId("message", item.user_message_id) : null,
+    assistant_message_id: item.assistant_message_id ? rememberLegacyId("message", item.assistant_message_id) : null,
     trigger_event_uid: item.action_id,
+    trigger_input: userMessageContent,
     trigger_type: inferTriggerType(item.operation_type),
     operation_type: item.operation_type,
     decision: null,
@@ -101,8 +108,45 @@ function mapAuditRun(item: RawAuditRun): AuditRunListItem {
     started_at: item.started_at,
     finished_at: item.finished_at,
     created_at: item.started_at,
-    user_message: null,
-    assistant_message: null,
+    user_message: userMessageContent
+      ? {
+          id: item.user_message_id ? rememberLegacyId("message", item.user_message_id) : rememberLegacyId("message", `trigger-${item.id}`),
+          message_uid: item.user_message_id || `trigger-${item.id}`,
+          cocoon_id: item.cocoon_id ? rememberLegacyId("cocoon", item.cocoon_id) : 0,
+          chat_group_id: null,
+          source_cocoon_id: null,
+          origin_cocoon_id: null,
+          role: "user",
+          content: userMessageContent,
+          is_thought: false,
+          visibility_level: 0,
+          delivery_status: "delivered",
+          processing_status: "completed",
+          reply_to_message_id: null,
+          created_at: item.started_at,
+          updated_at: null,
+        }
+      : null,
+    assistant_message: assistantOutput
+      ? {
+          id: item.assistant_message_id ? rememberLegacyId("message", item.assistant_message_id) : rememberLegacyId("message", `assistant-${item.id}`),
+          message_uid: item.assistant_message_id || `assistant-${item.id}`,
+          cocoon_id: item.cocoon_id ? rememberLegacyId("cocoon", item.cocoon_id) : 0,
+          chat_group_id: null,
+          source_cocoon_id: null,
+          origin_cocoon_id: null,
+          role: "assistant",
+          content: assistantOutput,
+          is_thought: false,
+          visibility_level: 0,
+          delivery_status: "delivered",
+          processing_status: "completed",
+          reply_to_message_id: null,
+          created_at: item.finished_at || item.started_at,
+          updated_at: null,
+        }
+      : null,
+    assistant_output: assistantOutput,
   };
 }
 
@@ -159,7 +203,7 @@ function buildRunDetail(run: RawAuditRun, steps: RawAuditStep[], artifacts: RawA
           created_at: run.finished_at || run.started_at,
           updated_at: null,
         }
-      : null,
+      : base.assistant_message,
     steps: steps.map((item) => ({
       id: numericId(item.id),
       raw_uid: item.id,

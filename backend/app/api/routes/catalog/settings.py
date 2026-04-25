@@ -15,7 +15,6 @@ def _serialize(settings: SystemSettings) -> SystemSettingsOut:
         allow_registration=settings.allow_registration,
         max_chat_turns=settings.max_chat_turns,
         allowed_model_ids=settings.allowed_model_ids_json,
-        default_cocoon_temperature=settings.default_cocoon_temperature,
         default_max_context_messages=settings.default_max_context_messages,
         default_auto_compaction_enabled=settings.default_auto_compaction_enabled,
         private_chat_debounce_seconds=settings.private_chat_debounce_seconds,

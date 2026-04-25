@@ -7,8 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.models import AvailableModel, SystemSettings
+from app.models import AvailableModel, SystemSettings, User
 from app.schemas.catalog.settings import SystemSettingsUpdate
+from app.services.security.rbac import get_role_for_user
 
 
 class SystemSettingsService:
@@ -93,3 +94,14 @@ class SystemSettingsService:
             ).all()
         }
         return [models[item_id] for item_id in allowed_ids if item_id in models]
+
+    def is_admin_user(self, session: Session, user: User) -> bool:
+        role = get_role_for_user(session, user)
+        return bool(role and role.name == "admin")
+
+    def filter_visible_models(self, session: Session, user: User, models: list[AvailableModel]) -> list[AvailableModel]:
+        current = self.get_settings(session)
+        allowed_ids = set(current.allowed_model_ids_json or [])
+        if not allowed_ids or self.is_admin_user(session, user):
+            return models
+        return [model for model in models if model.id in allowed_ids]

@@ -46,6 +46,7 @@ const API_ERROR_KEY_BY_MESSAGE: Record<string, string> = {
   "Used invites cannot be revoked": "common:apiErrors.usedInviteCannotBeRevoked",
   "Unsupported grant target": "common:apiErrors.unsupportedGrantTarget",
   "Only administrators can revoke invite grants": "common:apiErrors.inviteGrantAdminOnly",
+  "Only administrators can update invite quota balances": "common:apiErrors.inviteQuotaBalanceAdminOnly",
   "Invite grant not found": "common:apiErrors.inviteGrantNotFound",
   "Invite grant already revoked": "common:apiErrors.inviteGrantAlreadyRevoked",
   "Unsupported summary target": "common:apiErrors.unsupportedSummaryTarget",

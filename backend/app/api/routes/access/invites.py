@@ -8,6 +8,8 @@ from app.schemas.access.invites import (
     InviteGrantCreate,
     InviteGrantOut,
     InviteOut,
+    InviteQuotaAccountOut,
+    InviteQuotaUpdate,
     InviteRedeemRequest,
     InviteRedeemResult,
     InviteRevokeResult,
@@ -54,6 +56,24 @@ def list_invite_grants(
     return db.info["container"].invite_service.list_grants(db)
 
 
+@router.get("/quotas", response_model=list[InviteQuotaAccountOut])
+def list_invite_quota_accounts(
+    db: Session = Depends(get_db),
+    _=Depends(require_permission("users:read")),
+) -> list[InviteQuotaAccountOut]:
+    service = db.info["container"].invite_service
+    return [
+        InviteQuotaAccountOut(
+            target_type=item.target_type,
+            target_id=item.target_id,
+            invite_quota_remaining=item.remaining_quota,
+            invite_quota_unlimited=item.is_unlimited,
+            updated_at=item.updated_at,
+        )
+        for item in service.list_quota_accounts(db)
+    ]
+
+
 @router.post("/grants", response_model=InviteGrantOut)
 def create_invite_grant(
     payload: InviteGrantCreate,
@@ -62,6 +82,18 @@ def create_invite_grant(
     _=Depends(require_permission("users:write")),
 ) -> InviteQuotaGrant:
     return db.info["container"].invite_service.create_grant(db, payload, user)
+
+
+@router.patch("/quotas/{target_type}/{target_id}", response_model=InviteSummaryOut)
+def update_invite_summary(
+    target_type: str,
+    target_id: str,
+    payload: InviteQuotaUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _=Depends(require_permission("users:write")),
+) -> InviteSummaryOut:
+    return db.info["container"].invite_service.update_summary(db, target_type, target_id, payload, user)
 
 
 @router.delete("/grants/{grant_id}", response_model=InviteGrantOut)

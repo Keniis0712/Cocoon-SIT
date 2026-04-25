@@ -81,7 +81,7 @@ export default function CharactersPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(12);
   const [totalPages, setTotalPages] = useState(1);
-  const [scope, setScope] = useState<ScopeMode>("mine");
+  const [scope, setScope] = useState<ScopeMode>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);

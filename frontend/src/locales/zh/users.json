@@ -1,6 +1,6 @@
 {
   "title": "用户管理",
-  "description": "管理后端真实用户：用户名、邮箱、时区、角色、独立权限、启用状态和密码轮换。",
+  "description": "管理后端真实用户：用户名、邮箱、角色、独立权限、启用状态和密码轮换。",
   "noPermission": "当前账号没有用户管理权限。",
   "newUser": "新建用户",
   "filters": "筛选条件",
@@ -40,7 +40,7 @@
   "createFailed": "创建用户失败",
   "dialogEditTitle": "编辑用户",
   "dialogCreateTitle": "创建用户",
-  "dialogEditDescription": "可以更新邮箱、时区、角色、用户独立权限、启用状态，并可按需轮换密码。",
+  "dialogEditDescription": "可以更新邮箱、角色、用户独立权限、启用状态，并可按需轮换密码。",
   "dialogCreateDescription": "创建一个新的后端用户，并设置初始密码、可选角色与独立权限覆盖。",
   "initialPassword": "初始密码",
   "newPassword": "新密码",
@@ -58,9 +58,9 @@
   "notGrantedByRole": "当前角色未授予",
   "permissionModeInherit": "继承",
   "permissionModeAllow": "允许",
-  "permissionModeDeny": "禁止",
+  "permissionModeDeny": "拒绝",
   "permissionEffectiveAllow": "已允许",
-  "permissionEffectiveDeny": "已禁止",
+  "permissionEffectiveDeny": "已拒绝",
   "allowAudit": "允许该用户访问审计页面",
   "promptCapability": "Prompt 管理",
   "roleLevel": "角色级别",
@@ -69,6 +69,8 @@
   "userPathPlaceholder": "创建后自动生成",
   "unlimitedInviteQuota": "授予无限邀请码额度",
   "keepUserActive": "保持用户启用",
+  "expandPermissions": "展开全部权限",
+  "collapsePermissions": "收起权限",
   "roleLevelValues": {
     "0": "管理员",
     "1": "运营",
@@ -76,7 +78,7 @@
   },
   "systemRoleDescriptions": {
     "admin": "核心系统管理员角色",
-    "operator": "具备较广工作区可见能力的运营角色",
+    "operator": "具备较广工作区可见性的运营角色",
     "user": "标准用户角色"
   }
 }

@@ -106,6 +106,7 @@ export default function UsersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUserRead | null>(null);
   const [form, setForm] = useState<UserFormState>(EMPTY_FORM);
+  const [expandedPermissionUsers, setExpandedPermissionUsers] = useState<Set<string>>(new Set());
   const isEditingSelf = Boolean(editing && userInfo?.uid && editing.uid === userInfo.uid);
 
   useEffect(() => {
@@ -394,6 +395,8 @@ export default function UsersPage() {
               ) : (
                 users.map((item) => {
                   const effectivePermissions = Object.entries(item.effective_permissions || {}).filter(([, allowed]) => allowed);
+                  const isExpanded = expandedPermissionUsers.has(item.uid);
+                  const visiblePermissions = isExpanded ? effectivePermissions : effectivePermissions.slice(0, 5);
                   return (
                     <div key={item.uid} className="rounded-[24px] border border-border/70 bg-linear-to-br from-background via-background to-primary/5 p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -450,7 +453,7 @@ export default function UsersPage() {
                           <div className="text-xs uppercase tracking-wide">{t("users.effectivePermissions")}</div>
                           <div className="mt-2 flex flex-wrap gap-2">
                             {effectivePermissions.length > 0 ? (
-                              effectivePermissions.map(([key]) => (
+                              visiblePermissions.map(([key]) => (
                                 <Badge key={key} variant="secondary">
                                   {permissionLabel(key)}
                                 </Badge>
@@ -459,6 +462,27 @@ export default function UsersPage() {
                               <Badge variant="outline">{t("users.noEffectivePermissions")}</Badge>
                             )}
                           </div>
+                          {effectivePermissions.length > 5 ? (
+                            <div className="mt-3">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setExpandedPermissionUsers((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(item.uid)) {
+                                      next.delete(item.uid);
+                                    } else {
+                                      next.add(item.uid);
+                                    }
+                                    return next;
+                                  })
+                                }
+                              >
+                                {isExpanded ? t("users.collapsePermissions") : t("users.expandPermissions")}
+                              </Button>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </div>

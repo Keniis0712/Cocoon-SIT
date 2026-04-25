@@ -12,9 +12,10 @@ router = APIRouter()
 @router.get("/models", response_model=list[AvailableModelOut])
 def list_models(
     db: Session = Depends(get_db),
-    _=Depends(require_permission("providers:read")),
+    user=Depends(require_permission("providers:read")),
 ) -> list[AvailableModel]:
-    return db.info["container"].model_catalog_service.list_models(db)
+    models = db.info["container"].model_catalog_service.list_models(db)
+    return db.info["container"].system_settings_service.filter_visible_models(db, user, models)
 
 
 @router.post("/models", response_model=AvailableModelOut)

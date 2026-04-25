@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { BellRing, RefreshCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 
 import { showErrorToast } from "@/api/client";
 import { listAuditWakeups } from "@/api/wakeups";
+import { resolveActualId } from "@/api/id-map";
 import type { WakeupTargetType, WakeupTaskRead } from "@/api/types/wakeups";
 import AccessCard from "@/components/AccessCard";
 import PageFrame from "@/components/PageFrame";
@@ -19,12 +21,25 @@ import { useUserStore } from "@/store/useUserStore";
 export default function WakeupsPage() {
   const { t } = useTranslation(["wakeups", "common"]);
   const userInfo = useUserStore((state) => state.userInfo);
+  const [searchParams] = useSearchParams();
   const canAudit = Boolean(userInfo?.can_audit);
   const [items, setItems] = useState<WakeupTaskRead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [status, setStatus] = useState("all");
-  const [targetType, setTargetType] = useState<WakeupTargetType | "all">("all");
+  const [status, setStatus] = useState(searchParams.get("status") || "all");
+  const [targetType, setTargetType] = useState<WakeupTargetType | "all">(
+    (searchParams.get("targetType") as WakeupTargetType | "all") || "all",
+  );
   const [onlyAi, setOnlyAi] = useState(true);
+  const scopedTargetId = useMemo(() => {
+    const targetId = searchParams.get("targetId");
+    if (!targetId) {
+      return undefined;
+    }
+    if (targetType === "cocoon") {
+      return resolveActualId("cocoon", Number(targetId));
+    }
+    return targetId;
+  }, [searchParams, targetType]);
 
   useEffect(() => {
     if (!canAudit) {
@@ -39,6 +54,7 @@ export default function WakeupsPage() {
       const wakeups = await listAuditWakeups({
         status: status !== "all" ? status : undefined,
         target_type: targetType !== "all" ? targetType : undefined,
+        target_id: targetType !== "all" ? scopedTargetId : undefined,
         only_ai: onlyAi,
         limit: 200,
       });

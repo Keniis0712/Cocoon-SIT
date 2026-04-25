@@ -517,6 +517,9 @@ export default function CocoonsPage() {
                       <Button variant="outline" onClick={() => navigate(`/audits?cocoonId=${selectedCocoon.id}`)}>
                         {t("common.viewAudits")}
                       </Button>
+                      <Button variant="outline" onClick={() => navigate(`/wakeups?targetType=cocoon&targetId=${selectedCocoon.id}`)}>
+                        {t("wakeups:title")}
+                      </Button>
                       <Button variant="destructive" onClick={() => void handleDeleteSelectedCocoon()}>
                         {t("common.delete")}
                       </Button>
@@ -534,7 +537,7 @@ export default function CocoonsPage() {
                     </div>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-2">
                     <div className="rounded-2xl border border-border/70 p-4">
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">
                         {t("cocoons.maxContextMessages")}
@@ -553,16 +556,6 @@ export default function CocoonsPage() {
                           onText={t("cocoons.enabled")}
                           offText={t("cocoons.disabled")}
                         />
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-border/70 p-4">
-                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {t("cocoons.defaultTemperature")}
-                      </div>
-                      <div className="mt-2 font-medium">
-                        {selectedCocoon.default_temperature != null
-                          ? selectedCocoon.default_temperature.toFixed(1)
-                          : t("common.default")}
                       </div>
                     </div>
                   </div>

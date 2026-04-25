@@ -99,6 +99,15 @@ export interface InviteSummary {
   invite_quota_unlimited: boolean;
 }
 
+export interface InviteQuotaAccountRead extends InviteSummary {
+  updated_at: string;
+}
+
+export interface InviteQuotaUpdatePayload {
+  invite_quota_remaining?: number;
+  invite_quota_unlimited?: boolean;
+}
+
 export interface InviteCodeRead {
   code: string;
   created_by_uid: string;

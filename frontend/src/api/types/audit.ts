@@ -43,6 +43,7 @@ export interface AuditRunListItem {
   user_message_id: number | null;
   assistant_message_id: number | null;
   trigger_event_uid: string | null;
+  trigger_input: string | null;
   trigger_type: string;
   operation_type: string;
   decision: string | null;
@@ -64,6 +65,7 @@ export interface AuditRunListItem {
   created_at: string;
   user_message?: MessageRead | null;
   assistant_message?: MessageRead | null;
+  assistant_output?: string | null;
 }
 
 export interface AuditRunDetail extends AuditRunListItem {

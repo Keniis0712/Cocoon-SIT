@@ -42,6 +42,17 @@ class InviteGrantCreate(BaseModel):
     note: str | None = None
 
 
+class InviteQuotaUpdate(BaseModel):
+    invite_quota_remaining: int | None = Field(default=None, ge=0)
+    invite_quota_unlimited: bool | None = None
+
+    @model_validator(mode="after")
+    def validate_any_field_present(self) -> "InviteQuotaUpdate":
+        if self.invite_quota_remaining is None and self.invite_quota_unlimited is None:
+            raise ValueError("Either invite_quota_remaining or invite_quota_unlimited is required")
+        return self
+
+
 class InviteOut(ORMModel):
     id: str
     code: str
@@ -78,6 +89,10 @@ class InviteSummaryOut(ORMModel):
     target_id: str
     invite_quota_remaining: int
     invite_quota_unlimited: bool
+
+
+class InviteQuotaAccountOut(InviteSummaryOut):
+    updated_at: datetime
 
 
 class InviteRedeemResult(ORMModel):
