@@ -54,6 +54,7 @@ from app.services.storage.filesystem import FilesystemArtifactStore
 from app.services.workspace.cocoon_tag_service import CocoonTagService
 from app.services.workspace.cocoon_tree_service import CocoonTreeService
 from app.services.workspace.chat_group_service import ChatGroupService
+from app.services.workspace.chat_group_tag_service import ChatGroupTagService
 from app.services.workspace.message_dispatch_service import MessageDispatchService
 from app.services.workspace.message_service import MessageService
 from app.services.workspace.workspace_realtime_service import WorkspaceRealtimeService
@@ -125,6 +126,7 @@ def wire_provider_and_catalog_services(container) -> None:
 def wire_workspace_services(container) -> None:
     container.cocoon_tree_service = CocoonTreeService()
     container.chat_group_service = ChatGroupService(container.system_settings_service)
+    container.chat_group_tag_service = ChatGroupTagService()
     container.message_dispatch_service = MessageDispatchService(
         container.chat_queue,
         container.realtime_hub,

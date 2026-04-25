@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select
 
-from app.models import ActionDispatch, AuditArtifact, AuditRun, AuditStep, MemoryChunk, SessionState, TagRegistry
+from app.models import ActionDispatch, AuditArtifact, AuditRun, AuditStep, CocoonTagBinding, MemoryChunk, SessionState, TagRegistry
 
 pytestmark = pytest.mark.integration
 
@@ -199,13 +199,27 @@ def test_memory_summary_template_drives_compaction(
     assert worker_runtime.process_next_durable_job() is True
 
     with client.app.state.container.session_factory() as session:
-        summary_chunk = session.scalars(
-            select(MemoryChunk)
-            .where(MemoryChunk.cocoon_id == default_cocoon_id, MemoryChunk.scope == "summary")
-            .order_by(MemoryChunk.created_at.desc())
+        run = session.scalars(
+            select(AuditRun)
+            .where(AuditRun.operation_type == "compaction")
+            .order_by(AuditRun.started_at.desc())
         ).first()
-        assert summary_chunk is not None
-        assert "MEMORY SUMMARY CUSTOM MARKER" in summary_chunk.content
+        assert run is not None
+        step = session.scalar(select(AuditStep).where(AuditStep.run_id == run.id, AuditStep.step_name == "compaction"))
+        assert step is not None
+        prompt_snapshot = session.scalar(
+            select(AuditArtifact).where(
+                AuditArtifact.step_id == step.id,
+                AuditArtifact.kind == "prompt_snapshot",
+                AuditArtifact.summary == "memory_summary prompt snapshot",
+            )
+        )
+        assert prompt_snapshot is not None
+        assert "MEMORY SUMMARY CUSTOM MARKER" in _read_artifact_payload(prompt_snapshot)["rendered_prompt"]
+        chunks = list(
+            session.scalars(select(MemoryChunk).where(MemoryChunk.cocoon_id == default_cocoon_id)).all()
+        )
+        assert any((chunk.meta_json or {}).get("source_kind") == "compaction" for chunk in chunks)
 
 
 def test_runtime_prompt_exposes_readable_tag_metadata(
@@ -215,11 +229,21 @@ def test_runtime_prompt_exposes_readable_tag_metadata(
     default_cocoon_id,
 ):
     with client.app.state.container.session_factory() as session:
-        default_tag = session.scalars(select(TagRegistry).order_by(TagRegistry.created_at.asc())).first()
+        default_tag = session.scalar(select(TagRegistry).where(TagRegistry.is_system.is_(True)))
         assert default_tag is not None
+        focus_tag = TagRegistry(
+            tag_id="focus-readable",
+            brief="Readable focus tag",
+            visibility="public",
+            is_isolated=False,
+            meta_json={},
+        )
+        session.add(focus_tag)
+        session.flush()
+        session.add(CocoonTagBinding(cocoon_id=default_cocoon_id, tag_id=focus_tag.id))
         state = session.scalar(select(SessionState).where(SessionState.cocoon_id == default_cocoon_id))
         assert state is not None
-        state.active_tags_json = [default_tag.id]
+        state.active_tags_json = [default_tag.id, focus_tag.id]
         session.commit()
 
     response = client.put(
@@ -268,18 +292,17 @@ def test_runtime_prompt_exposes_readable_tag_metadata(
         )
         assert meta_variables is not None
 
-        default_tag = session.scalars(select(TagRegistry).order_by(TagRegistry.created_at.asc())).first()
-        assert default_tag is not None
-
         payload = _read_artifact_payload(meta_variables)["variables"]
         active_tags = payload["session_state"]["active_tags"]
         assert active_tags
-        assert active_tags[0]["name"] == default_tag.tag_id
-        assert active_tags[0]["brief"] == default_tag.brief
+        assert active_tags[0]["name"] == "focus-readable"
+        assert active_tags[0]["brief"] == "Readable focus tag"
         assert active_tags[0]["visibility"]["description"]
+        assert payload["tag_catalog"]
+        assert payload["tag_catalog"][0]["tag_id"] == "focus-readable"
 
         visible_message = payload["visible_messages"][0]
         assert "tag_refs" not in visible_message
         assert "tag_visibility" not in visible_message
         if visible_message["tags"]:
-            assert visible_message["tags"][0]["name"] == default_tag.tag_id
+            assert visible_message["tags"][0]["name"] == "focus-readable"

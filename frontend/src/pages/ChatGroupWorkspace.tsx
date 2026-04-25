@@ -1,12 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
-  Loader2,
   RefreshCcw,
-  Shield,
-  ShieldPlus,
-  UserPlus,
-  UsersRound,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -27,9 +22,11 @@ import {
 } from "@/api/chatGroups";
 import { resolveActualId } from "@/api/id-map";
 import { listModelProviders } from "@/api/providers";
+import { bindChatGroupTags, listTags } from "@/api/tags";
 import { listAdminUsers } from "@/api/admin-users";
 import type { AdminUserRead } from "@/api/types/access";
 import type { CharacterRead } from "@/api/types/catalog";
+import type { TagRead } from "@/api/types/catalog";
 import type { MessageRead } from "@/api/types/chat";
 import type { ChatGroupMemberRead, ChatGroupRead } from "@/api/types/chat-groups";
 import type { ModelProviderRead } from "@/api/types/providers";
@@ -80,6 +77,10 @@ export default function ChatGroupWorkspacePage() {
   const [room, setRoom] = useState<ChatGroupRead | null>(null);
   const [characters, setCharacters] = useState<CharacterRead[]>([]);
   const [providers, setProviders] = useState<ModelProviderRead[]>([]);
+  const [availableTags, setAvailableTags] = useState<TagRead[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [isUpdatingTags, setIsUpdatingTags] = useState(false);
+  const [addTagValue, setAddTagValue] = useState("__add");
   const [members, setMembers] = useState<ChatGroupMemberRead[]>([]);
   const [userDirectory, setUserDirectory] = useState<AdminUserRead[]>([]);
   const [messageInput, setMessageInput] = useState("");
@@ -116,6 +117,16 @@ export default function ChatGroupWorkspacePage() {
     const resolved = resolveModelLabel(room, providers);
     return resolved === "Unknown model" ? t("unknownModel") : resolved;
   }, [providers, room, t]);
+  const availableAddableTags = useMemo(
+    () =>
+      availableTags.filter(
+        (item) =>
+          !item.is_system &&
+          !selectedTagIds.includes(item.id) &&
+          (item.visibility_mode !== "group_acl" || item.visible_chat_group_ids.includes(roomId)),
+      ),
+    [availableTags, roomId, selectedTagIds],
+  );
   const visibleMessages = useMemo(() => (session?.messages || []).filter((item) => !item.is_thought), [session?.messages]);
   const userChoices = useMemo(() => userDirectory.filter((item) => item.uid !== currentUserId), [currentUserId, userDirectory]);
   const memberNameMap = useMemo(() => {
@@ -196,7 +207,7 @@ export default function ChatGroupWorkspacePage() {
       setIsLoading(true);
     }
     try {
-      const [nextRoom, state, nextMembers, nextMessages, characterResponse, providerResponse, wakeups] =
+      const [nextRoom, state, nextMembers, nextMessages, characterResponse, providerResponse, wakeups, tagItems] =
         await Promise.all([
           getChatGroup(roomId),
           getChatGroupState(roomId),
@@ -205,12 +216,19 @@ export default function ChatGroupWorkspacePage() {
           getCharacters(1, 100, "all"),
           listModelProviders(1, 100),
           listChatGroupWakeups(roomId, { status: "queued", only_ai: true, limit: 1 }),
+          listTags(),
         ]);
 
       setRoom(nextRoom);
       setMembers(nextMembers);
       setCharacters(characterResponse.items);
       setProviders(providerResponse.items);
+      setAvailableTags(tagItems);
+      setSelectedTagIds(
+        tagItems
+          .filter((item) => !item.is_system && state.active_tags_json.includes(item.actual_id))
+          .map((item) => item.id),
+      );
       setCurrentAiWakeup(wakeups[0] || null);
       setMessages(sessionKey, nextMessages.items);
       setHasMore(Boolean(nextMessages.has_more));
@@ -370,6 +388,41 @@ export default function ChatGroupWorkspacePage() {
     }
   }
 
+  async function persistTagIds(nextTagIds: number[]) {
+    if (isUpdatingTags) {
+      return;
+    }
+    const normalized = Array.from(new Set(nextTagIds)).sort((a, b) => a - b);
+    const previousIds = selectedTagIds;
+    setIsUpdatingTags(true);
+    setSelectedTagIds(normalized);
+    try {
+      const tags = await bindChatGroupTags(roomId, normalized);
+      applyStatePatch(sessionKey, { activeTags: tags.map((item) => item.actual_id) });
+      setSelectedTagIds(tags.filter((item) => !item.is_system).map((item) => item.id));
+    } catch (error) {
+      setSelectedTagIds(previousIds);
+      console.error(error);
+      showErrorToast(error, t("workspaceLoadFailed"));
+    } finally {
+      setIsUpdatingTags(false);
+      setAddTagValue("__add");
+    }
+  }
+
+  async function handleAddTag(value: string) {
+    setAddTagValue(value);
+    if (value === "__add") {
+      return;
+    }
+    const tagId = Number(value);
+    if (!Number.isFinite(tagId)) {
+      setAddTagValue("__add");
+      return;
+    }
+    await persistTagIds([...selectedTagIds, tagId]);
+  }
+
   function canRetractMessage(message: MessageRead) {
     if (message.is_retracted) {
       return false;
@@ -451,6 +504,11 @@ export default function ChatGroupWorkspacePage() {
         <ChatGroupSidebar
           characterName={characterName}
           modelLabel={modelLabel}
+          roomTags={availableTags.filter((item) => selectedTagIds.includes(item.id))}
+          sessionActiveTags={session?.activeTags || []}
+          availableAddableTags={availableAddableTags}
+          addTagValue={addTagValue}
+          isUpdatingTags={isUpdatingTags}
           dispatchState={session?.dispatchState}
           relationScore={session?.relationScore}
           currentAiWakeup={currentAiWakeup}
@@ -460,6 +518,8 @@ export default function ChatGroupWorkspacePage() {
           canManage={canManage}
           ownerUserId={room?.owner_user_id}
           memberNameMap={memberNameMap}
+          onAddTag={(value) => void handleAddTag(value)}
+          onRemoveTag={(tagId) => void persistTagIds(selectedTagIds.filter((item) => item !== tagId))}
           onOpenAddMember={() => setMemberDialog({ open: true, userId: "", role: "member" })}
           onToggleMemberRole={(member, nextRole) => void handleChangeMemberRole(member, nextRole)}
           onRemoveMember={(member) => void handleRemoveMember(member)}

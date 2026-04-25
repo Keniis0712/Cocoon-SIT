@@ -3,17 +3,16 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from app.services.runtime.orchestration.chat_runtime import ChatRuntime
-from app.services.runtime.types import MemoryCandidate, MetaDecision, TagReference
+from app.services.runtime.types import MetaDecision, TagOperation
 
 
-def _meta(*, decision: str = "continue", candidates: list[MemoryCandidate] | None = None) -> MetaDecision:
+def _meta(*, decision: str = "reply") -> MetaDecision:
     return MetaDecision(
         decision=decision,
         relation_delta=0,
         persona_patch={},
-        tag_ops=[],
+        tag_ops=[TagOperation(action="add", tag_index=1)],
         internal_thought="",
-        memory_candidates=candidates or [],
     )
 
 
@@ -31,10 +30,6 @@ def _runtime():
         finish_step=lambda session, step, status: calls.append(("finish_step", step.id, status)),
     )
     side_effects = SimpleNamespace(
-        persist_memory_candidates=lambda *args, **kwargs: (
-            calls.append(("persist_memory_candidates", args[3], kwargs.get("source_message")))
-            or [SimpleNamespace(id="memory-1"), SimpleNamespace(id="memory-2")]
-        ),
         record_side_effects_result=lambda *args, **kwargs: calls.append(("record_side_effects_result", kwargs)),
         finish_action=lambda session, action, audit_run, status: calls.append(("finish_action", action.id, status)),
     )
@@ -78,56 +73,16 @@ def test_chat_runtime_run_invokes_graph_with_prepared_state():
             "event": SimpleNamespace(action_id="action-1", cocoon_id="cocoon-1", chat_group_id=None),
             "audit_run": SimpleNamespace(id="audit-1"),
             "message": None,
-            "memories": [],
         }
     ]
 
 
-def test_chat_runtime_memory_node_persists_candidates_and_records_artifact():
-    runtime, calls = _runtime()
-    state = {
-        "session": "session",
-        "action": SimpleNamespace(id="action-1"),
-        "audit_run": SimpleNamespace(id="audit-1"),
-        "context": SimpleNamespace(),
-        "meta": _meta(
-            candidates=[
-                MemoryCandidate(
-                    scope="session",
-                    summary="short summary",
-                    content="long content",
-                    tags=[TagReference(tag="focus")],
-                )
-            ]
-        ),
-        "message": SimpleNamespace(id="message-1"),
-    }
-
-    result = runtime._run_memory_node(state)
-
-    assert [memory.id for memory in result["memories"]] == ["memory-1", "memory-2"]
-    assert ("persist_memory_candidates", state["meta"].memory_candidates, state["message"]) in calls
-    assert any(call[0] == "artifact" and call[1] == "memory_persistence" for call in calls)
-    artifact_call = next(call for call in calls if call[0] == "artifact" and call[1] == "memory_persistence")
-    assert artifact_call[2] == {
-        "memory_chunk_ids": ["memory-1", "memory-2"],
-        "candidate_count": 1,
-        "persisted_count": 2,
-    }
-
-
-def test_chat_runtime_routes_silence_and_memory_candidates():
+def test_chat_runtime_routes_directly_to_side_effects_when_silent():
     runtime, _calls = _runtime()
-    valid_candidates = [MemoryCandidate(scope="session", summary="kept", content="saved")]
-    blank_candidates = [MemoryCandidate(scope="session", summary="   ", content="saved")]
 
-    assert runtime._route_after_scheduler({"meta": _meta(decision="continue", candidates=valid_candidates)}) == "generator_node"
-    assert runtime._route_after_scheduler({"meta": _meta(decision="silence", candidates=valid_candidates)}) == "memory_node"
-    assert runtime._route_after_scheduler({"meta": _meta(decision="silence", candidates=blank_candidates)}) == "side_effects"
-    assert runtime._route_after_generator({"meta": _meta(candidates=valid_candidates)}) == "memory_node"
-    assert runtime._route_after_generator({"meta": _meta(candidates=blank_candidates)}) == "side_effects"
-    assert runtime._has_memory_candidates(valid_candidates) is True
-    assert runtime._has_memory_candidates(blank_candidates) is False
+    assert runtime._route_after_scheduler({"meta": _meta(decision="reply"), "action": SimpleNamespace(id="a1")}) == "generator_node"
+    assert runtime._route_after_scheduler({"meta": _meta(decision="silence"), "action": SimpleNamespace(id="a1")}) == "side_effects"
+    assert runtime._route_after_generator({"meta": _meta()}) == "side_effects"
 
 
 def test_chat_runtime_side_effects_node_records_result_and_finishes_action():
@@ -141,7 +96,6 @@ def test_chat_runtime_side_effects_node_records_result_and_finishes_action():
             runtime_event=SimpleNamespace(cocoon_id="cocoon-1", chat_group_id=None),
         ),
         "message": SimpleNamespace(id="message-1"),
-        "memories": [SimpleNamespace(id="memory-1")],
         "scheduler_result": {"scheduled": True},
     }
 

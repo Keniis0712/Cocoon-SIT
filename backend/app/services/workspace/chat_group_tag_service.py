@@ -1,4 +1,4 @@
-"""Workspace cocoon-tag binding service."""
+"""Workspace chat-group tag binding service."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import CocoonTagBinding
+from app.models import ChatGroupTagBinding
 from app.services.catalog.tag_policy import (
     canonicalize_tag_refs,
     ensure_target_default_binding,
@@ -16,24 +16,23 @@ from app.services.catalog.tag_policy import (
 from app.services.workspace.targets import get_session_state
 
 
-class CocoonTagService:
-    """Applies cocoon tag bindings and keeps session state tags aligned."""
+class ChatGroupTagService:
+    """Applies chat-group tag bindings and keeps session state tags aligned."""
 
-    def bind_tag(self, session: Session, cocoon_id: str, tag_id: str) -> CocoonTagBinding:
-        """Create a cocoon-tag binding and mirror it to the active tag list."""
+    def bind_tag(self, session: Session, chat_group_id: str, tag_id: str) -> ChatGroupTagBinding:
         tag = require_canonical_tag(session, tag_id)
-        ensure_target_default_binding(session, cocoon_id=cocoon_id)
+        ensure_target_default_binding(session, chat_group_id=chat_group_id)
         existing = session.scalar(
-            select(CocoonTagBinding).where(
-                CocoonTagBinding.cocoon_id == cocoon_id,
-                CocoonTagBinding.tag_id == tag.id,
+            select(ChatGroupTagBinding).where(
+                ChatGroupTagBinding.chat_group_id == chat_group_id,
+                ChatGroupTagBinding.tag_id == tag.id,
             )
         )
         if existing:
             return existing
-        binding = CocoonTagBinding(cocoon_id=cocoon_id, tag_id=tag.id)
+        binding = ChatGroupTagBinding(chat_group_id=chat_group_id, tag_id=tag.id)
         session.add(binding)
-        state = get_session_state(session, cocoon_id=cocoon_id)
+        state = get_session_state(session, chat_group_id=chat_group_id)
         if state and tag.id not in state.active_tags_json:
             state.active_tags_json = canonicalize_tag_refs(
                 session,
@@ -43,20 +42,19 @@ class CocoonTagService:
         session.flush()
         return binding
 
-    def unbind_tag(self, session: Session, cocoon_id: str, tag_id: str) -> CocoonTagBinding:
-        """Remove a cocoon-tag binding and mirror it to the active tag list."""
+    def unbind_tag(self, session: Session, chat_group_id: str, tag_id: str) -> ChatGroupTagBinding:
         tag = require_canonical_tag(session, tag_id)
         if is_system_tag(tag):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="System tag cannot be unbound")
         binding = session.scalar(
-            select(CocoonTagBinding).where(
-                CocoonTagBinding.cocoon_id == cocoon_id,
-                CocoonTagBinding.tag_id == tag.id,
+            select(ChatGroupTagBinding).where(
+                ChatGroupTagBinding.chat_group_id == chat_group_id,
+                ChatGroupTagBinding.tag_id == tag.id,
             )
         )
         if not binding:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag binding not found")
-        state = get_session_state(session, cocoon_id=cocoon_id)
+        state = get_session_state(session, chat_group_id=chat_group_id)
         if state:
             state.active_tags_json = canonicalize_tag_refs(
                 session,

@@ -17,6 +17,7 @@ from app.models import (
     AuditStep,
     ChatGroupMember,
     ChatGroupRoom,
+    ChatGroupTagBinding,
     DurableJob,
     FailedRound,
     MemoryChunk,
@@ -26,6 +27,7 @@ from app.models import (
     MessageTag,
     PluginDispatchRecord,
     PluginImDeliveryOutbox,
+    TagChatGroupVisibility,
     User,
     WakeupTask,
 )
@@ -119,6 +121,12 @@ def _cleanup_room(session: Session, room_id: str) -> None:
     state = get_session_state(session, chat_group_id=room_id)
     if state:
         session.delete(state)
+    session.query(TagChatGroupVisibility).filter(
+        TagChatGroupVisibility.chat_group_id == room_id
+    ).delete(synchronize_session=False)
+    session.query(ChatGroupTagBinding).filter(ChatGroupTagBinding.chat_group_id == room_id).delete(
+        synchronize_session=False
+    )
     session.query(ChatGroupMember).filter(ChatGroupMember.room_id == room_id).delete(synchronize_session=False)
     session.flush()
 

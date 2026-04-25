@@ -18,7 +18,7 @@ def test_tag_service_lists_creates_updates_and_deletes_tags():
     with session_factory() as session:
         created = service.create_tag(
             session,
-            TagCreate(tag_id="focus", brief="Focus tag", visibility="shared", is_isolated=False, meta_json={"kind": "a"}),
+            TagCreate(tag_id="focus", brief="Focus tag", visibility="public", is_isolated=False, meta_json={"kind": "a"}),
         )
         private = service.create_tag(
             session,
@@ -76,9 +76,9 @@ def test_tag_service_validates_missing_tags_and_isolation_override():
     with session_factory() as session:
         created = service.create_tag(
             session,
-            TagCreate(tag_id="open", brief="Open tag", visibility="shared", is_isolated=False, meta_json={}),
+            TagCreate(tag_id="open", brief="Open tag", visibility="public", is_isolated=False, meta_json={}),
         )
-        updated = service.update_tag(session, created.id, TagUpdate(visibility="shared", is_isolated=True))
+        updated = service.update_tag(session, created.id, TagUpdate(visibility="public", is_isolated=True))
         assert updated.is_isolated is True
 
         with pytest.raises(HTTPException) as missing_update:

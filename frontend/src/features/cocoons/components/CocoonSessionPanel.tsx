@@ -53,14 +53,15 @@ export function CocoonSessionPanel({
 }: CocoonSessionPanelProps) {
   const { t } = useTranslation(["workspace", "wakeups", "common"]);
   const tagLabelByKey = new Map<string, string>();
-  for (const tag of selectedCocoon?.tags || []) {
+  for (const tag of (selectedCocoon?.tags || []).filter((item) => !item.is_system)) {
     tagLabelByKey.set(String(tag.id), tag.name);
+    tagLabelByKey.set(tag.actual_id, tag.name);
     tagLabelByKey.set(tag.tag_id, tag.name);
     tagLabelByKey.set(tag.name, tag.name);
   }
   const activeTags = sessionActiveTags.length
     ? sessionActiveTags.map((tag) => ({ key: tag, label: tagLabelByKey.get(tag) || tag }))
-    : selectedCocoon?.tags?.map((item) => ({ key: String(item.id), label: item.name })) || [];
+    : selectedCocoon?.tags?.filter((item) => !item.is_system).map((item) => ({ key: item.actual_id, label: item.name })) || [];
 
   return (
     <Card className="border-border/70 bg-card/90">
@@ -84,7 +85,7 @@ export function CocoonSessionPanel({
           <div className="mb-2 text-sm text-muted-foreground">{t("workspace:editChatTags")}</div>
           <div className="rounded-2xl border border-border/70 bg-background/60 p-3">
             <div className="flex flex-wrap gap-2">
-              {(selectedCocoon?.tags || []).map((tag) => (
+              {(selectedCocoon?.tags || []).filter((tag) => !tag.is_system).map((tag) => (
                 <button
                   key={tag.id}
                   type="button"

@@ -40,14 +40,13 @@ export interface CharacterAclEffectiveEntry {
 
 export interface TagRead {
   id: number;
+  actual_id: string;
   tag_id: string;
-  owner_uid: string | null;
   name: string;
   brief: string;
-  priority: number;
   visibility_mode: "public" | "private" | "group_acl" | string;
-  group_allowlist_json: string;
-  group_denylist_json: string;
+  is_system: boolean;
+  visible_chat_group_ids: string[];
   created_at: string;
   updated_at: string;
 }
@@ -55,8 +54,6 @@ export interface TagRead {
 export interface TagPayload {
   name: string;
   brief?: string;
-  priority?: number;
   visibility_mode?: "public" | "private" | "group_acl" | string;
-  group_allowlist?: string[];
-  group_denylist?: string[];
+  visible_chat_group_ids?: string[];
 }

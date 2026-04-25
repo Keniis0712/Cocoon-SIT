@@ -66,6 +66,14 @@ class CocoonTagBinding(Base, TimestampMixin):
     tag_id: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
+class ChatGroupTagBinding(Base, TimestampMixin):
+    __tablename__ = "chat_group_tag_bindings"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    chat_group_id: Mapped[str] = mapped_column(ForeignKey("chat_group_rooms.id"), nullable=False)
+    tag_id: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
 class SessionState(Base, TimestampMixin, JsonDefaultMixin):
     __tablename__ = "session_states"
     __table_args__ = (

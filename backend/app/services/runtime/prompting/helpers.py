@@ -12,9 +12,8 @@ _TAG_VISIBILITY_EXPLANATIONS = {
         "Visible across both private cocoons and group conversations, "
         "so it is generally safe to mention."
     ),
-    "group_private": (
-        "Visible inside private cocoon contexts, but should not be surfaced into "
-        "shared chat-group conversations."
+    "group_acl": (
+        "Visible in cocoons, and only visible in explicitly allowed chat-group conversations."
     ),
     "private": (
         "Strictly private to its originating scope and should not be exposed "
@@ -105,10 +104,9 @@ def _mentionable_for_target(
 ) -> bool:
     if not tag_refs:
         return True
-    allowed = {"public"} if context.target_type == "chat_group" else {"public", "group_private"}
     for tag_ref in tag_refs:
-        visibility = str((catalog.get(tag_ref) or {}).get("visibility") or "private")
-        if visibility not in allowed:
+        payload = catalog.get(tag_ref) or {}
+        if payload.get("visible_in_target") is False:
             return False
     return True
 

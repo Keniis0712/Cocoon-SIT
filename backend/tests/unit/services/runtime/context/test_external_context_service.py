@@ -126,18 +126,23 @@ def test_external_context_service_builds_merge_context_and_filters_isolated_cont
         assert [message.id for message in result["source_messages"]] == ["m2"]
         assert [memory.id for memory in result["source_memories"]] == ["mem2"]
         assert result["merge_context"]["source_cocoon"] == {"id": source.id, "name": "Source"}
+        source_active_tags = result["merge_context"]["source_state"]["active_tags_json"]
         assert result["merge_context"]["source_state"] == {
             "relation_score": 5,
             "persona_json": {"mood": "calm"},
-            "active_tags_json": ["shared"],
+            "active_tags_json": source_active_tags,
         }
+        assert "shared-id" in source_active_tags
+        assert len(source_active_tags) == 2
         assert result["merge_context"]["source_messages"] == [{"role": "assistant", "content": "visible"}]
         assert result["merge_context"]["source_memories"] == [
             {"scope": "session", "summary": "visible", "content": "visible-memory"}
         ]
-        assert message_calls[0][0][1:] == (7, ["shared"])
+        assert message_calls[0][0][1] == 7
+        assert message_calls[0][0][2] == source_active_tags
         assert message_calls[0][1] == {"cocoon_id": source.id}
         assert memory_calls[0]["cocoon_id"] == source.id
+        assert memory_calls[0]["active_tags"] == source_active_tags
         assert memory_calls[0]["query_text"] == source.id
 
 

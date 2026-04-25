@@ -80,4 +80,14 @@ class TagRegistry(Base, TimestampMixin, JsonDefaultMixin):
     brief: Mapped[str] = mapped_column(Text, nullable=False)
     visibility: Mapped[str] = mapped_column(String(32), default="private")
     is_isolated: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False)
     meta_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+
+
+class TagChatGroupVisibility(Base, TimestampMixin):
+    __tablename__ = "tag_chat_group_visibility"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    tag_id: Mapped[str] = mapped_column(ForeignKey("tag_registry.id"), nullable=False)
+    chat_group_id: Mapped[str] = mapped_column(ForeignKey("chat_group_rooms.id"), nullable=False)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=True)

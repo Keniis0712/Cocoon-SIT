@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.models import Cocoon, CocoonTagBinding, SessionState, TagRegistry
 from app.services.memory.service import MemoryService
+from app.services.catalog.tag_policy import TAG_VISIBILITY_PUBLIC, get_tag_by_any_ref
 from app.services.runtime.context.message_window_service import MessageWindowService
 from app.services.runtime.types import RuntimeEvent
 from app.services.workspace.targets import get_session_state
@@ -57,27 +58,38 @@ class ExternalContextService:
             query_text=str(event.payload.get("source_cocoon_id") or source_cocoon_id),
             limit=5,
         )
-        visible_target_tags = {
-            item.tag_id
-            for item in session.scalars(
-                select(CocoonTagBinding).where(CocoonTagBinding.cocoon_id == event.cocoon_id)
-            ).all()
-        }
-        isolated_tags = {
-            item.tag_id
-            for item in session.scalars(select(TagRegistry).where(TagRegistry.is_isolated.is_(True))).all()
-        }
+        visible_target_tags = set()
+        for item in session.scalars(
+            select(CocoonTagBinding).where(CocoonTagBinding.cocoon_id == event.cocoon_id)
+        ).all():
+            tag = get_tag_by_any_ref(session, item.tag_id)
+            visible_target_tags.add(tag.id if tag else item.tag_id)
+
+        def _is_visible(items_tags: list[str] | None) -> bool:
+            resolved_tags = [
+                tag
+                for tag in (get_tag_by_any_ref(session, tag_ref) for tag_ref in (items_tags or []))
+                if tag is not None
+            ]
+            if not resolved_tags:
+                return True
+            restricted = {
+                tag.id
+                for tag in resolved_tags
+                if bool(tag.is_isolated)
+                or str(tag.visibility or TAG_VISIBILITY_PUBLIC) != TAG_VISIBILITY_PUBLIC
+            }
+            return not restricted or restricted.issubset(visible_target_tags)
+
         source_messages = [
             message
             for message in source_messages
-            if not isolated_tags.intersection(message.tags_json)
-            or isolated_tags.intersection(message.tags_json).issubset(visible_target_tags)
+            if _is_visible(message.tags_json)
         ]
         source_memories = [
             memory
             for memory in source_memories
-            if not isolated_tags.intersection(memory.tags_json)
-            or isolated_tags.intersection(memory.tags_json).issubset(visible_target_tags)
+            if _is_visible(memory.tags_json)
         ]
         external_context.update(
             {

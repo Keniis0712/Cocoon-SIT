@@ -15,7 +15,7 @@ from app.services.runtime.prompting.prompting import (
     record_prompt_render_artifacts,
 )
 from app.services.runtime.structured_models import MetaStructuredOutputModel, ScheduledWakeupModel
-from app.services.runtime.types import ContextPackage, MemoryCandidate, MetaDecision, TagOperation, TagReference
+from app.services.runtime.types import ContextPackage, MetaDecision, TagOperation
 from app.services.providers.registry import ProviderRegistry
 
 
@@ -108,26 +108,14 @@ class MetaNode:
             relation_delta=relation_delta_int,
             persona_patch=parsed.persona_patch or {"last_seen_intent": latest_content[:120]},
             tag_ops=[
-                TagOperation(action=item.action, tag=item.tag.strip())
+                TagOperation(action=item.action, tag_index=int(item.tag_index))
                 for item in parsed.tag_ops
-                if item.tag.strip()
+                if int(item.tag_index) > 0
             ],
             internal_thought=internal_thought,
             next_wakeup_hints=self._normalize_wakeup_hints(parsed.schedule_wakeups),
             cancel_wakeup_task_ids=[str(item) for item in parsed.cancel_wakeup_task_ids if str(item).strip()],
             generation_brief=parsed.generation_brief,
-            memory_candidates=[
-                MemoryCandidate(
-                    scope=item.scope,
-                    summary=item.summary,
-                    content=item.content,
-                    tags=[TagReference(tag=tag.tag.strip()) for tag in item.tags if tag.tag.strip()],
-                    owner_user_id=item.owner_user_id,
-                    importance=item.importance,
-                )
-                for item in parsed.memory_candidates
-                if item.summary.strip() and item.content.strip()
-            ],
         )
 
     def _normalize_wakeup_hints(
@@ -160,11 +148,11 @@ class MetaNode:
         context_json = json.dumps(context_payload, ensure_ascii=False, default=str)
         return (
             "You are producing the runtime analysis result for the host application.\n"
-            "Decide whether the assistant should reply now or stay silent, then extract only durable memories worth retrieving later.\n"
+            "Decide whether the assistant should reply now or stay silent.\n"
             "If the current event is an idle wakeup and re-engagement feels appropriate, you may choose to reply proactively.\n"
             "Only propose wakeups that have a concrete reason.\n"
-            "Only extract memory candidates for durable facts, preferences, commitments, or event conclusions.\n"
-            "Do not turn the assistant's draft reply or ordinary chit-chat into long-term memory.\n"
+            "When editing tags, you may only use tag indexes from the allowed tag catalog shown in the context.\n"
+            "Never invent new tag names or output free-text tags.\n"
             f"{context_summary}\n"
             "CONTEXT_JSON_START\n"
             f"{context_json}\n"
@@ -187,7 +175,6 @@ class MetaNode:
                 next_wakeup_hints=[],
                 cancel_wakeup_task_ids=[],
                 generation_brief=None,
-                memory_candidates=[],
             )
         if event_type == "pull":
             return MetaDecision(
@@ -199,7 +186,6 @@ class MetaNode:
                 next_wakeup_hints=[],
                 cancel_wakeup_task_ids=[],
                 generation_brief=None,
-                memory_candidates=[],
             )
         if event_type == "merge":
             return MetaDecision(
@@ -211,7 +197,6 @@ class MetaNode:
                 next_wakeup_hints=[],
                 cancel_wakeup_task_ids=[],
                 generation_brief=None,
-                memory_candidates=[],
             )
         return MetaDecision(
             decision="silence" if latest_content.strip().startswith("/silent") else "reply",
@@ -222,5 +207,4 @@ class MetaNode:
             next_wakeup_hints=[],
             cancel_wakeup_task_ids=[],
             generation_brief=None,
-            memory_candidates=[],
         )

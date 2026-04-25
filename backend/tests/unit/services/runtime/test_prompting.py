@@ -30,6 +30,7 @@ def _build_context(*, target_type: str = "chat_group") -> ContextPackage:
             "timezone": "Asia/Shanghai",
         },
     )
+    tag_group_visible = target_type == "cocoon"
     return ContextPackage(
         runtime_event=runtime_event,
         conversation=SimpleNamespace(name="Demo Cocoon"),
@@ -62,13 +63,15 @@ def _build_context(*, target_type: str = "chat_group") -> ContextPackage:
                 },
                 "tag-group": {
                     "brief": "group only",
-                    "visibility": "group_private",
+                    "visibility": "group_acl",
                     "tag_id": "group-id",
+                    "visible_in_target": tag_group_visible,
                 },
                 "tag-private": {
                     "brief": "private tag",
                     "visibility": "private",
                     "is_isolated": True,
+                    "visible_in_target": False,
                 },
             },
         },

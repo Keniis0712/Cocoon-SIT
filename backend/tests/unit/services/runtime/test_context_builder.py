@@ -91,7 +91,7 @@ def test_context_builder_builds_chat_group_context_with_tags_and_pending_wakeups
             id="tag-row-1",
             tag_id="focus",
             brief="Keep focus",
-            visibility="shared",
+            visibility="public",
             is_isolated=True,
             meta_json={"weight": 2},
         )
@@ -129,12 +129,14 @@ def test_context_builder_builds_chat_group_context_with_tags_and_pending_wakeups
     assert "now_utc" not in result.external_context
     assert result.external_context["tag_catalog_by_ref"]["tag-row-1"]["brief"] == "Keep focus"
     assert result.external_context["tag_catalog_by_ref"]["focus"]["is_isolated"] is True
-    assert window_calls[0][0][1:] == (8, ["focus"])
+    assert window_calls[0][0][1] == 8
+    assert "tag-row-1" in window_calls[0][0][2]
     assert window_calls[0][1] == {"cocoon_id": None, "chat_group_id": "room-1"}
     assert memory_calls[0]["owner_user_id"] == "42"
     assert memory_calls[0]["character_id"] == "character-1"
     assert memory_calls[0]["query_text"] == "latest question"
     assert memory_calls[0]["limit"] == 5
+    assert "tag-row-1" in memory_calls[0]["active_tags"]
     assert external_calls and external_calls[0][1].chat_group_id == "room-1"
 
 

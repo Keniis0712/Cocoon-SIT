@@ -16,6 +16,7 @@ from app.models.catalog import (
     EmbeddingProvider,
     ModelProvider,
     ProviderCredential,
+    TagChatGroupVisibility,
     TagRegistry,
 )
 from app.models.enums import (
@@ -51,6 +52,7 @@ from app.models.plugins import (
 )
 from app.models.system import SystemSettings
 from app.models.workspace import (
+    ChatGroupTagBinding,
     ChatGroupMember,
     ChatGroupRoom,
     Cocoon,
@@ -76,6 +78,7 @@ __all__ = [
     "AvailableModel",
     "Character",
     "CharacterAcl",
+    "ChatGroupTagBinding",
     "ChatGroupMember",
     "ChatGroupRoom",
     "Checkpoint",
@@ -113,6 +116,7 @@ __all__ = [
     "PluginUserConfig",
     "PluginVersion",
     "ProviderCredential",
+    "TagChatGroupVisibility",
     "Role",
     "SessionState",
     "SystemSettings",

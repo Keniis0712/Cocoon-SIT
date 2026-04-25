@@ -8,8 +8,9 @@ import logging
 from sqlalchemy import Float, bindparam, cast, select
 from sqlalchemy.orm import Session
 
-from app.models import EmbeddingProvider, MemoryChunk, MemoryEmbedding, MemoryTag
+from app.models import EmbeddingProvider, MemoryChunk, MemoryEmbedding, MemoryTag, TagRegistry
 from app.models.vector import PGVector
+from app.services.catalog.tag_policy import is_tag_visible_in_target
 from app.services.providers.registry import ProviderRegistry
 
 
@@ -50,6 +51,7 @@ class MemoryService:
         active_tags: list[str],
         *,
         cocoon_id: str | None = None,
+        chat_group_id: str | None = None,
         owner_user_id: str | None = None,
         character_id: str | None = None,
         scopes: list[str] | None = None,
@@ -70,6 +72,27 @@ class MemoryService:
                 query.order_by(MemoryChunk.created_at.desc()).limit(max(limit * 5, limit))
             ).all()
         )
+        if chat_group_id:
+            tags = {
+                tag.id: tag
+                for tag in session.scalars(select(TagRegistry)).all()
+            }
+            memories = [
+                memory
+                for memory in memories
+                if all(
+                    (
+                        tag_id not in tags
+                        or is_tag_visible_in_target(
+                            session,
+                            tags[tag_id],
+                            target_type="chat_group",
+                            target_id=chat_group_id,
+                        )
+                    )
+                    for tag_id in (memory.tags_json or [])
+                )
+            ]
         if not active_tags:
             return memories
 
@@ -91,6 +114,7 @@ class MemoryService:
         active_tags: list[str],
         *,
         cocoon_id: str | None = None,
+        chat_group_id: str | None = None,
         owner_user_id: str | None = None,
         character_id: str | None = None,
         query_text: str | None = None,
@@ -101,6 +125,7 @@ class MemoryService:
             session,
             active_tags,
             cocoon_id=cocoon_id,
+            chat_group_id=chat_group_id,
             owner_user_id=owner_user_id,
             character_id=character_id,
             scopes=scopes,
@@ -219,6 +244,7 @@ class MemoryService:
         limit: int = 5,
         *,
         cocoon_id: str | None = None,
+        chat_group_id: str | None = None,
         owner_user_id: str | None = None,
         character_id: str | None = None,
         query_text: str | None = None,
@@ -230,6 +256,7 @@ class MemoryService:
                 session,
                 active_tags,
                 cocoon_id=cocoon_id,
+                chat_group_id=chat_group_id,
                 owner_user_id=owner_user_id,
                 character_id=character_id,
                 query_text=query_text,

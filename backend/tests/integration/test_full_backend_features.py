@@ -178,16 +178,17 @@ def test_resource_crud_and_tag_binding_flow(client, auth_headers):
     tag = client.post(
         "/api/v1/tags",
         headers=auth_headers,
-        json={"tag_id": "ops", "brief": "Operations", "is_isolated": False, "meta_json": {"color": "blue"}},
+        json={"tag_id": "ops", "brief": "Operations", "visibility": "private", "is_isolated": False, "meta_json": {"color": "blue"}},
     )
     assert tag.status_code == 200, tag.text
+    tag_id = tag.json()["id"]
 
     cocoon_ids = client.get("/api/v1/cocoons", headers=auth_headers).json()
     cocoon_id = cocoon_ids[0]["id"]
     bind = client.post(
         f"/api/v1/cocoons/{cocoon_id}/tags",
         headers=auth_headers,
-        json={"tag_id": "ops"},
+        json={"tag_id": tag_id},
     )
     assert bind.status_code == 200, bind.text
 
@@ -344,15 +345,14 @@ def test_wakeup_pull_merge_rollback_compaction_and_insights(
         assert default_cocoon is not None
         assert default_cocoon.rollback_anchor_msg_id == checkpoint.json()["anchor_message_id"]
 
-        summary_chunks = list(
-            session.scalars(
-                select(MemoryChunk).where(
-                    MemoryChunk.cocoon_id == default_cocoon_id,
-                    MemoryChunk.scope == "summary",
-                )
+        compaction_chunks = [
+            chunk
+            for chunk in session.scalars(
+                select(MemoryChunk).where(MemoryChunk.cocoon_id == default_cocoon_id)
             ).all()
-        )
-        assert summary_chunks
+            if (chunk.meta_json or {}).get("source_kind") == "compaction"
+        ]
+        assert compaction_chunks
 
         deleted_artifact = session.get(AuditArtifact, artifact_id)
         assert deleted_artifact is not None

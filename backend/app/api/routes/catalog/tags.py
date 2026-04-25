@@ -3,7 +3,19 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_permission
 from app.models import TagRegistry
-from app.schemas.catalog.tags import TagCreate, TagOut, TagUpdate
+from app.schemas.catalog.tags import (
+    TagChatGroupVisibilityOut,
+    TagChatGroupVisibilityUpdate,
+    TagCreate,
+    TagOut,
+    TagUpdate,
+)
+from app.services.catalog.tag_policy import (
+    is_system_tag,
+    list_visible_chat_group_ids,
+    require_canonical_tag,
+    replace_tag_visibility_groups,
+)
 
 
 router = APIRouter()
@@ -14,7 +26,8 @@ def list_tags(
     db: Session = Depends(get_db),
     _=Depends(require_permission("tags:read")),
 ) -> list[TagRegistry]:
-    return db.info["container"].tag_service.list_tags(db)
+    service = db.info["container"].tag_service
+    return [service.serialize_tag(db, item) for item in service.list_tags(db)]
 
 
 @router.post("", response_model=TagOut)
@@ -23,7 +36,8 @@ def create_tag(
     db: Session = Depends(get_db),
     _=Depends(require_permission("tags:write")),
 ) -> TagRegistry:
-    return db.info["container"].tag_service.create_tag(db, payload)
+    service = db.info["container"].tag_service
+    return service.serialize_tag(db, service.create_tag(db, payload))
 
 
 @router.patch("/{tag_id}", response_model=TagOut)
@@ -33,7 +47,8 @@ def update_tag(
     db: Session = Depends(get_db),
     _=Depends(require_permission("tags:write")),
 ) -> TagRegistry:
-    return db.info["container"].tag_service.update_tag(db, tag_id, payload)
+    service = db.info["container"].tag_service
+    return service.serialize_tag(db, service.update_tag(db, tag_id, payload))
 
 
 @router.delete("/{tag_id}", response_model=TagOut)
@@ -42,4 +57,33 @@ def delete_tag(
     db: Session = Depends(get_db),
     _=Depends(require_permission("tags:write")),
 ) -> TagRegistry:
-    return db.info["container"].tag_service.delete_tag(db, tag_id)
+    service = db.info["container"].tag_service
+    return service.serialize_tag(db, service.delete_tag(db, tag_id))
+
+
+@router.get("/{tag_id}/chat-groups/visibility", response_model=TagChatGroupVisibilityOut)
+def get_tag_chat_group_visibility(
+    tag_id: str,
+    db: Session = Depends(get_db),
+    _=Depends(require_permission("tags:read")),
+) -> TagChatGroupVisibilityOut:
+    tag = require_canonical_tag(db, tag_id)
+    return TagChatGroupVisibilityOut(tag_id=tag.id, chat_group_ids=list_visible_chat_group_ids(db, tag.id))
+
+
+@router.put("/{tag_id}/chat-groups/visibility", response_model=TagChatGroupVisibilityOut)
+def update_tag_chat_group_visibility(
+    tag_id: str,
+    payload: TagChatGroupVisibilityUpdate,
+    db: Session = Depends(get_db),
+    _=Depends(require_permission("tags:write")),
+) -> TagChatGroupVisibilityOut:
+    tag = require_canonical_tag(db, tag_id)
+    if is_system_tag(tag):
+        from fastapi import HTTPException, status
+
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="System tag cannot be modified")
+    return TagChatGroupVisibilityOut(
+        tag_id=tag.id,
+        chat_group_ids=replace_tag_visibility_groups(db, tag, payload.chat_group_ids),
+    )

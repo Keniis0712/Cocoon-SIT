@@ -16,6 +16,7 @@ from app.api.routes.catalog import (
 )
 from app.api.routes.observability import admin_artifacts, audits, health, insights, wakeups
 from app.api.routes.workspace import (
+    chat_group_tags,
     chat_groups,
     checkpoints,
     cocoons,
@@ -47,6 +48,7 @@ api_router.include_router(settings.router, prefix="/settings", tags=["settings"]
 api_router.include_router(prompt_templates.router, prefix="/prompt-templates", tags=["prompt-templates"])
 api_router.include_router(cocoons.router, prefix="/cocoons", tags=["cocoons"])
 api_router.include_router(chat_groups.router, prefix="/chat-groups", tags=["chat-groups"])
+api_router.include_router(chat_group_tags.router, prefix="/chat-groups", tags=["chat-groups"])
 api_router.include_router(messages.router, prefix="/cocoons", tags=["cocoons"])
 api_router.include_router(workspace_tags.router, prefix="/cocoons", tags=["cocoons"])
 api_router.include_router(rollback.router, prefix="/cocoons", tags=["cocoons"])

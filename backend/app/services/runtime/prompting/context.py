@@ -78,6 +78,9 @@ def build_structured_prompt_context(
         session_state = (
             snapshot.get("session_state") if isinstance(snapshot.get("session_state"), dict) else {}
         )
+        prompt_tag_catalog = (
+            snapshot.get("tag_catalog") if isinstance(snapshot.get("tag_catalog"), list) else []
+        )
         compact_session_state = {
             "relation_score": session_state.get("relation_score"),
             "persona": session_state.get("persona"),
@@ -101,6 +104,15 @@ def build_structured_prompt_context(
             )
         tag_names = compact_session_state.get("active_tags") or []
         lines.append(f"Active tags: {', '.join(tag_names) if tag_names else 'none'}")
+        if prompt_tag_catalog:
+            lines.append(
+                "Allowed tag indexes: "
+                + "; ".join(
+                    f"{item.get('index')}={item.get('tag_id')}"
+                    for item in prompt_tag_catalog
+                    if isinstance(item, dict)
+                )
+            )
 
     if generation_brief:
         compact_payload["generation_brief"] = generation_brief
@@ -146,7 +158,9 @@ def _participant_alias(context: ContextPackage, sender_user_id: str | None) -> s
 def _runtime_message_payload(
     message, context: ContextPackage, catalog: dict[str, dict[str, Any]]
 ) -> dict[str, Any]:
-    tag_refs = list(message.tags_json or [])
+    tag_refs = [
+        tag_ref for tag_ref in list(message.tags_json or []) if not bool((catalog.get(tag_ref) or {}).get("is_system"))
+    ]
     retracted_suffix = (
         "\n\n[system note: this message was later retracted]" if message.is_retracted else ""
     )
@@ -165,7 +179,9 @@ def _runtime_message_payload(
 def _runtime_memory_payload(
     memory, context: ContextPackage, catalog: dict[str, dict[str, Any]]
 ) -> dict[str, Any]:
-    tag_refs = list(memory.tags_json or [])
+    tag_refs = [
+        tag_ref for tag_ref in list(memory.tags_json or []) if not bool((catalog.get(tag_ref) or {}).get("is_system"))
+    ]
     return {
         "scope": memory.scope,
         "summary": memory.summary,
@@ -185,7 +201,15 @@ def _merge_context_payload(
     source_state = payload.get("source_state")
     source_state_payload = source_state if isinstance(source_state, dict) else {}
     source_active_tags = source_state_payload.get("active_tags_json")
-    tag_refs = source_active_tags if isinstance(source_active_tags, list) else []
+    tag_refs = (
+        [
+            tag_ref
+            for tag_ref in source_active_tags
+            if not bool((catalog.get(tag_ref) or {}).get("is_system"))
+        ]
+        if isinstance(source_active_tags, list)
+        else []
+    )
     return {
         **_sanitize_prompt_dict(payload),
         "source_state": {
@@ -202,6 +226,24 @@ def _runtime_event_payload(context: ContextPackage) -> dict[str, Any]:
         "target_type": context.runtime_event.target_type,
         **_sanitize_prompt_dict(context.runtime_event.payload),
     }
+
+
+def _prompt_tag_catalog(context: ContextPackage) -> list[dict[str, Any]]:
+    payload = context.external_context.get("prompt_tag_catalog")
+    if not isinstance(payload, list):
+        return []
+    sanitized: list[dict[str, Any]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        sanitized.append(
+            {
+                "index": item.get("index"),
+                "tag_id": item.get("tag_id"),
+                "brief": item.get("brief"),
+            }
+        )
+    return sanitized
 
 
 def _pending_wakeup_payload(tasks: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
@@ -250,9 +292,17 @@ def build_runtime_prompt_variables(
             "relation_score": context.session_state.relation_score,
             "persona": context.session_state.persona_json,
             "active_tags": _serialize_tags(
-                list(context.session_state.active_tags_json or []), context, catalog
+                [
+                    tag_ref
+                    for tag_ref in list(context.session_state.active_tags_json or [])
+                    if not bool((catalog.get(tag_ref) or {}).get("is_system"))
+                ],
+                context,
+                catalog,
             ),
+            "tag_catalog": _prompt_tag_catalog(context),
         },
+        "tag_catalog": _prompt_tag_catalog(context),
         "visible_messages": [
             _runtime_message_payload(message, context, catalog)
             for message in context.visible_messages

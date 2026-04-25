@@ -94,8 +94,8 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
                     "relation_delta": 2,
                     "persona_patch": {},
                     "tag_ops": [
-                        {"action": "add", "tag": " focus "},
-                        {"action": "remove", "tag": " "},
+                        {"action": "add", "tag_index": 1},
+                        {"action": "remove", "tag_index": 0},
                     ],
                     "internal_thought": "",
                     "schedule_wakeups": [
@@ -104,23 +104,6 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
                     ],
                     "cancel_wakeup_task_ids": ["wake-1", " ", "wake-2"],
                     "generation_brief": "brief",
-                    "memory_candidates": [
-                        {
-                            "scope": "dialogue",
-                            "summary": "pref",
-                            "content": "likes tea",
-                            "tags": [{"tag": " focus "}, {"tag": " "}],
-                            "owner_user_id": "user-1",
-                            "importance": 7,
-                        },
-                        {
-                            "scope": "dialogue",
-                            "summary": " ",
-                            "content": "ignored",
-                            "tags": [],
-                            "importance": 1,
-                        },
-                    ],
                 },
                 raw_response={"provider": "raw"},
                 usage=ProviderUsage(prompt_tokens=3, completion_tokens=4, total_tokens=7),
@@ -139,7 +122,10 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
         render=lambda **kwargs: (
             {"id": "meta-template"},
             {"id": "meta-revision"},
-            {"session_state": {"relation_score": 5, "persona": {"mood": "calm"}, "active_tags": []}},
+            {
+                "session_state": {"relation_score": 5, "persona": {"mood": "calm"}, "active_tags": []},
+                "tag_catalog": [{"index": 1, "tag_id": "focus", "brief": "Focus topic"}],
+            },
             "rendered meta prompt",
         )
     )
@@ -170,14 +156,11 @@ def test_meta_node_evaluate_builds_structured_request_and_filters_payload(monkey
     assert result.decision == "reply"
     assert result.relation_delta == 2
     assert result.persona_patch == {"last_seen_intent": "hello"}
-    assert [(item.action, item.tag) for item in result.tag_ops] == [("add", "focus")]
+    assert [(item.action, item.tag_index) for item in result.tag_ops] == [("add", 1)]
     assert result.internal_thought == "Structured meta decision completed."
     assert result.next_wakeup_hints == [{"delay_minutes": 5, "reason": "follow up in a few minutes", "payload_json": {}}]
     assert result.cancel_wakeup_task_ids == ["wake-1", "wake-2"]
     assert result.generation_brief == "brief"
-    assert len(result.memory_candidates) == 1
-    assert result.memory_candidates[0].content == "likes tea"
-    assert [tag.tag for tag in result.memory_candidates[0].tags] == ["focus"]
     assert audit_calls[0][0][3] == "provider_raw_output"
 
 

@@ -66,21 +66,20 @@ function mapTag(item: {
   id: string;
   tag_id: string;
   brief: string;
-  is_isolated: boolean;
-  meta_json: Record<string, unknown>;
+  visibility: string;
+  is_system?: boolean;
+  visible_chat_group_ids?: string[];
   created_at: string;
 }): TagRead {
-  const meta = item.meta_json || {};
   return {
     id: rememberLegacyId("tag", item.id),
+    actual_id: item.id,
     tag_id: item.tag_id,
-    owner_uid: null,
     name: item.tag_id,
     brief: item.brief,
-    priority: typeof meta.priority === "number" ? meta.priority : 0,
-    visibility_mode: item.is_isolated ? "private" : "public",
-    group_allowlist_json: JSON.stringify(meta.group_allowlist ?? []),
-    group_denylist_json: JSON.stringify(meta.group_denylist ?? []),
+    visibility_mode: item.visibility || "private",
+    is_system: Boolean(item.is_system),
+    visible_chat_group_ids: item.visible_chat_group_ids ?? [],
     created_at: item.created_at,
     updated_at: item.created_at,
   };

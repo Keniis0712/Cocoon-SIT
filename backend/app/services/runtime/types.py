@@ -67,7 +67,6 @@ class MetaDecision:
     next_wakeup_hints: list[dict[str, Any]] = field(default_factory=list)
     cancel_wakeup_task_ids: list[str] = field(default_factory=list)
     generation_brief: str | None = None
-    memory_candidates: list["MemoryCandidate"] = field(default_factory=list)
 
 
 @dataclass
@@ -83,7 +82,7 @@ class MemoryCandidate:
 @dataclass
 class TagOperation:
     action: str
-    tag: str
+    tag_index: int
 
 
 @dataclass

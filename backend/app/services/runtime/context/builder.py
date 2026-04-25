@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Character, ChatGroupRoom, Cocoon, TagRegistry
+from app.services.catalog.tag_policy import is_tag_visible_in_target, serialize_prompt_tag_catalog
 from app.services.memory.service import MemoryService
 from app.services.runtime.context.external_context_service import ExternalContextService
 from app.services.runtime.context.message_window_service import MessageWindowService
@@ -57,6 +58,7 @@ class ContextBuilder:
             session=session,
             active_tags=state.active_tags_json,
             cocoon_id=event.cocoon_id,
+            chat_group_id=event.chat_group_id,
             owner_user_id=memory_lookup["owner_user_id"],
             character_id=memory_lookup["character_id"],
             query_text=query_text,
@@ -81,6 +83,11 @@ class ContextBuilder:
             for task in pending_wakeups
         ]
         tags = list(session.scalars(select(TagRegistry)).all())
+        prompt_tag_catalog, prompt_tag_catalog_by_index = serialize_prompt_tag_catalog(
+            session,
+            target_type=event.target_type,
+            target_id=event.target_id,
+        )
         external_context["tag_catalog_by_ref"] = {
             **{
                 tag.id: {
@@ -89,6 +96,13 @@ class ContextBuilder:
                     "brief": tag.brief,
                     "visibility": tag.visibility,
                     "is_isolated": tag.is_isolated,
+                    "is_system": tag.is_system,
+                    "visible_in_target": is_tag_visible_in_target(
+                        session,
+                        tag,
+                        target_type=event.target_type,
+                        target_id=event.target_id,
+                    ),
                     "meta_json": tag.meta_json,
                 }
                 for tag in tags
@@ -100,11 +114,20 @@ class ContextBuilder:
                     "brief": tag.brief,
                     "visibility": tag.visibility,
                     "is_isolated": tag.is_isolated,
+                    "is_system": tag.is_system,
+                    "visible_in_target": is_tag_visible_in_target(
+                        session,
+                        tag,
+                        target_type=event.target_type,
+                        target_id=event.target_id,
+                    ),
                     "meta_json": tag.meta_json,
                 }
                 for tag in tags
             },
         }
+        external_context["prompt_tag_catalog"] = prompt_tag_catalog
+        external_context["prompt_tag_catalog_by_index"] = prompt_tag_catalog_by_index
         return ContextPackage(
             runtime_event=event,
             conversation=conversation,

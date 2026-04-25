@@ -1,11 +1,13 @@
-import { Shield, ShieldPlus, UserPlus, UsersRound } from "lucide-react";
+import { Plus, Shield, ShieldPlus, UserPlus, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import type { TagRead } from "@/api/types/catalog";
 import type { ChatGroupMemberRead } from "@/api/types/chat-groups";
 import type { WakeupTaskRead } from "@/api/types/wakeups";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatWorkspaceTime } from "@/features/workspace/utils";
 
 const DEFAULT_RELATION_SCORE = 50;
@@ -13,6 +15,11 @@ const DEFAULT_RELATION_SCORE = 50;
 type ChatGroupSidebarProps = {
   characterName: string;
   modelLabel: string;
+  roomTags: TagRead[];
+  sessionActiveTags: string[];
+  availableAddableTags: TagRead[];
+  addTagValue: string;
+  isUpdatingTags: boolean;
   dispatchState: string | null | undefined;
   relationScore: number | null | undefined;
   currentAiWakeup: WakeupTaskRead | null;
@@ -22,6 +29,8 @@ type ChatGroupSidebarProps = {
   canManage: boolean;
   ownerUserId: string | null | undefined;
   memberNameMap: Map<string, string>;
+  onAddTag: (value: string) => void;
+  onRemoveTag: (tagId: number) => void;
   onOpenAddMember: () => void;
   onToggleMemberRole: (member: ChatGroupMemberRead, nextRole: "member" | "admin") => void;
   onRemoveMember: (member: ChatGroupMemberRead) => void;
@@ -30,6 +39,11 @@ type ChatGroupSidebarProps = {
 export function ChatGroupSidebar({
   characterName,
   modelLabel,
+  roomTags,
+  sessionActiveTags,
+  availableAddableTags,
+  addTagValue,
+  isUpdatingTags,
   dispatchState,
   relationScore,
   currentAiWakeup,
@@ -39,11 +53,24 @@ export function ChatGroupSidebar({
   canManage,
   ownerUserId,
   memberNameMap,
+  onAddTag,
+  onRemoveTag,
   onOpenAddMember,
   onToggleMemberRole,
   onRemoveMember,
 }: ChatGroupSidebarProps) {
   const { t } = useTranslation(["chatGroups", "wakeups"]);
+  const tagLabelByKey = new Map<string, string>();
+  for (const tag of roomTags.filter((item) => !item.is_system)) {
+    tagLabelByKey.set(tag.actual_id, tag.name);
+    tagLabelByKey.set(tag.tag_id, tag.name);
+    tagLabelByKey.set(String(tag.id), tag.name);
+  }
+  const activeTags = sessionActiveTags.length
+    ? sessionActiveTags
+        .filter((tag) => tagLabelByKey.has(tag))
+        .map((tag) => ({ key: tag, label: tagLabelByKey.get(tag) || tag }))
+    : roomTags.filter((item) => !item.is_system).map((item) => ({ key: item.actual_id, label: item.name }));
 
   return (
     <div className="space-y-4">
@@ -59,6 +86,57 @@ export function ChatGroupSidebar({
             <Badge variant="outline">{t("dispatchLabel", { value: dispatchState || "idle" })}</Badge>
             <Badge variant="outline">{t("relationLabel", { value: relationScore ?? DEFAULT_RELATION_SCORE })}</Badge>
           </div>
+          <div className="rounded-[22px] border border-border/70 bg-background/60 p-4 text-sm">
+            <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Active Tags</div>
+            <div className="flex flex-wrap gap-2">
+              {activeTags.length ? activeTags.map((tag) => (
+                <Badge key={tag.key} variant="secondary">
+                  {tag.label}
+                </Badge>
+              )) : <span className="text-muted-foreground">No visible tags</span>}
+            </div>
+          </div>
+          {canManage ? (
+            <div className="rounded-[22px] border border-border/70 bg-background/60 p-4 text-sm">
+              <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Manage Tags</div>
+              <div className="flex flex-wrap gap-2">
+                {roomTags.filter((item) => !item.is_system).map((tag) => (
+                  <button
+                    key={tag.actual_id}
+                    type="button"
+                    className="inline-flex items-center rounded-full"
+                    disabled={isUpdatingTags}
+                    onClick={() => onRemoveTag(tag.id)}
+                  >
+                    <Badge variant="secondary">{tag.name} x</Badge>
+                  </button>
+                ))}
+                {!roomTags.filter((item) => !item.is_system).length ? (
+                  <span className="text-muted-foreground">No tags enabled</span>
+                ) : null}
+              </div>
+              <div className="mt-3">
+                <Select value={addTagValue} onValueChange={onAddTag} disabled={isUpdatingTags || !availableAddableTags.length}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Add tag" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__add">
+                      <span className="inline-flex items-center gap-2">
+                        <Plus className="size-4" />
+                        Add tag
+                      </span>
+                    </SelectItem>
+                    {availableAddableTags.map((tag) => (
+                      <SelectItem key={tag.actual_id} value={String(tag.id)}>
+                        {tag.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          ) : null}
           <div className="rounded-[22px] border border-border/70 bg-background/60 p-4 text-sm">
             <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">{t("wakeupPanelTitle")}</div>
             {currentAiWakeup ? (

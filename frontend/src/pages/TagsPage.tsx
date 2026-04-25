@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { showErrorToast } from "@/api/client";
+import { listChatGroups } from "@/api/chatGroups";
 import { createTag, deleteTag, listTags, updateTag } from "@/api/tags";
 import type { TagPayload, TagRead } from "@/api/types/catalog";
+import type { ChatGroupRead } from "@/api/types/chat-groups";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,31 +21,33 @@ import { Textarea } from "@/components/ui/textarea";
 const EMPTY_FORM: TagPayload = {
   name: "",
   brief: "",
-  priority: 10_000,
   visibility_mode: "private",
-  group_allowlist: [],
-  group_denylist: [],
+  visible_chat_group_ids: [],
 };
 
 export default function TagsPage() {
-  const { t } = useTranslation();
   const [items, setItems] = useState<TagRead[]>([]);
+  const [rooms, setRooms] = useState<ChatGroupRead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TagRead | null>(null);
   const [form, setForm] = useState<TagPayload>(EMPTY_FORM);
 
+  const visibleItems = useMemo(() => items.filter((item) => !item.is_system), [items]);
+
   useEffect(() => {
-    void fetchTags();
+    void fetchData();
   }, []);
 
-  async function fetchTags() {
+  async function fetchData() {
     setIsLoading(true);
     try {
-      setItems(await listTags());
+      const [tagItems, roomItems] = await Promise.all([listTags(), listChatGroups()]);
+      setItems(tagItems);
+      setRooms(roomItems);
     } catch (error) {
       console.error(error);
-      showErrorToast(error, t("tags.loadFailed"));
+      showErrorToast(error, "Failed to load tags");
     } finally {
       setIsLoading(false);
     }
@@ -60,10 +64,8 @@ export default function TagsPage() {
     setForm({
       name: item.name,
       brief: item.brief,
-      priority: item.priority,
       visibility_mode: item.visibility_mode,
-      group_allowlist: JSON.parse(item.group_allowlist_json || "[]"),
-      group_denylist: JSON.parse(item.group_denylist_json || "[]"),
+      visible_chat_group_ids: item.visible_chat_group_ids,
     });
     setDialogOpen(true);
   }
@@ -72,50 +74,57 @@ export default function TagsPage() {
     const payload: TagPayload = {
       name: form.name.trim(),
       brief: form.brief || "",
-      priority: form.priority || 0,
       visibility_mode: form.visibility_mode || "private",
-      group_allowlist: form.group_allowlist || [],
-      group_denylist: form.group_denylist || [],
+      visible_chat_group_ids: form.visibility_mode === "group_acl" ? form.visible_chat_group_ids || [] : [],
     };
     try {
       if (editing) {
         await updateTag(editing.id, payload);
-        toast.success(t("tags.updated"));
+        toast.success("Tag updated");
       } else {
         await createTag(payload);
-        toast.success(t("tags.created"));
+        toast.success("Tag created");
       }
       setDialogOpen(false);
-      await fetchTags();
+      await fetchData();
     } catch (error) {
       console.error(error);
-      showErrorToast(error, t("tags.saveFailed"));
+      showErrorToast(error, "Failed to save tag");
     }
   }
 
   async function handleDelete(item: TagRead) {
-    if (!window.confirm(t("tags.confirmDeletePrompt", { name: item.name }))) {
+    if (!window.confirm(`Delete tag "${item.name}"?`)) {
       return;
     }
-
     try {
       await deleteTag(item.id);
-      toast.success(t("tags.deleted"));
-      await fetchTags();
+      toast.success("Tag deleted");
+      await fetchData();
     } catch (error) {
       console.error(error);
-      showErrorToast(error, t("tags.deleteFailed"));
+      showErrorToast(error, "Failed to delete tag");
     }
+  }
+
+  function toggleRoom(roomId: string, checked: boolean) {
+    const current = new Set(form.visible_chat_group_ids || []);
+    if (checked) {
+      current.add(roomId);
+    } else {
+      current.delete(roomId);
+    }
+    setForm((prev) => ({ ...prev, visible_chat_group_ids: [...current] }));
   }
 
   return (
     <PageFrame
-      title={t("tags.title")}
-      description={t("tags.description")}
+      title="Tags"
+      description="Manage canonical runtime tags and chat-group visibility."
       actions={
         <Button onClick={openCreate}>
           <Plus className="mr-2 size-4" />
-          {t("tags.newTag")}
+          New Tag
         </Button>
       }
     >
@@ -123,43 +132,49 @@ export default function TagsPage() {
         {isLoading ? (
           <Card className="h-48 animate-pulse bg-muted/40" />
         ) : (
-          items.map((item) => (
-            <Card key={item.id} className="border-border/70 bg-card/90">
+          visibleItems.map((item) => (
+            <Card key={item.actual_id} className="border-border/70 bg-card/90">
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle>{item.name}</CardTitle>
                     <CardDescription className="mt-2">
-                      {item.brief || t("tags.noDescription")}
+                      {item.brief || "No description"}
                     </CardDescription>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
                       <Pencil className="mr-2 size-4" />
-                      {t("common.edit")}
+                      Edit
                     </Button>
                     <Button variant="destructive" size="sm" onClick={() => void handleDelete(item)}>
                       <Trash2 className="mr-2 size-4" />
-                      {t("common.delete")}
+                      Delete
                     </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">
-                    {t("tags.priority")}: {item.priority}
-                  </Badge>
                   <Badge variant="secondary">{item.visibility_mode}</Badge>
                 </div>
-                <div>
-                  <div className="mb-1 text-muted-foreground">{t("tags.groupAllowlist")}</div>
-                  <div>{item.group_allowlist_json}</div>
-                </div>
-                <div>
-                  <div className="mb-1 text-muted-foreground">{t("tags.groupDenylist")}</div>
-                  <div>{item.group_denylist_json}</div>
-                </div>
+                {item.visibility_mode === "group_acl" ? (
+                  <div>
+                    <div className="mb-1 text-muted-foreground">Visible Chat Groups</div>
+                    <div className="flex flex-wrap gap-2">
+                      {item.visible_chat_group_ids.length
+                        ? item.visible_chat_group_ids.map((roomId) => {
+                            const room = rooms.find((entry) => entry.id === roomId);
+                            return (
+                              <Badge key={roomId} variant="outline">
+                                {room?.name || roomId}
+                              </Badge>
+                            );
+                          })
+                        : <span className="text-muted-foreground">No rooms selected</span>}
+                    </div>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           ))
@@ -167,23 +182,36 @@ export default function TagsPage() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editing ? t("tags.editTitle") : t("tags.createTitle")}</DialogTitle>
-            <DialogDescription>{t("tags.dialogDescription")}</DialogDescription>
+            <DialogTitle>{editing ? "Edit Tag" : "Create Tag"}</DialogTitle>
+            <DialogDescription>
+              Runtime tags are stored by canonical id. Models can only reference them by the numbered tag catalog exposed in prompts.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
-              <Label>{t("common.name")}</Label>
-              <Input value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+              <Label>Name</Label>
+              <Input
+                value={form.name}
+                onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                disabled={Boolean(editing)}
+              />
             </div>
             <div className="grid gap-2">
-              <Label>{t("common.description")}</Label>
-              <Textarea rows={3} value={form.brief || ""} onChange={(event) => setForm((prev) => ({ ...prev, brief: event.target.value }))} />
+              <Label>Description</Label>
+              <Textarea
+                rows={3}
+                value={form.brief || ""}
+                onChange={(event) => setForm((prev) => ({ ...prev, brief: event.target.value }))}
+              />
             </div>
             <div className="grid gap-2">
-              <Label>{t("tags.visibilityMode")}</Label>
-              <Select value={form.visibility_mode} onValueChange={(value) => setForm((prev) => ({ ...prev, visibility_mode: value }))}>
+              <Label>Visibility</Label>
+              <Select
+                value={form.visibility_mode}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, visibility_mode: value }))}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -194,25 +222,33 @@ export default function TagsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label>{t("tags.priority")}</Label>
-              <Input type="number" value={String(form.priority || 0)} onChange={(event) => setForm((prev) => ({ ...prev, priority: Number(event.target.value || 0) }))} />
-            </div>
-            <div className="grid gap-2">
-              <Label>{t("tags.groupAllowlistInput")}</Label>
-              <Input value={(form.group_allowlist || []).join(",")} onChange={(event) => setForm((prev) => ({ ...prev, group_allowlist: event.target.value.split(",").map((item) => item.trim()).filter(Boolean) }))} />
-            </div>
-            <div className="grid gap-2">
-              <Label>{t("tags.groupDenylistInput")}</Label>
-              <Input value={(form.group_denylist || []).join(",")} onChange={(event) => setForm((prev) => ({ ...prev, group_denylist: event.target.value.split(",").map((item) => item.trim()).filter(Boolean) }))} />
-            </div>
+            {form.visibility_mode === "group_acl" ? (
+              <div className="grid gap-2">
+                <Label>Visible Chat Groups</Label>
+                <div className="max-h-64 space-y-2 overflow-auto rounded-2xl border border-border/70 bg-background/60 p-3">
+                  {rooms.length ? (
+                    rooms.map((room) => {
+                      const checked = (form.visible_chat_group_ids || []).includes(room.id);
+                      return (
+                        <label key={room.id} className="flex items-center gap-3 text-sm">
+                          <Checkbox checked={checked} onCheckedChange={(value) => toggleRoom(room.id, Boolean(value))} />
+                          <span>{room.name}</span>
+                        </label>
+                      );
+                    })
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No chat groups available.</span>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              {t("common.cancel")}
+              Cancel
             </Button>
             <Button disabled={!form.name.trim()} onClick={handleSave}>
-              {t("common.save")}
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>

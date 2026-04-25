@@ -65,6 +65,7 @@ def test_mock_chat_provider_generate_structured_meta_response_extracts_context()
             {
                 "runtime_event": {"event_type": "chat"},
                 "pending_wakeups": [{"id": "wake-1"}],
+                "tag_catalog": [{"index": 1, "tag_id": "focus", "brief": "Focus topic"}],
             }
         )
         + "\nCONTEXT_JSON_END"
@@ -84,8 +85,7 @@ def test_mock_chat_provider_generate_structured_meta_response_extracts_context()
     assert response.parsed["relation_delta"] == 1
     assert response.parsed["cancel_wakeup_task_ids"] == ["wake-1"]
     assert len(response.parsed["schedule_wakeups"]) == 2
-    assert response.parsed["memory_candidates"][0]["content"].startswith("Please remember")
-    assert response.parsed["tag_ops"] == [{"action": "add", "tag": "focus"}]
+    assert response.parsed["tag_ops"] == [{"action": "add", "tag_index": 1}]
 
 
 def test_mock_chat_provider_generate_structured_generator_response_for_wakeup():
@@ -183,7 +183,7 @@ def test_mock_chat_provider_covers_silence_remove_tag_and_invalid_payload_paths(
     )
 
     assert meta_response.parsed["decision"] == "silence"
-    assert meta_response.parsed["tag_ops"] == [{"action": "add", "tag": "focus"}, {"action": "remove", "tag": "focus"}]
+    assert meta_response.parsed["tag_ops"] == []
     assert fallback_response.text.startswith("Summary:")
     assert fallback_response.parsed == {}
     assert provider._extract_json_payload("prefix {bad json") == {}

@@ -10,6 +10,7 @@ PROMPT_VARIABLES_BY_TYPE: dict[str, dict[str, str]] = {
     PromptTemplateType.meta: {
         "character_settings": "Structured character settings and prompt summary.",
         "session_state": "Current dynamic session state.",
+        "tag_catalog": "Numbered tag catalog the model is allowed to reference by index only.",
         "visible_messages": "Recent visible dialogue messages.",
         "memory_context": "Retrieved long-term memory snippets.",
         "runtime_event": "Current runtime event payload.",
@@ -21,6 +22,7 @@ PROMPT_VARIABLES_BY_TYPE: dict[str, dict[str, str]] = {
     PromptTemplateType.generator: {
         "character_settings": "Structured character settings and prompt summary.",
         "session_state": "Current dynamic session state.",
+        "tag_catalog": "Numbered tag catalog the model is allowed to reference by index only.",
         "visible_messages": "Recent visible dialogue messages.",
         "memory_context": "Retrieved long-term memory snippets.",
         "runtime_event": "Current runtime event payload.",
@@ -30,6 +32,8 @@ PROMPT_VARIABLES_BY_TYPE: dict[str, dict[str, str]] = {
         "provider_capabilities": "Sanitized runtime hints that are safe to expose to the model.",
     },
     PromptTemplateType.memory_summary: {
+        "session_state": "Current dynamic session state.",
+        "tag_catalog": "Numbered tag catalog the compaction model is allowed to reference by index only.",
         "visible_messages": "Recent visible dialogue messages.",
         "memory_context": "Retrieved long-term memory snippets.",
     },

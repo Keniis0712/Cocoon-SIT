@@ -82,17 +82,29 @@ def test_state_patch_service_updates_session_state_and_broadcasts(client, defaul
     service = StatePatchService(container.side_effects, hub)
 
     with container.session_factory() as session:
+        tag = TagRegistry(
+            tag_id="focus",
+            brief="Focus topic",
+            visibility="public",
+            is_isolated=False,
+            meta_json={},
+        )
+        session.add(tag)
+        session.flush()
         state = session.get(SessionState, default_cocoon_id)
         assert state is not None
         state.relation_score = 0
         state.persona_json = {}
         state.active_tags_json = []
         context = _build_context(session, default_cocoon_id)
+        context.external_context["prompt_tag_catalog_by_index"] = {
+            1: {"id": tag.id, "tag_id": tag.tag_id}
+        }
         meta = MetaDecision(
             decision="reply",
             relation_delta=3,
             persona_patch={"tone": "warm"},
-            tag_ops=[TagOperation(action="add", tag="focus")],
+            tag_ops=[TagOperation(action="add", tag_index=1)],
             internal_thought="",
             next_wakeup_hints=[],
             cancel_wakeup_task_ids=[],
@@ -108,7 +120,7 @@ def test_state_patch_service_updates_session_state_and_broadcasts(client, defaul
 
         assert updated_state.relation_score == 3
         assert updated_state.persona_json["tone"] == "warm"
-        assert updated_state.active_tags_json == ["focus"]
+        assert tag.id in updated_state.active_tags_json
         assert hub.events == [
             (
                 f"cocoon:{default_cocoon_id}",
@@ -119,7 +131,7 @@ def test_state_patch_service_updates_session_state_and_broadcasts(client, defaul
                     "chat_group_id": None,
                     "relation_score": 3,
                     "persona_json": {"tone": "warm"},
-                    "active_tags": ["focus"],
+                    "active_tags": updated_state.active_tags_json,
                     "current_wakeup_task_id": None,
                 },
             )
@@ -288,11 +300,14 @@ def test_side_effects_resolve_readable_tag_references_to_canonical_ids(client, d
             decision="reply",
             relation_delta=0,
             persona_patch={},
-            tag_ops=[TagOperation(action="add", tag="Focus Topic")],
+            tag_ops=[TagOperation(action="add", tag_index=1)],
             internal_thought="",
             next_wakeup_hints=[],
             cancel_wakeup_task_ids=[],
         )
+        context.external_context["prompt_tag_catalog_by_index"] = {
+            1: {"id": tag.id, "tag_id": tag.tag_id}
+        }
         container.side_effects.apply_state_patch(session, context, meta)
 
         memories = container.side_effects.persist_memory_candidates(
@@ -311,7 +326,7 @@ def test_side_effects_resolve_readable_tag_references_to_canonical_ids(client, d
         )
         session.commit()
 
-        assert state.active_tags_json == [tag.id]
+        assert tag.id in state.active_tags_json
         assert len(memories) == 1
         assert memories[0].tags_json == [tag.id]
 

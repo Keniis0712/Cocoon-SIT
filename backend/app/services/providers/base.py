@@ -103,6 +103,8 @@ class MockChatProvider(ChatProvider):
     ) -> ProviderStructuredResponse:
         if output_name == "cocoon_meta_output":
             text = self._meta_reply(prompt, messages)
+        elif output_name == "cocoon_compaction_output":
+            text = self._compaction_reply(prompt)
         elif output_name == "cocoon_generation_output":
             text = self._generator_reply(prompt, messages, provider_config)
         else:
@@ -140,28 +142,32 @@ class MockChatProvider(ChatProvider):
         )
 
     def _extract_context(self, prompt: str) -> dict[str, Any]:
-        start_marker = "CONTEXT_JSON_START"
-        end_marker = "CONTEXT_JSON_END"
-        start = prompt.find(start_marker)
-        end = prompt.find(end_marker)
-        if start < 0 or end <= start:
-            return {}
-        raw = prompt[start + len(start_marker):end].strip()
-        try:
-            payload = json.loads(raw)
-        except Exception:
-            return {}
-        return payload if isinstance(payload, dict) else {}
+        for start_marker, end_marker in (
+            ("CONTEXT_JSON_START", "CONTEXT_JSON_END"),
+            ("COMPACTION_CONTEXT_JSON_START", "COMPACTION_CONTEXT_JSON_END"),
+        ):
+            start = prompt.find(start_marker)
+            end = prompt.find(end_marker)
+            if start < 0 or end <= start:
+                continue
+            raw = prompt[start + len(start_marker):end].strip()
+            try:
+                payload = json.loads(raw)
+            except Exception:
+                continue
+            if isinstance(payload, dict):
+                return payload
+        return {}
 
     def _meta_reply(self, prompt: str, messages: list[dict[str, Any]]) -> str:
         context = self._extract_context(prompt)
         runtime_event = context.get("runtime_event") or {}
         pending_wakeups = context.get("pending_wakeups") or []
+        tag_catalog = context.get("tag_catalog") or []
         latest_user = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
         decision = "reply"
         wakeups: list[dict[str, Any]] = []
         cancel_ids: list[str] = []
-        memory_candidates: list[dict[str, Any]] = []
         if "/silent" in latest_user:
             decision = "silence"
         if "schedule two wakeups" in latest_user.lower():
@@ -172,23 +178,19 @@ class MockChatProvider(ChatProvider):
         if "cancel wakeup" in latest_user.lower() and pending_wakeups:
             cancel_ids = [str(pending_wakeups[0].get("id"))]
         lower_user = latest_user.lower()
-        if any(token in lower_user for token in ("prefer", "favorite", "remember", "likes", "like ")):
-            memory_candidates = [
-                {
-                    "scope": "dialogue",
-                    "summary": latest_user[:120] or "User preference",
-                    "content": latest_user or "User shared a durable preference.",
-                    "tags": [],
-                    "importance": 6,
-                }
-            ]
         if runtime_event.get("event_type") == "wakeup" and str(runtime_event.get("trigger_kind")) == "idle_timeout":
             decision = "reply"
+        first_tag_index = 0
+        if isinstance(tag_catalog, list):
+            for item in tag_catalog:
+                if isinstance(item, dict) and isinstance(item.get("index"), int):
+                    first_tag_index = int(item["index"])
+                    break
         tag_ops: list[dict[str, Any]] = []
-        if "focus tag" in lower_user:
-            tag_ops.append({"action": "add", "tag": "focus"})
-        if "remove focus tag" in lower_user:
-            tag_ops.append({"action": "remove", "tag": "focus"})
+        if first_tag_index > 0 and "focus tag" in lower_user:
+            tag_ops.append({"action": "add", "tag_index": first_tag_index})
+        if first_tag_index > 0 and "remove focus tag" in lower_user:
+            tag_ops.append({"action": "remove", "tag_index": first_tag_index})
         return json.dumps(
             {
                 "decision": decision,
@@ -199,10 +201,40 @@ class MockChatProvider(ChatProvider):
                 "schedule_wakeups": wakeups,
                 "cancel_wakeup_task_ids": cancel_ids,
                 "generation_brief": latest_user[:200] or None,
-                "memory_candidates": memory_candidates,
             },
             ensure_ascii=False,
         )
+
+    def _compaction_reply(self, prompt: str) -> str:
+        context = self._extract_context(prompt)
+        visible_messages = context.get("visible_messages") or []
+        tag_catalog = context.get("tag_catalog") or []
+        summary = "No durable memory extracted."
+        items: list[dict[str, Any]] = []
+        if isinstance(visible_messages, list) and visible_messages:
+            last_item = visible_messages[-1] if isinstance(visible_messages[-1], dict) else {}
+            content = str(last_item.get("content") or "").strip() or "Conversation summary"
+            summary = content[:200]
+            item: dict[str, Any] = {
+                "scope": "summary",
+                "summary": content[:120] or "Conversation summary",
+                "content": content,
+                "tag_indexes": [],
+                "importance": 6,
+            }
+            if isinstance(tag_catalog, list):
+                first = next(
+                    (
+                        int(tag.get("index"))
+                        for tag in tag_catalog
+                        if isinstance(tag, dict) and isinstance(tag.get("index"), int)
+                    ),
+                    0,
+                )
+                if first > 0:
+                    item["tag_indexes"] = [first]
+            items.append(item)
+        return json.dumps({"summary": summary, "long_term_memories": items}, ensure_ascii=False)
 
     def _generator_reply(
         self,

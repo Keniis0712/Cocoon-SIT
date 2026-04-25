@@ -5,7 +5,8 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Message, MessageTag
+from app.models import Message, MessageTag, TagRegistry
+from app.services.catalog.tag_policy import is_tag_visible_in_target
 from app.services.workspace.targets import build_target_filter
 
 
@@ -31,6 +32,27 @@ class MessageWindowService:
             ).all()
         )
         visible_messages.reverse()
+        if chat_group_id:
+            tags = {
+                tag.id: tag
+                for tag in session.scalars(select(TagRegistry)).all()
+            }
+            visible_messages = [
+                message
+                for message in visible_messages
+                if all(
+                    (
+                        tag_id not in tags
+                        or is_tag_visible_in_target(
+                            session,
+                            tags[tag_id],
+                            target_type="chat_group",
+                            target_id=chat_group_id,
+                        )
+                    )
+                    for tag_id in (message.tags_json or [])
+                )
+            ]
         if not active_tags:
             return visible_messages
 

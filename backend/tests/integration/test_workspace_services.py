@@ -2,7 +2,7 @@ import pytest
 from fastapi import WebSocketException
 from sqlalchemy import select
 
-from app.models import ActionDispatch, Cocoon, Message, SessionState
+from app.models import ActionDispatch, Cocoon, Message, SessionState, TagRegistry
 
 pytestmark = pytest.mark.integration
 
@@ -119,14 +119,23 @@ def test_message_dispatch_commits_before_enqueuing(client, default_cocoon_id, mo
 def test_cocoon_tag_service_updates_session_tags(client, default_cocoon_id):
     container = client.app.state.container
     with container.session_factory() as session:
-        binding = container.cocoon_tag_service.bind_tag(session, default_cocoon_id, "focus")
+        tag = TagRegistry(
+            tag_id="focus",
+            brief="Focus topic",
+            visibility="public",
+            is_isolated=False,
+            meta_json={},
+        )
+        session.add(tag)
+        session.flush()
+        binding = container.cocoon_tag_service.bind_tag(session, default_cocoon_id, tag.id)
         session.commit()
         binding_id = binding.id
 
     with container.session_factory() as session:
         state = session.get(SessionState, default_cocoon_id)
         assert state is not None
-        assert "focus" in state.active_tags_json
+        assert tag.id in state.active_tags_json
         assert binding_id
 
 

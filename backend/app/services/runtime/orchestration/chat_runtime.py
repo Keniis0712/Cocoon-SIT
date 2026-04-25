@@ -18,7 +18,7 @@ from app.services.runtime.orchestration.round_preparation_service import RoundPr
 from app.services.runtime.orchestration.side_effects import SideEffects
 from app.services.runtime.orchestration.state_patch_service import StatePatchService
 from app.services.runtime.scheduling.scheduler_node import SchedulerNode
-from app.services.runtime.types import ContextPackage, GenerationOutput, MemoryCandidate, MetaDecision
+from app.services.runtime.types import ContextPackage, GenerationOutput, MetaDecision
 
 
 class RuntimeGraphState(TypedDict, total=False):
@@ -31,7 +31,6 @@ class RuntimeGraphState(TypedDict, total=False):
     scheduler_result: dict[str, Any]
     generation: GenerationOutput
     message: Message | None
-    memories: list[Any]
 
 
 class ChatRuntime:
@@ -78,7 +77,6 @@ class ChatRuntime:
                 "event": event,
                 "audit_run": audit_run,
                 "message": None,
-                "memories": [],
             }
         )
         self.logger.info(
@@ -94,7 +92,6 @@ class ChatRuntime:
         graph.add_node("meta_node", self._run_meta_node)
         graph.add_node("scheduler_node", self._run_scheduler_node)
         graph.add_node("generator_node", self._run_generator_node)
-        graph.add_node("memory_node", self._run_memory_node)
         graph.add_node("side_effects", self._run_side_effects_node)
         graph.add_edge(START, "context_builder")
         graph.add_edge("context_builder", "meta_node")
@@ -104,7 +101,6 @@ class ChatRuntime:
             self._route_after_scheduler,
             {
                 "generator_node": "generator_node",
-                "memory_node": "memory_node",
                 "side_effects": "side_effects",
             },
         )
@@ -112,11 +108,9 @@ class ChatRuntime:
             "generator_node",
             self._route_after_generator,
             {
-                "memory_node": "memory_node",
                 "side_effects": "side_effects",
             },
         )
-        graph.add_edge("memory_node", "side_effects")
         graph.add_edge("side_effects", END)
         return graph.compile()
 
@@ -152,13 +146,13 @@ class ChatRuntime:
         meta_step = self.audit_service.start_step(session, audit_run, "meta_node")
         meta = self.meta_node.evaluate(session, context, audit_run, meta_step)
         self.logger.info(
-            "Meta decision action_id=%s decision=%s relation_delta=%s wakeups=%s cancelled_wakeups=%s memory_candidates=%s",
+            "Meta decision action_id=%s decision=%s relation_delta=%s wakeups=%s cancelled_wakeups=%s tag_ops=%s",
             state["action"].id,
             meta.decision,
             meta.relation_delta,
             len(meta.next_wakeup_hints),
             len(meta.cancel_wakeup_task_ids),
-            len(meta.memory_candidates),
+            len(meta.tag_ops),
         )
         self.audit_service.record_json_artifact(
             session,
@@ -169,22 +163,11 @@ class ChatRuntime:
                 "decision": meta.decision,
                 "relation_delta": meta.relation_delta,
                 "persona_patch": meta.persona_patch,
-                "tag_ops": [{"action": op.action, "tag": op.tag} for op in meta.tag_ops],
+                "tag_ops": [{"action": op.action, "tag_index": op.tag_index} for op in meta.tag_ops],
                 "internal_thought": meta.internal_thought,
                 "next_wakeup_hints": meta.next_wakeup_hints,
                 "cancel_wakeup_task_ids": meta.cancel_wakeup_task_ids,
                 "generation_brief": meta.generation_brief,
-                "memory_candidates": [
-                    {
-                        "scope": candidate.scope,
-                        "summary": candidate.summary,
-                        "content": candidate.content,
-                        "tags": [{"tag": tag.tag} for tag in candidate.tags],
-                        "owner_user_id": candidate.owner_user_id,
-                        "importance": candidate.importance,
-                    }
-                    for candidate in meta.memory_candidates
-                ],
             },
         )
         self.audit_service.finish_step(session, meta_step, ActionStatus.completed)
@@ -247,42 +230,6 @@ class ChatRuntime:
         self.audit_service.finish_step(session, generator_step, ActionStatus.completed)
         return {"generation": generation, "message": message}
 
-    def _run_memory_node(self, state: RuntimeGraphState) -> RuntimeGraphState:
-        session = state["session"]
-        action = state["action"]
-        audit_run = state["audit_run"]
-        context = state["context"]
-        meta = state["meta"]
-        candidates = meta.memory_candidates
-        memory_step = self.audit_service.start_step(session, audit_run, "memory_node")
-        memories = self.side_effects.persist_memory_candidates(
-            session,
-            context,
-            action,
-            candidates,
-            source_message=state.get("message"),
-        )
-        self.logger.info(
-            "Memory persistence action_id=%s candidate_count=%s persisted_count=%s",
-            action.id,
-            len(candidates),
-            len(memories),
-        )
-        self.audit_service.record_json_artifact(
-            session,
-            audit_run,
-            memory_step,
-            "memory_persistence",
-            {
-                "memory_chunk_ids": [memory.id for memory in memories],
-                "candidate_count": len(candidates),
-                "persisted_count": len(memories),
-            },
-            summary="Persisted analysis-driven memory chunks",
-        )
-        self.audit_service.finish_step(session, memory_step, ActionStatus.completed)
-        return {"memories": memories}
-
     def _run_side_effects_node(self, state: RuntimeGraphState) -> RuntimeGraphState:
         session = state["session"]
         action = state["action"]
@@ -296,7 +243,6 @@ class ChatRuntime:
             context.session_state,
             action=action,
             message=state.get("message"),
-            memories=state.get("memories"),
             scheduler_result=state.get("scheduler_result"),
         )
         self.state_patch_service.publish_snapshot(
@@ -308,10 +254,9 @@ class ChatRuntime:
         self.audit_service.finish_step(session, side_effects_step, ActionStatus.completed)
         self.side_effects.finish_action(session, action, audit_run, ActionStatus.completed)
         self.logger.info(
-            "Side effects finished action_id=%s final_message_id=%s memories=%s",
+            "Side effects finished action_id=%s final_message_id=%s",
             action.id,
             getattr(state.get("message"), "id", None),
-            len(state.get("memories") or []),
         )
         return {}
 
@@ -322,17 +267,8 @@ class ChatRuntime:
         if meta.decision != "silence":
             self.logger.info("Routing to generator action_id=%s", action_id)
             return "generator_node"
-        self.logger.info(
-            "Skipping generator for action_id=%s because decision=%s memory_candidates=%s",
-            action_id,
-            meta.decision,
-            len(meta.memory_candidates),
-        )
-        return "memory_node" if self._has_memory_candidates(meta.memory_candidates) else "side_effects"
+        self.logger.info("Skipping generator for action_id=%s because decision=%s", action_id, meta.decision)
+        return "side_effects"
 
     def _route_after_generator(self, state: RuntimeGraphState) -> str:
-        meta = state["meta"]
-        return "memory_node" if self._has_memory_candidates(meta.memory_candidates) else "side_effects"
-
-    def _has_memory_candidates(self, candidates: list[MemoryCandidate]) -> bool:
-        return any(candidate.summary.strip() and candidate.content.strip() for candidate in candidates)
+        return "side_effects"

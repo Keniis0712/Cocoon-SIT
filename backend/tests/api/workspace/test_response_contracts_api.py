@@ -7,14 +7,23 @@ def test_access_and_workspace_routes_return_typed_contracts(client, auth_headers
     assert logout.envelope_json()["code"] == "OK"
     assert logout.json() == {"message": "logged out"}
 
+    create_tag = client.post(
+        "/api/v1/tags",
+        headers=auth_headers,
+        json={"tag_id": "focus-contract", "brief": "Contract focus", "visibility": "private", "is_isolated": False, "meta_json": {}},
+    )
+    assert create_tag.status_code == 200, create_tag.text
+    focus_tag_id = create_tag.json()["id"]
+
     bind = client.post(
         f"/api/v1/cocoons/{default_cocoon_id}/tags",
         headers=auth_headers,
-        json={"tag_id": "focus"},
+        json={"tag_id": focus_tag_id},
     )
     assert bind.status_code == 200, bind.text
     assert bind.envelope_json()["code"] == "OK"
     assert set(bind.json().keys()) == {"binding_id", "tag_id"}
+    assert bind.json()["tag_id"] == focus_tag_id
 
     tags = client.get(f"/api/v1/cocoons/{default_cocoon_id}/tags", headers=auth_headers)
     assert tags.status_code == 200, tags.text

@@ -61,7 +61,7 @@ export default function CocoonWorkspacePage() {
 
   const visibleMessages = useMemo(() => getVisibleMessages(session?.messages || []), [session?.messages]);
   const availableAddableTags = useMemo(
-    () => availableTags.filter((tag) => !selectedTagIds.includes(tag.id)),
+    () => availableTags.filter((tag) => !tag.is_system && !selectedTagIds.includes(tag.id)),
     [availableTags, selectedTagIds],
   );
 
@@ -148,7 +148,7 @@ export default function CocoonWorkspacePage() {
       setSelectedCocoon(cocoon);
       setProviderModels(provider?.available_models || []);
       setAvailableTags(tagItems);
-      setSelectedTagIds((cocoon.tags || []).map((item: { id: number }) => item.id));
+      setSelectedTagIds((cocoon.tags || []).filter((item: { is_system?: boolean }) => !item.is_system).map((item: { id: number }) => item.id));
       setCurrentAiWakeup(wakeups[0] || null);
       setMessages(cocoonId, sortedMessages);
       applyStatePatch(cocoonId, {
@@ -301,7 +301,7 @@ export default function CocoonWorkspacePage() {
     try {
       const tags = await bindCocoonTags(selectedCocoon.id, normalized);
       setSelectedCocoon((prev) => (prev ? { ...prev, tags } : prev));
-      applyStatePatch(cocoonId, { activeTags: tags.map((item: { name: string }) => item.name) });
+      applyStatePatch(cocoonId, { activeTags: tags.map((item: { actual_id: string }) => item.actual_id) });
     } catch (error) {
       setSelectedTagIds(previousIds);
       console.error(error);

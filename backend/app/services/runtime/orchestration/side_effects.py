@@ -8,6 +8,7 @@ from app.models import ActionDispatch, AuditRun, MemoryChunk, MemoryTag, Message
 from app.models.entities import ActionStatus
 from app.models.workspace import DEFAULT_RELATION_SCORE, MAX_RELATION_SCORE, MIN_RELATION_SCORE
 from app.services.audit.service import AuditService
+from app.services.catalog.tag_policy import canonicalize_tag_refs, ensure_state_default_tag
 from app.services.memory.service import MemoryService
 from app.services.runtime.types import ContextPackage, GenerationOutput, MemoryCandidate, MetaDecision
 
@@ -21,17 +22,27 @@ class SideEffects:
 
     def apply_state_patch(self, session: Session, context: ContextPackage, meta: MetaDecision) -> SessionState:
         state = context.session_state
+        if isinstance(state, SessionState):
+            state = ensure_state_default_tag(session, state)
         current_score = state.relation_score if state.relation_score is not None else DEFAULT_RELATION_SCORE
         state.relation_score = max(MIN_RELATION_SCORE, min(MAX_RELATION_SCORE, current_score + meta.relation_delta))
         state.persona_json = state.persona_json | meta.persona_patch
         for op in meta.tag_ops:
             if op.action == "add":
-                tag = self._resolve_tag_reference(context, op.tag)
+                tag = self._resolve_tag_index(context, op.tag_index)
                 if tag and tag not in state.active_tags_json:
-                    state.active_tags_json = [*state.active_tags_json, tag]
+                    state.active_tags_json = canonicalize_tag_refs(
+                        session,
+                        [*state.active_tags_json, tag],
+                        include_default=True,
+                    )
             elif op.action == "remove":
-                tag = self._resolve_tag_reference(context, op.tag)
-                state.active_tags_json = [item for item in state.active_tags_json if item != tag]
+                tag = self._resolve_tag_index(context, op.tag_index)
+                state.active_tags_json = canonicalize_tag_refs(
+                    session,
+                    [item for item in state.active_tags_json if item != tag],
+                    include_default=True,
+                )
         if context.runtime_event.event_type == "merge" and context.external_context.get("source_state"):
             source_state = context.external_context["source_state"]
             merged_persona = dict(source_state.persona_json)
@@ -41,7 +52,11 @@ class SideEffects:
             state.relation_score = max(MIN_RELATION_SCORE, min(MAX_RELATION_SCORE, merged_score))
             for tag in source_state.active_tags_json:
                 if tag not in state.active_tags_json:
-                    state.active_tags_json = [*state.active_tags_json, tag]
+                    state.active_tags_json = canonicalize_tag_refs(
+                        session,
+                        [*state.active_tags_json, tag],
+                        include_default=True,
+                    )
         session.flush()
         return state
 
@@ -124,14 +139,7 @@ class SideEffects:
                 session,
                 memory,
                 source_text=summary,
-                meta_json={
-                    "action_id": action.id,
-                    "event_type": context.runtime_event.event_type,
-                    "target_type": context.target_type,
-                    "target_id": context.target_id,
-                    "source_kind": "runtime_analysis",
-                    "importance": candidate.importance,
-                },
+                meta_json=memory.meta_json,
             )
             memories.append(memory)
         session.flush()
@@ -173,18 +181,26 @@ class SideEffects:
         for payload in catalog.values():
             if not isinstance(payload, dict):
                 continue
-            candidates = [
+            meta = payload.get("meta_json") if isinstance(payload.get("meta_json"), dict) else {}
+            for candidate in (
                 payload.get("id"),
                 payload.get("tag_id"),
-                payload.get("meta_json", {}).get("name") if isinstance(payload.get("meta_json"), dict) else None,
-                payload.get("meta_json", {}).get("title") if isinstance(payload.get("meta_json"), dict) else None,
-                payload.get("meta_json", {}).get("display_name") if isinstance(payload.get("meta_json"), dict) else None,
-                payload.get("meta_json", {}).get("label") if isinstance(payload.get("meta_json"), dict) else None,
-            ]
-            for candidate in candidates:
+                payload.get("brief"),
+                meta.get("name"),
+            ):
                 if isinstance(candidate, str) and candidate.strip().casefold() == normalized:
                     return str(payload.get("id") or payload.get("tag_id") or tag)
         return tag
+
+    def _resolve_tag_index(self, context: ContextPackage, tag_index: int) -> str:
+        catalog = context.external_context.get("prompt_tag_catalog_by_index") or {}
+        if not isinstance(catalog, dict):
+            return ""
+        payload = catalog.get(int(tag_index))
+        if not isinstance(payload, dict):
+            return ""
+        tag_id = payload.get("id")
+        return str(tag_id).strip() if isinstance(tag_id, str) else ""
 
     def record_side_effects_result(
         self,

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models import SessionState
 from app.models.workspace import DEFAULT_RELATION_SCORE
+from app.services.catalog.tag_policy import ensure_state_default_tag, ensure_target_default_binding
 
 
 def resolve_target_type(*, cocoon_id: str | None = None, chat_group_id: str | None = None) -> tuple[str, str]:
@@ -35,11 +36,14 @@ def get_session_state(
     cocoon_id: str | None = None,
     chat_group_id: str | None = None,
 ) -> SessionState | None:
-    return session.scalar(
+    state = session.scalar(
         select(SessionState).where(
             build_target_filter(SessionState, cocoon_id=cocoon_id, chat_group_id=chat_group_id)
         )
     )
+    if state:
+        ensure_state_default_tag(session, state)
+    return state
 
 
 def ensure_session_state(
@@ -51,6 +55,7 @@ def ensure_session_state(
     state = get_session_state(session, cocoon_id=cocoon_id, chat_group_id=chat_group_id)
     if state:
         return state
+    ensure_target_default_binding(session, cocoon_id=cocoon_id, chat_group_id=chat_group_id)
     state = SessionState(
         cocoon_id=cocoon_id,
         chat_group_id=chat_group_id,
@@ -60,4 +65,4 @@ def ensure_session_state(
     )
     session.add(state)
     session.flush()
-    return state
+    return ensure_state_default_tag(session, state)

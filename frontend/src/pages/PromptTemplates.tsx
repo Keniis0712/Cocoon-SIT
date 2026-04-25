@@ -21,6 +21,7 @@ import { useUserStore } from "@/store/useUserStore";
 type TemplateVariableKey =
   | "character_settings"
   | "session_state"
+  | "tag_catalog"
   | "visible_messages"
   | "memory_context"
   | "runtime_event"
@@ -43,6 +44,7 @@ const TEMPLATE_VARIABLES: Record<(typeof TEMPLATE_ORDER)[number], TemplateVariab
   meta: [
     "character_settings",
     "session_state",
+    "tag_catalog",
     "visible_messages",
     "memory_context",
     "runtime_event",
@@ -53,6 +55,7 @@ const TEMPLATE_VARIABLES: Record<(typeof TEMPLATE_ORDER)[number], TemplateVariab
   generator: [
     "character_settings",
     "session_state",
+    "tag_catalog",
     "visible_messages",
     "memory_context",
     "runtime_event",
@@ -60,7 +63,7 @@ const TEMPLATE_VARIABLES: Record<(typeof TEMPLATE_ORDER)[number], TemplateVariab
     "merge_context",
     "provider_capabilities",
   ],
-  memory_summary: ["visible_messages", "memory_context"],
+  memory_summary: ["session_state", "tag_catalog", "visible_messages", "memory_context"],
   pull: ["runtime_event", "memory_context"],
   merge: ["runtime_event", "merge_context"],
   audit_summary: ["runtime_event", "visible_messages"],
@@ -327,6 +330,17 @@ export default function PromptTemplatesPage() {
                       </div>
                     </div>
                   ))}
+                  {editing && ["meta", "generator", "memory_summary"].includes(editing.template_type) ? (
+                    <div className="rounded-2xl border border-border/70 bg-muted/20 p-3 text-sm text-muted-foreground">
+                      <div className="font-medium text-foreground">Tag Catalog Note</div>
+                      <div className="mt-2">
+                        `tag_catalog` is a numbered allowlist. Models must output the index only, never a free-text tag name.
+                      </div>
+                      <div className="mt-2 font-mono text-xs">
+                        Example: {`{"tag_ops":[{"action":"add","tag_index":1}]}`}
+                      </div>
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             </div>

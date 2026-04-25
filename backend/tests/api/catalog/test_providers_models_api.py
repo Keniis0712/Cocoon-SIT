@@ -120,22 +120,24 @@ def test_model_embedding_and_tag_api_routes_cover_remaining_operations(client, a
     create_tag = client.post(
         "/api/v1/tags",
         headers=auth_headers,
-        json={"tag_id": "api-tag", "brief": "API tag", "is_isolated": False, "meta_json": {}},
+        json={"tag_id": "api-tag", "brief": "API tag", "visibility": "private", "is_isolated": False, "meta_json": {}},
     )
     assert create_tag.status_code == 200, create_tag.text
+    created_tag = create_tag.json()
+    created_tag_id = created_tag["id"]
 
     list_tags = client.get("/api/v1/tags", headers=auth_headers)
     assert list_tags.status_code == 200, list_tags.text
     assert any(item["tag_id"] == "api-tag" for item in list_tags.json())
 
     update_tag = client.patch(
-        "/api/v1/tags/api-tag",
+        f"/api/v1/tags/{created_tag_id}",
         headers=auth_headers,
         json={"brief": "API tag updated", "is_isolated": True},
     )
     assert update_tag.status_code == 200, update_tag.text
     assert update_tag.json()["brief"] == "API tag updated"
 
-    delete_tag = client.delete("/api/v1/tags/api-tag", headers=auth_headers)
+    delete_tag = client.delete(f"/api/v1/tags/{created_tag_id}", headers=auth_headers)
     assert delete_tag.status_code == 200, delete_tag.text
     assert delete_tag.json()["tag_id"] == "api-tag"

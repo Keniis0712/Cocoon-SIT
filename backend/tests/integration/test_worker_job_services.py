@@ -75,7 +75,7 @@ def test_artifact_cleanup_job_service_deletes_explicit_artifacts(client, auth_he
         assert artifact.deleted_at is not None
 
 
-def test_compaction_job_service_creates_summary_memory(client, auth_headers, default_cocoon_id):
+def test_compaction_job_service_creates_long_term_memories(client, auth_headers, default_cocoon_id):
     container = client.app.state.container
     durable_executor = _build_durable_executor(container)
     client.post(
@@ -95,10 +95,8 @@ def test_compaction_job_service_creates_summary_memory(client, auth_headers, def
     with container.session_factory() as session:
         durable_executor.compaction_job_service.execute(session, default_cocoon_id)
         session.commit()
-        summary = session.scalars(
-            select(MemoryChunk).where(MemoryChunk.cocoon_id == default_cocoon_id, MemoryChunk.scope == "summary")
-        ).first()
-        assert summary is not None
+        chunks = list(session.scalars(select(MemoryChunk).where(MemoryChunk.cocoon_id == default_cocoon_id)).all())
+        assert any((chunk.meta_json or {}).get("source_kind") == "compaction" for chunk in chunks)
 
 
 def test_rollback_job_service_restores_checkpoint_anchor(client, auth_headers, default_cocoon_id):
