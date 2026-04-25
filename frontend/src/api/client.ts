@@ -1,7 +1,146 @@
 import { ApiError, createCocoonApiClient, type CocoonApiClient } from "@cocoon-sit/ts-sdk";
 import { toast } from "sonner";
 
+import i18n from "@/i18n";
 import { useUserStore } from "@/store/useUserStore";
+
+const API_ERROR_KEY_BY_CODE: Record<string, string> = {
+  AUTH_MISSING_BEARER: "common:apiErrors.authMissingBearer",
+  AUTH_INVALID_CREDENTIALS: "common:apiErrors.authInvalidCredentials",
+  AUTH_INVALID_REFRESH_TOKEN: "common:apiErrors.authInvalidRefreshToken",
+  AUTH_UNKNOWN_REFRESH_TOKEN: "common:apiErrors.authUnknownRefreshToken",
+  AUTH_INVALID_TOKEN: "common:apiErrors.authInvalidToken",
+  AUTH_INACTIVE_USER: "common:apiErrors.authInactiveUser",
+  AUTH_USER_INACTIVE: "common:apiErrors.authUserInactive",
+  AUTH_REGISTRATION_UNAVAILABLE: "common:apiErrors.authRegistrationUnavailable",
+  AUTH_REGISTRATION_DISABLED: "common:apiErrors.authRegistrationDisabled",
+  INVITE_QUOTA_EXCEEDED: "common:apiErrors.inviteQuotaExceeded",
+  VALIDATION_ERROR: "common:apiErrors.requestValidationFailed",
+  INTERNAL_SERVER_ERROR: "common:apiErrors.internalServerError",
+};
+
+const API_ERROR_KEY_BY_MESSAGE: Record<string, string> = {
+  "Missing bearer token": "common:apiErrors.authMissingBearer",
+  "Invalid credentials": "common:apiErrors.authInvalidCredentials",
+  "Invalid refresh token": "common:apiErrors.authInvalidRefreshToken",
+  "Unknown refresh token": "common:apiErrors.authUnknownRefreshToken",
+  "Invalid token": "common:apiErrors.authInvalidToken",
+  "Inactive user": "common:apiErrors.authInactiveUser",
+  "User account is inactive": "common:apiErrors.authUserInactive",
+  "Registration is unavailable": "common:apiErrors.authRegistrationUnavailable",
+  "Registration is disabled": "common:apiErrors.authRegistrationDisabled",
+  "Username already exists": "common:apiErrors.usernameAlreadyExists",
+  "Email already exists": "common:apiErrors.emailAlreadyExists",
+  "Invite not found": "common:apiErrors.inviteNotFound",
+  "Invite revoked": "common:apiErrors.inviteRevoked",
+  "Invite expired": "common:apiErrors.inviteExpired",
+  "Invite quota exceeded": "common:apiErrors.inviteQuotaExceeded",
+  "Default user role is not configured": "common:apiErrors.defaultUserRoleMissing",
+  "User not found": "common:apiErrors.userNotFound",
+  "Role not found": "common:apiErrors.roleNotFound",
+  "Registration group not found": "common:apiErrors.registrationGroupNotFound",
+  "Only administrators can create permanent invites": "common:apiErrors.permanentInviteAdminOnly",
+  "Group source_id is required": "common:apiErrors.inviteGroupSourceRequired",
+  "Unsupported invite source": "common:apiErrors.unsupportedInviteSource",
+  "Invite already revoked": "common:apiErrors.inviteAlreadyRevoked",
+  "Used invites cannot be revoked": "common:apiErrors.usedInviteCannotBeRevoked",
+  "Unsupported grant target": "common:apiErrors.unsupportedGrantTarget",
+  "Only administrators can revoke invite grants": "common:apiErrors.inviteGrantAdminOnly",
+  "Invite grant not found": "common:apiErrors.inviteGrantNotFound",
+  "Invite grant already revoked": "common:apiErrors.inviteGrantAlreadyRevoked",
+  "Unsupported summary target": "common:apiErrors.unsupportedSummaryTarget",
+  "Group not found": "common:apiErrors.groupNotFound",
+  "Root group cannot have a parent": "common:apiErrors.rootGroupCannotHaveParent",
+  "Group cannot be its own parent": "common:apiErrors.groupCannotBeOwnParent",
+  "Root group cannot be deleted": "common:apiErrors.rootGroupCannotBeDeleted",
+  "Group member not found": "common:apiErrors.groupMemberNotFound",
+  "Group parent would create a cycle": "common:apiErrors.groupParentCycle",
+  "Users cannot change their own role, permissions, or active status": "common:apiErrors.usersCannotEditSelf",
+  "Bootstrap admin role, permissions, and active status are managed by configuration": "common:apiErrors.bootstrapAdminManaged",
+  "Character not found": "common:apiErrors.characterNotFound",
+  "Character access denied": "common:apiErrors.characterAccessDenied",
+  "Character is still used by an existing cocoon": "common:apiErrors.characterInUse",
+  "Character ACL not found": "common:apiErrors.characterAclNotFound",
+  "Cocoon not found": "common:apiErrors.cocoonNotFound",
+  "Cocoon access denied": "common:apiErrors.cocoonAccessDenied",
+  "Chat group room not found": "common:apiErrors.chatGroupRoomNotFound",
+  "Chat group owner access denied": "common:apiErrors.chatGroupOwnerAccessDenied",
+  "Chat group management denied": "common:apiErrors.chatGroupManagementDenied",
+  "Chat group chat access denied": "common:apiErrors.chatGroupChatDenied",
+  "Chat group access denied": "common:apiErrors.chatGroupAccessDenied",
+  "Room owner role cannot be changed": "common:apiErrors.roomOwnerRoleCannotBeChanged",
+  "Chat group member not found": "common:apiErrors.chatGroupMemberNotFound",
+  "Room owner cannot be removed": "common:apiErrors.roomOwnerCannotBeRemoved",
+  "Cannot retract this message": "common:apiErrors.cannotRetractMessage",
+  "Cannot retract AI message": "common:apiErrors.cannotRetractAiMessage",
+  "Message not found": "common:apiErrors.messageNotFound",
+  "User message not found": "common:apiErrors.userMessageNotFound",
+  "Memory not found": "common:apiErrors.memoryNotFound",
+  "Session state not found": "common:apiErrors.sessionStateNotFound",
+  "Anchor message not found": "common:apiErrors.anchorMessageNotFound",
+  "A root cocoon already exists for this user and character": "common:apiErrors.rootCocoonAlreadyExists",
+  "System tag cannot be unbound": "common:apiErrors.systemTagCannotBeUnbound",
+  "Tag binding not found": "common:apiErrors.tagBindingNotFound",
+  "System tag cannot be modified": "common:apiErrors.systemTagCannotBeModified",
+  "Tag not found": "common:apiErrors.tagNotFound",
+  "System tag cannot be deleted": "common:apiErrors.systemTagCannotBeDeleted",
+  "Provider not found": "common:apiErrors.providerNotFound",
+  "Provider is still referenced by existing cocoons": "common:apiErrors.providerInUseByCocoons",
+  "Provider is still referenced by an embedding provider": "common:apiErrors.providerInUseByEmbedding",
+  "Model not found for provider": "common:apiErrors.modelNotFoundForProvider",
+  "Provider base_url is required": "common:apiErrors.providerBaseUrlRequired",
+  "Provider credential not found": "common:apiErrors.providerCredentialNotFound",
+  "Provider returned no models": "common:apiErrors.providerReturnedNoModels",
+  "Model not found": "common:apiErrors.modelNotFound",
+  "Embedding provider not found": "common:apiErrors.embeddingProviderNotFound",
+  "Template not found": "common:apiErrors.templateNotFound",
+  "No active revision": "common:apiErrors.noActiveRevision",
+  "Request validation failed": "common:apiErrors.requestValidationFailed",
+  "Internal server error": "common:apiErrors.internalServerError",
+  "Audit run not found": "common:apiErrors.auditRunNotFound",
+  "Audit run access denied": "common:apiErrors.auditRunAccessDenied",
+  "Plugin not found": "common:apiErrors.pluginNotFound",
+  "Failed to generate unique invite code": "common:apiErrors.inviteCodeGenerationFailed",
+  "Selected model is not allowed by system settings": "common:apiErrors.selectedModelNotAllowed",
+};
+
+const API_ERROR_PATTERNS: Array<{
+  pattern: RegExp;
+  translate: (match: RegExpMatchArray) => string;
+}> = [
+  {
+    pattern: /^Missing permission: (.+)$/,
+    translate: (match) => i18n.t("common:apiErrors.missingPermission", { permission: match[1] }),
+  },
+  {
+    pattern: /^Unsupported tag visibility: (.+)$/,
+    translate: (match) => i18n.t("common:apiErrors.unsupportedTagVisibility", { value: match[1] }),
+  },
+  {
+    pattern: /^Chat group not found: (.+)$/,
+    translate: (match) => i18n.t("common:apiErrors.chatGroupNotFound", { id: match[1] }),
+  },
+  {
+    pattern: /^Unknown allowed model ids: (.+)$/,
+    translate: (match) => i18n.t("common:apiErrors.unknownAllowedModelIds", { ids: match[1] }),
+  },
+  {
+    pattern: /^Model sync is not supported for provider kind: (.+)$/,
+    translate: (match) => i18n.t("common:apiErrors.providerSyncUnsupported", { kind: match[1] }),
+  },
+  {
+    pattern: /^Failed to sync provider models: (.+)$/,
+    translate: (match) => i18n.t("common:apiErrors.providerSyncFailed", { reason: match[1] }),
+  },
+  {
+    pattern: /^Unknown prompt variables: (.+)$/,
+    translate: (match) => i18n.t("common:apiErrors.unknownPromptVariables", { variables: match[1] }),
+  },
+  {
+    pattern: /^Missing prompt variables: (.+)$/,
+    translate: (match) => i18n.t("common:apiErrors.missingPromptVariables", { variables: match[1] }),
+  },
+];
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
@@ -31,9 +170,36 @@ function normalizeApiPath(path: string) {
 function handleUnauthorized() {
   useUserStore.getState().logout();
   if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-    toast.error("登录已失效，请重新登录");
+    toast.error(i18n.t("common:sessionExpired"));
     window.location.href = "/login";
   }
+}
+
+export function localizeApiMessage(message: string, code?: string | null) {
+  if (!message) {
+    return message;
+  }
+
+  if (code) {
+    const codeKey = API_ERROR_KEY_BY_CODE[code];
+    if (codeKey) {
+      return i18n.t(codeKey);
+    }
+  }
+
+  const exactKey = API_ERROR_KEY_BY_MESSAGE[message];
+  if (exactKey) {
+    return i18n.t(exactKey);
+  }
+
+  for (const entry of API_ERROR_PATTERNS) {
+    const match = message.match(entry.pattern);
+    if (match) {
+      return entry.translate(match);
+    }
+  }
+
+  return message;
 }
 
 export function getErrorMessage(error: unknown) {
@@ -43,17 +209,18 @@ export function getErrorMessage(error: unknown) {
       | string
       | null;
     if (typeof data === "string") {
-      return data;
+      return localizeApiMessage(data);
     }
     const validationMessage = data?.data?.errors?.[0]?.msg;
-    return data?.msg || data?.detail || data?.message || validationMessage || error.message;
+    const resolved = data?.msg || data?.detail || data?.message || validationMessage || error.message;
+    return localizeApiMessage(resolved, data?.code);
   }
 
   if (error instanceof Error) {
-    return error.message;
+    return localizeApiMessage(error.message);
   }
 
-  return "请求失败";
+  return i18n.t("common:requestFailed");
 }
 
 export function createAnonymousClient() {

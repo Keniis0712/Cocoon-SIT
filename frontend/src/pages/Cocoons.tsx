@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-import { getErrorMessage, showErrorToast } from "@/api/client";
+import { getErrorMessage, localizeApiMessage, showErrorToast } from "@/api/client";
 import { getCharacters } from "@/api/characters";
 import { createCocoon, deleteCocoon, getCocoon, getCocoonTree, updateCocoon } from "@/api/cocoons";
 import { listModelProviders } from "@/api/providers";
@@ -77,13 +77,6 @@ function formatTime(value: string | null | undefined) {
 function parseNumber(value: string) {
   const normalized = value.trim();
   return normalized ? Number(normalized) : undefined;
-}
-
-function friendlyCocoonErrorMessage(rawMessage: string) {
-  if (rawMessage.includes("A root cocoon already exists for this user and character")) {
-    return "You already have a private root cocoon for this character. Open the existing one, or create a child cocoon to continue from it.";
-  }
-  return rawMessage;
 }
 
 function buildModelOptions(providers: ModelProviderRead[]) {
@@ -342,7 +335,7 @@ export default function CocoonsPage() {
       }
       await loadSelectedCocoon(result.id);
     } catch (error) {
-      const message = friendlyCocoonErrorMessage(getErrorMessage(error));
+      const message = localizeApiMessage(getErrorMessage(error));
       toast.error(message && !message.startsWith("Request failed with status") ? message : t("cocoons.saveFailed"));
     } finally {
       setIsSaving(false);

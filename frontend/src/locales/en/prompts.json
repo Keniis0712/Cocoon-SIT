@@ -54,6 +54,9 @@
   "helperTitle": "Variable Helper",
   "helperDescription": "Click a variable to insert its placeholder into the template.",
   "insert": "Insert",
+  "example": "Example",
+  "tagCatalogNoteTitle": "Tag Catalog Note",
+  "tagCatalogNoteBody": "`tag_catalog` is a numbered allowlist. Models must output the index only, never a free-text tag name.",
   "variables": {
     "character_settings": "Structured character data, including role-specific prompt summary and settings.",
     "session_state": "The current dynamic session state, such as relation score, persona patch, and active tags.",

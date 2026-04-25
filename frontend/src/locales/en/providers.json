@@ -44,6 +44,10 @@
   "editEmbeddingProvider": "Edit Embedding Provider",
   "embeddingDialogDescription": "Remote mode expects an OpenAI-compatible endpoint. Local mode defaults to CPU. Enabling the current entry may disable other embedding providers on the backend.",
   "kind": "Kind",
+  "kindOptions": {
+    "local_cpu": "Local CPU",
+    "openai_compatible": "OpenAI Compatible"
+  },
   "remoteModel": "Remote Model",
   "localModel": "Local Model",
   "device": "Device",

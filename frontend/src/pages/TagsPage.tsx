@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { showErrorToast } from "@/api/client";
@@ -26,7 +27,15 @@ const EMPTY_FORM: TagPayload = {
   visible_chat_group_ids: [],
 };
 
+function visibilityModeLabel(value: string, t: (key: string) => string) {
+  if (value === "private") return t("tags:visibilityOptions.private");
+  if (value === "public") return t("tags:visibilityOptions.public");
+  if (value === "group_acl") return t("tags:visibilityOptions.group_acl");
+  return value;
+}
+
 export default function TagsPage() {
+  const { t } = useTranslation(["tags", "common"]);
   const [items, setItems] = useState<TagRead[]>([]);
   const [rooms, setRooms] = useState<ChatGroupRead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +58,7 @@ export default function TagsPage() {
       setRooms(roomItems);
     } catch (error) {
       console.error(error);
-      showErrorToast(error, "Failed to load tags");
+      showErrorToast(error, t("tags:loadFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -82,25 +91,25 @@ export default function TagsPage() {
     try {
       if (editing) {
         await updateTag(editing.id, payload);
-        toast.success("Tag updated");
+        toast.success(t("tags:updated"));
       } else {
         await createTag(payload);
-        toast.success("Tag created");
+        toast.success(t("tags:created"));
       }
       setDialogOpen(false);
       await fetchData();
     } catch (error) {
       console.error(error);
-      showErrorToast(error, "Failed to save tag");
+      showErrorToast(error, t("tags:saveFailed"));
     }
   }
 
   async function handleDelete(item: TagRead) {
     const accepted = await confirm({
-      title: "Delete Tag",
+      title: t("tags:deleteTitle"),
       description: item.name,
-      confirmLabel: "Delete",
-      cancelLabel: "Cancel",
+      confirmLabel: t("common:delete"),
+      cancelLabel: t("common:cancel"),
       variant: "destructive",
     });
     if (!accepted) {
@@ -108,11 +117,11 @@ export default function TagsPage() {
     }
     try {
       await deleteTag(item.id);
-      toast.success("Tag deleted");
+      toast.success(t("tags:deleted"));
       await fetchData();
     } catch (error) {
       console.error(error);
-      showErrorToast(error, "Failed to delete tag");
+      showErrorToast(error, t("tags:deleteFailed"));
     }
   }
 
@@ -128,12 +137,12 @@ export default function TagsPage() {
 
   return (
     <PageFrame
-      title="Tags"
-      description="Manage canonical runtime tags and chat-group visibility."
+      title={t("tags:title")}
+      description={t("tags:description")}
       actions={
         <Button onClick={openCreate}>
           <Plus className="mr-2 size-4" />
-          New Tag
+          {t("tags:newTag")}
         </Button>
       }
     >
@@ -148,28 +157,28 @@ export default function TagsPage() {
                   <div>
                     <CardTitle>{item.name}</CardTitle>
                     <CardDescription className="mt-2">
-                      {item.brief || "No description"}
+                      {item.brief || t("tags:noDescription")}
                     </CardDescription>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
                       <Pencil className="mr-2 size-4" />
-                      Edit
+                      {t("common:edit")}
                     </Button>
                     <Button variant="destructive" size="sm" onClick={() => void handleDelete(item)}>
                       <Trash2 className="mr-2 size-4" />
-                      Delete
+                      {t("common:delete")}
                     </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">{item.visibility_mode}</Badge>
+                  <Badge variant="secondary">{visibilityModeLabel(item.visibility_mode, t)}</Badge>
                 </div>
                 {item.visibility_mode === "group_acl" ? (
                   <div>
-                    <div className="mb-1 text-muted-foreground">Visible Chat Groups</div>
+                    <div className="mb-1 text-muted-foreground">{t("tags:visibleChatGroups")}</div>
                     <div className="flex flex-wrap gap-2">
                       {item.visible_chat_group_ids.length
                         ? item.visible_chat_group_ids.map((roomId) => {
@@ -180,7 +189,7 @@ export default function TagsPage() {
                               </Badge>
                             );
                           })
-                        : <span className="text-muted-foreground">No rooms selected</span>}
+                        : <span className="text-muted-foreground">{t("tags:noRoomsSelected")}</span>}
                     </div>
                   </div>
                 ) : null}
@@ -193,14 +202,14 @@ export default function TagsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Tag" : "Create Tag"}</DialogTitle>
+            <DialogTitle>{editing ? t("tags:editTitle") : t("tags:createTitle")}</DialogTitle>
             <DialogDescription>
-              Runtime tags are stored by canonical id. Models can only reference them by the numbered tag catalog exposed in prompts.
+              {t("tags:dialogDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
-              <Label>Name</Label>
+              <Label>{t("common:name")}</Label>
               <Input
                 value={form.name}
                 onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
@@ -208,7 +217,7 @@ export default function TagsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label>Description</Label>
+              <Label>{t("common:description")}</Label>
               <Textarea
                 rows={3}
                 value={form.brief || ""}
@@ -216,7 +225,7 @@ export default function TagsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label>Visibility</Label>
+              <Label>{t("tags:visibilityMode")}</Label>
               <Select
                 value={form.visibility_mode}
                 onValueChange={(value) => setForm((prev) => ({ ...prev, visibility_mode: value }))}
@@ -225,15 +234,15 @@ export default function TagsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="private">private</SelectItem>
-                  <SelectItem value="public">public</SelectItem>
-                  <SelectItem value="group_acl">group_acl</SelectItem>
+                  <SelectItem value="private">{t("tags:visibilityOptions.private")}</SelectItem>
+                  <SelectItem value="public">{t("tags:visibilityOptions.public")}</SelectItem>
+                  <SelectItem value="group_acl">{t("tags:visibilityOptions.group_acl")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             {form.visibility_mode === "group_acl" ? (
               <div className="grid gap-2">
-                <Label>Visible Chat Groups</Label>
+                <Label>{t("tags:visibleChatGroups")}</Label>
                 <div className="max-h-64 space-y-2 overflow-auto rounded-2xl border border-border/70 bg-background/60 p-3">
                   {rooms.length ? (
                     rooms.map((room) => {
@@ -246,7 +255,7 @@ export default function TagsPage() {
                       );
                     })
                   ) : (
-                    <span className="text-sm text-muted-foreground">No chat groups available.</span>
+                    <span className="text-sm text-muted-foreground">{t("tags:noChatGroupsAvailable")}</span>
                   )}
                 </div>
               </div>
@@ -254,10 +263,10 @@ export default function TagsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button disabled={!form.name.trim()} onClick={handleSave}>
-              Save
+              {t("common:save")}
             </Button>
           </DialogFooter>
         </DialogContent>

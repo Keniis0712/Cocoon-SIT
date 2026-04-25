@@ -47,6 +47,12 @@ function parseNonNegativeInteger(value: string): number {
   return Math.max(0, Math.floor(parsed));
 }
 
+function embeddingProviderKindLabel(value: string, t: (key: string) => string) {
+  if (value === "local_cpu") return t("providers:kindOptions.local_cpu");
+  if (value === "openai_compatible") return t("providers:kindOptions.openai_compatible");
+  return value;
+}
+
 export default function EmbeddingProvidersPage() {
   const { t } = useTranslation(["providers", "common"]);
   const [items, setItems] = useState<EmbeddingProviderRead[]>([]);
@@ -135,7 +141,7 @@ export default function EmbeddingProvidersPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle>{item.name}</CardTitle>
-                    <CardDescription className="mt-2">{item.kind}</CardDescription>
+                    <CardDescription className="mt-2">{embeddingProviderKindLabel(item.kind, t)}</CardDescription>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
                     <Pencil className="mr-2 size-4" />
@@ -191,8 +197,8 @@ export default function EmbeddingProvidersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="local_cpu">local_cpu</SelectItem>
-                  <SelectItem value="openai_compatible">openai_compatible</SelectItem>
+                  <SelectItem value="local_cpu">{embeddingProviderKindLabel("local_cpu", t)}</SelectItem>
+                  <SelectItem value="openai_compatible">{embeddingProviderKindLabel("openai_compatible", t)}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -8,15 +8,24 @@
   "deleted": "标签已删除",
   "saveFailed": "保存标签失败",
   "deleteFailed": "删除标签失败",
-  "noDescription": "暂无说明。",
+  "deleteTitle": "删除标签",
+  "noDescription": "暂无描述。",
   "editTitle": "编辑标签",
   "createTitle": "新建标签",
-  "dialogDescription": "标签会定义当前 Cocoon 状态、消息和记忆的可见边界。",
-  "visibilityMode": "可见模式",
+  "dialogDescription": "标签用于定义 Cocoon 状态、消息与记忆之间的可见性和隔离边界。",
+  "visibilityMode": "可见性模式",
+  "visibleChatGroups": "可见聊天群组",
+  "noRoomsSelected": "未选择任何聊天群组",
+  "noChatGroupsAvailable": "当前没有可用聊天群组。",
+  "visibilityOptions": {
+    "private": "私有",
+    "public": "公开",
+    "group_acl": "组 ACL"
+  },
   "priority": "优先级",
   "groupAllowlist": "允许组",
   "groupDenylist": "拒绝组",
-  "groupAllowlistInput": "允许组（逗号分隔 group id）",
-  "groupDenylistInput": "拒绝组（逗号分隔 group id）",
-  "confirmDeletePrompt": "删除标签“{{name}}”并清理所有关联绑定？"
+  "groupAllowlistInput": "允许组（用逗号分隔 group id）",
+  "groupDenylistInput": "拒绝组（用逗号分隔 group id）",
+  "confirmDeletePrompt": "删除标签“{{name}}”并清理所有相关绑定？"
 }

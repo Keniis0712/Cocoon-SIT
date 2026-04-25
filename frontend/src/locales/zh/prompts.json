@@ -1,67 +1,70 @@
 {
   "title": "提示词模板",
-  "description": "编辑运行时使用的全局提示词栈，覆盖 meta 决策、回复生成、记忆压缩、pull、merge 和审计摘要。",
-  "noPermission": "当前账号没有管理提示词模板的权限。",
+  "description": "编辑运行时用于元决策、生成、记忆压缩、拉取、合并和审计摘要的全局提示词栈。",
+  "noPermission": "当前账号无权管理提示词模板。",
   "backToSettings": "返回设置",
   "saved": "提示词模板已保存",
   "saveFailed": "保存提示词模板失败",
   "reset": "重置",
-  "resetDone": "提示词模板已重置为默认值",
+  "resetDone": "提示词模板已恢复默认",
   "resetFailed": "重置提示词模板失败",
-  "resetConfirm": "要把 {{name}} 重置为当前系统默认模板吗？",
+  "resetConfirm": "将 {{name}} 重置为当前系统默认模板？",
   "statusTitle": "提示词状态",
-  "statusDescription": "这些模板是全局生效的，会在下一轮运行时直接生效。",
+  "statusDescription": "这些模板为全局配置，会在下一轮运行时生效。",
   "statusTemplates": "已注册模板",
   "types": {
     "system": {
       "name": "系统模板",
-      "description": "所有运行轮次共享的身份框架、语气基调和硬约束。"
+      "description": "所有运行轮次共享的全局身份、语气和硬约束。"
     },
     "meta": {
       "name": "Meta 模板",
-      "description": "回复前的判断模板，用来决定当前轮次是否回复以及如何回复。"
+      "description": "回复前的推理指令，用于决定角色是否回复以及如何回复。"
     },
     "generator": {
-      "name": "生成模板",
-      "description": "普通对话轮次的主回复生成模板。"
+      "name": "生成器模板",
+      "description": "普通聊天轮次使用的主回复生成模板。"
     },
     "memory_summary": {
       "name": "记忆摘要模板",
-      "description": "指导记忆压缩和长期摘要写入。"
+      "description": "指导记忆压缩和摘要写作。"
     },
     "pull": {
       "name": "Pull 模板",
-      "description": "指导一个 Cocoon 吸收另一侧知识时的总结方式。"
+      "description": "当一个 Cocoon 吸收另一个 Cocoon 的知识时，用于指导拉取摘要。"
     },
     "merge": {
       "name": "Merge 模板",
-      "description": "指导 merge 阶段的总结与调和输出。"
+      "description": "指导合并摘要和冲突协调输出。"
     },
     "audit_summary": {
       "name": "审计摘要模板",
-      "description": "用于为已完成轮次生成审计摘要。"
+      "description": "为审计链路汇总已完成的运行结果。"
     }
   },
-  "allowedVariables": "可用变量",
+  "allowedVariables": "允许使用的变量",
   "activeRevision": "当前生效版本",
   "version": "版本",
-  "checksum": "校验值",
+  "checksum": "校验和",
   "noActiveRevision": "当前还没有生效版本。",
-  "noContent": "当前没有可用的模板内容。",
+  "noContent": "暂无提示词内容。",
   "editTitle": "编辑 {{name}}",
-  "dialogDescription": "每次保存都会生成一条新的不可变 revision。",
+  "dialogDescription": "每次更新模板时，编辑器都会保存一个新的不可变版本。",
   "content": "模板内容",
   "helperTitle": "变量助手",
-  "helperDescription": "点击变量可以把对应占位符插入到模板中。",
+  "helperDescription": "点击变量即可将占位符插入模板。",
   "insert": "插入",
+  "example": "示例",
+  "tagCatalogNoteTitle": "标签目录说明",
+  "tagCatalogNoteBody": "`tag_catalog` 是编号化的允许列表，模型只能输出索引，不能输出自由文本标签名。",
   "variables": {
-    "character_settings": "结构化角色数据，包含角色专属提示词摘要和相关设定。",
-    "session_state": "当前会话的动态状态，例如关系分、人格补丁和激活标签。",
+    "character_settings": "结构化角色数据，包括角色摘要和相关设置。",
+    "session_state": "当前动态会话状态，如关系分、人格补丁和激活标签。",
     "visible_messages": "当前轮次可见的最近对话消息。",
-    "memory_context": "检索到的长期记忆与摘要。",
-    "runtime_event": "当前运行事件载荷，例如聊天、wakeup、pull 或 merge。",
-    "wakeup_context": "当本轮由 wakeup 任务触发时附带的上下文。",
-    "merge_context": "当本轮正在处理 merge 时附带的 merge 上下文。",
-    "provider_capabilities": "当前轮次解析出的模型或 provider 能力信息。"
+    "memory_context": "检索到的长期记忆和摘要。",
+    "runtime_event": "当前运行事件负载，例如聊天、唤醒、pull 或 merge。",
+    "wakeup_context": "当本轮由唤醒任务触发时提供的唤醒上下文。",
+    "merge_context": "当前轮次执行合并时提供的合并上下文。",
+    "provider_capabilities": "当前轮次解析出的模型/提供方能力信息。"
   }
 }

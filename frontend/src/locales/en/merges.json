@@ -18,7 +18,17 @@
   "targetCocoon": "Target Cocoon",
   "selectCocoon": "Select cocoon",
   "strategy": "Merge Strategy",
+  "strategyOptions": {
+    "archive": "Archive",
+    "subtle": "Subtle",
+    "overhaul": "Overhaul"
+  },
   "dialogueStrategy": "Dialogue Strategy",
+  "dialogueStrategyOptions": {
+    "recent_only": "Recent Only",
+    "balanced": "Balanced",
+    "all": "All"
+  },
   "includeDialogues": "Include dialogue content in the merge",
   "maxDialogueItems": "Max Dialogue Items",
   "maxResultItems": "Max Result Items",
@@ -26,6 +36,12 @@
   "listTitle": "Merge Jobs",
   "listDescription": "Inspect recent merge jobs and open detailed traces.",
   "statusAll": "All Statuses",
+  "status": {
+    "pending": "Pending",
+    "running": "Running",
+    "success": "Success",
+    "error": "Error"
+  },
   "mergeUid": "Merge UID",
   "mergeUidPlaceholder": "Search by merge UID",
   "keywordPlaceholder": "Search trace or error text",

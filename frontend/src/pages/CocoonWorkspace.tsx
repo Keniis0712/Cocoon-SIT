@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronUp, Loader2, MemoryStick, Plus, RefreshCcw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
-import { showErrorToast } from "@/api/client";
+import { localizeApiMessage, showErrorToast } from "@/api/client";
 import { compactCocoonContext, getCocoon, getCocoonMessages, getCocoonSessionState, retryCocoonReply, sendCocoonMessage, updateCocoon } from "@/api/cocoons";
 import { listModelProviders } from "@/api/providers";
 import { bindCocoonTags, listTags } from "@/api/tags";
@@ -26,6 +27,7 @@ function getVisibleMessages(items: MessageRead[]) {
 }
 
 export default function CocoonWorkspacePage() {
+  const { t } = useTranslation("workspace");
   const navigate = useNavigate();
   const params = useParams();
   const cocoonId = Number(params.cocoonId);
@@ -67,7 +69,7 @@ export default function CocoonWorkspacePage() {
 
   useEffect(() => {
     if (!Number.isFinite(cocoonId) || cocoonId <= 0) {
-      toast.error("Invalid cocoon id");
+      toast.error(t("invalidId"));
       navigate("/cocoons", { replace: true });
       return;
     }
@@ -97,7 +99,7 @@ export default function CocoonWorkspacePage() {
       }
     },
     onRoundFailed: (detail) => {
-      toast.error(`AI request failed: ${detail}`);
+      toast.error(t("aiRequestFailed", { detail: localizeApiMessage(detail) }));
     },
   });
 
@@ -107,10 +109,10 @@ export default function CocoonWorkspacePage() {
     onEvent: handleSocketEvent,
     onRecover: async () => {
       await loadWorkspace(false);
-      toast.success("Realtime connection restored");
+      toast.success(t("realtimeRestored"));
     },
     onError: (message) => {
-      setError(cocoonId, message);
+      setError(cocoonId, localizeApiMessage(message));
     },
   });
 
@@ -165,7 +167,7 @@ export default function CocoonWorkspacePage() {
       setError(cocoonId, null);
     } catch (error) {
       console.error(error);
-      showErrorToast(error, "Failed to load workspace");
+      showErrorToast(error, t("loadFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -182,7 +184,7 @@ export default function CocoonWorkspacePage() {
       setHasMore(Boolean(response.has_more));
     } catch (error) {
       console.error(error);
-      showErrorToast(error, "Failed to load older messages");
+      showErrorToast(error, t("olderMessagesLoadFailed"));
     } finally {
       setIsLoadingMore(false);
     }
@@ -228,7 +230,7 @@ export default function CocoonWorkspacePage() {
       });
     } catch (error) {
       console.error(error);
-      showErrorToast(error, "Failed to send message");
+      showErrorToast(error, t("messageSendFailed"));
     } finally {
       setIsSending(false);
     }
@@ -240,10 +242,10 @@ export default function CocoonWorkspacePage() {
       const updated = await updateCocoon(selectedCocoon.id, { selected_model_id: Number(modelId) });
       setSelectedCocoon(updated);
       applyStatePatch(cocoonId, { currentModelId: updated.selected_model_id });
-      toast.success("Model updated");
+      toast.success(t("modelUpdated"));
     } catch (error) {
       console.error(error);
-      showErrorToast(error, "Failed to switch model");
+      showErrorToast(error, t("switchModelFailed"));
     }
   }
 
@@ -269,11 +271,11 @@ export default function CocoonWorkspacePage() {
         }
         if (event.type === "error") {
           setStreamingAssistant(cocoonId, "");
-          toast.error(event.detail);
+          toast.error(localizeApiMessage(event.detail));
         }
       });
     } catch (error) {
-      showErrorToast(error, "Failed to retry reply");
+      showErrorToast(error, t("retryReplyFailed"));
     }
   }
 
@@ -282,11 +284,11 @@ export default function CocoonWorkspacePage() {
     setIsCompacting(true);
     try {
       const result = await compactCocoonContext(cocoonId, { mode: "manual" });
-      toast.success(`Compaction job queued: ${result.status}`);
+      toast.success(t("compactQueued", { status: result.status }));
       await loadWorkspace(false);
     } catch (error) {
       console.error(error);
-      showErrorToast(error, "Failed to compact context");
+      showErrorToast(error, t("compactFailed"));
     } finally {
       setIsCompacting(false);
     }
@@ -305,7 +307,7 @@ export default function CocoonWorkspacePage() {
     } catch (error) {
       setSelectedTagIds(previousIds);
       console.error(error);
-      showErrorToast(error, "Failed to update chat tags");
+      showErrorToast(error, t("updateTagsFailed"));
     } finally {
       setIsUpdatingTags(false);
       setAddTagValue("__add");
@@ -325,24 +327,24 @@ export default function CocoonWorkspacePage() {
 
   return (
     <PageFrame
-      title={selectedCocoon?.name || "Chat"}
+      title={selectedCocoon?.name || t("defaultTitle")}
       actions={
         <>
           <Button variant="outline" onClick={() => navigate("/cocoons")}>
             <ArrowLeft className="mr-2 size-4" />
-            Back to Cocoons
+            {t("backToCocoons")}
           </Button>
           <Button variant="outline" onClick={() => navigate(`/cocoons/${cocoonId}/memories`)}>
             <MemoryStick className="mr-2 size-4" />
-            Memories
+            {t("memoriesTitle")}
           </Button>
           <Button variant="outline" onClick={handleCompactContext} disabled={isCompacting || isLoading}>
             {isCompacting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCcw className="mr-2 size-4" />}
-            Compress Context
+            {t("compressContext")}
           </Button>
           <Button variant="outline" onClick={handleRetryReply}>
             <RefreshCcw className="mr-2 size-4" />
-            Retry Last Reply
+            {t("retryReply")}
           </Button>
         </>
       }

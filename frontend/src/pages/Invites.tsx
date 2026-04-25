@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Gift, Plus, ShieldOff, Ticket, Trash2 } from "lucide-react";
+import { FolderTree, Gift, Plus, ShieldOff, Ticket, Trash2, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -67,10 +67,39 @@ function codeStatus(invite: InviteCodeRead) {
   return "active";
 }
 
+function inviteTypeLabel(type: string, t: (key: string) => string) {
+  if (type === "USER") return t("invites.typeUser");
+  if (type === "GROUP") return t("invites.typeGroup");
+  return t("invites.typeAdminOverride");
+}
+
 function renderSummaryValue(t: (key: string) => string, summary: InviteSummary | null) {
   if (!summary) return "0";
   if (summary.invite_quota_unlimited) return t("invites.unlimited");
   return String(summary.invite_quota_remaining);
+}
+
+function MetricPanel({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-[28px] border border-border/70 bg-linear-to-br from-background via-background to-primary/5 p-5">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span className="text-primary">{icon}</span>
+        <span>{label}</span>
+      </div>
+      <div className="mt-3 text-3xl font-semibold tracking-tight">{value}</div>
+      {hint ? <div className="mt-2 text-xs text-muted-foreground">{hint}</div> : null}
+    </div>
+  );
 }
 
 export default function InvitesPage() {
@@ -131,6 +160,10 @@ export default function InvitesPage() {
     [users],
   );
   const groupNameMap = useMemo(() => new Map(groups.map((group) => [group.gid, group.name])), [groups]);
+  const activeCodeCount = useMemo(() => codes.filter((invite) => codeStatus(invite) === "active").length, [codes]);
+  const usedCodeCount = useMemo(() => codes.filter((invite) => codeStatus(invite) === "used").length, [codes]);
+  const availableGrantCount = useMemo(() => grants.filter((grant) => !grant.revoked_at).length, [grants]);
+  const revokedGrantCount = useMemo(() => grants.filter((grant) => Boolean(grant.revoked_at)).length, [grants]);
 
   useEffect(() => {
     void bootstrap();
@@ -265,7 +298,7 @@ export default function InvitesPage() {
   async function handleRevokeGrant(grant: InviteQuotaGrantRead) {
     const accepted = await confirm({
       title: t("invites.revokeGrant"),
-      description: `${grant.target_type} / ${grant.target_id}`,
+      description: `${inviteTypeLabel(grant.target_type, t)} / ${grant.target_id}`,
       confirmLabel: t("common.delete"),
       cancelLabel: t("common.cancel"),
       variant: "destructive",
@@ -299,6 +332,33 @@ export default function InvitesPage() {
         </div>
       }
     >
+      <div className="mb-6 grid gap-4 xl:grid-cols-4">
+        <MetricPanel
+          icon={<UserRound className="size-4" />}
+          label={t("invites.personalQuota")}
+          value={renderSummaryValue(t, personalSummary)}
+          hint={userInfo?.username || userInfo?.uid || "-"}
+        />
+        <MetricPanel
+          icon={<FolderTree className="size-4" />}
+          label={t("invites.groupQuota")}
+          value={selectedGroup ? renderSummaryValue(t, groupSummary) : t("invites.noGroupSelected")}
+          hint={selectedGroup?.group_path || selectedGroup?.name || t("invites.noGroupSelected")}
+        />
+        <MetricPanel
+          icon={<Ticket className="size-4" />}
+          label={`${t("invites.codesTitle")} / ${t("invites.status.active")}`}
+          value={String(activeCodeCount)}
+          hint={`${t("invites.status.used")}: ${usedCodeCount}`}
+        />
+        <MetricPanel
+          icon={<Gift className="size-4" />}
+          label={t("invites.grantsTitle")}
+          value={String(availableGrantCount)}
+          hint={`${t("invites.revokedGrant")}: ${revokedGrantCount}`}
+        />
+      </div>
+
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <Card className="border-border/70 bg-card/90">
           <CardHeader>
@@ -337,8 +397,24 @@ export default function InvitesPage() {
                 options={groupOptions}
               />
             </div>
-            <div className="rounded-2xl border border-dashed border-border/70 p-4 text-sm text-muted-foreground">
-              {selectedGroup ? `${selectedGroup.name} / ${renderSummaryValue(t, groupSummary)}` : t("invites.noGroupSelected")}
+            <div className="rounded-[24px] border border-dashed border-border/70 bg-background/40 p-4">
+              {selectedGroup ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-base font-semibold">{selectedGroup.name}</div>
+                      <div className="mt-1 text-sm text-muted-foreground">{selectedGroup.group_path || selectedGroup.gid}</div>
+                    </div>
+                    <Badge variant="secondary">{renderSummaryValue(t, groupSummary)}</Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline">{selectedGroup.gid}</Badge>
+                    {selectedGroup.description ? <Badge variant="outline">{selectedGroup.description}</Badge> : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">{t("invites.noGroupSelected")}</div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -358,11 +434,11 @@ export default function InvitesPage() {
               <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">{t("invites.noGrants")}</div>
             ) : (
               grants.map((grant) => (
-                <div key={grant.id} className="rounded-2xl border border-border/70 p-4 text-sm">
+                <div key={grant.id} className="rounded-[24px] border border-border/70 bg-background/30 p-4 text-sm">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="font-medium">
-                        {grant.target_type} / {grant.target_type === "GROUP" ? groupNameMap.get(grant.target_id) || grant.target_id : grant.target_id}
+                        {inviteTypeLabel(grant.target_type, t)} / {grant.target_type === "GROUP" ? groupNameMap.get(grant.target_id) || grant.target_id : grant.target_id}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">{grant.granter_uid || "-"}</div>
                     </div>
@@ -373,7 +449,7 @@ export default function InvitesPage() {
                       {grant.revoked_at ? <Badge variant="secondary">{t("invites.revokedGrant")}</Badge> : null}
                     </div>
                   </div>
-                  <div className="mt-3 text-xs text-muted-foreground">
+                  <div className="mt-3 grid gap-1 text-xs text-muted-foreground">
                     <div>{grant.note || "-"}</div>
                     <div className="mt-1">{formatTime(grant.created_at)}</div>
                     {grant.revoked_at ? <div className="mt-1">{t("invites.revokedAt")}: {formatTime(grant.revoked_at)}</div> : null}
@@ -408,7 +484,7 @@ export default function InvitesPage() {
                 const status = codeStatus(invite);
                 const canRevoke = status === "active";
                 return (
-                  <div key={invite.code} className="rounded-2xl border border-border/70 p-4 text-sm">
+                  <div key={invite.code} className="rounded-[24px] border border-border/70 bg-background/30 p-4 text-sm">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <div className="break-all font-medium">{invite.code}</div>
@@ -417,7 +493,7 @@ export default function InvitesPage() {
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline">{invite.source_type}</Badge>
+                        <Badge variant="outline">{inviteTypeLabel(invite.source_type, t)}</Badge>
                         <Badge variant={status === "active" ? "default" : status === "used" ? "secondary" : "destructive"}>
                           {t(`invites.status.${status}`)}
                         </Badge>
@@ -497,9 +573,9 @@ export default function InvitesPage() {
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USER">USER</SelectItem>
-                    <SelectItem value="GROUP">GROUP</SelectItem>
-                    {isAdmin ? <SelectItem value="ADMIN_OVERRIDE">ADMIN_OVERRIDE</SelectItem> : null}
+                    <SelectItem value="USER">{t("invites.typeUser")}</SelectItem>
+                    <SelectItem value="GROUP">{t("invites.typeGroup")}</SelectItem>
+                    {isAdmin ? <SelectItem value="ADMIN_OVERRIDE">{t("invites.typeAdminOverride")}</SelectItem> : null}
                   </SelectContent>
                 </Select>
               </div>
@@ -590,8 +666,8 @@ export default function InvitesPage() {
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USER">USER</SelectItem>
-                    <SelectItem value="GROUP">GROUP</SelectItem>
+                    <SelectItem value="USER">{t("invites.typeUser")}</SelectItem>
+                    <SelectItem value="GROUP">{t("invites.typeGroup")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

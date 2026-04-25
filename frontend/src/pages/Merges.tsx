@@ -37,6 +37,28 @@ function formatDate(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString() : "-";
 }
 
+function mergeStrategyLabel(value: string, t: (key: string) => string) {
+  if (value === "archive") return t("merges.strategyOptions.archive");
+  if (value === "subtle") return t("merges.strategyOptions.subtle");
+  if (value === "overhaul") return t("merges.strategyOptions.overhaul");
+  return value;
+}
+
+function dialogueStrategyLabel(value: string, t: (key: string) => string) {
+  if (value === "recent_only") return t("merges.dialogueStrategyOptions.recent_only");
+  if (value === "balanced") return t("merges.dialogueStrategyOptions.balanced");
+  if (value === "all") return t("merges.dialogueStrategyOptions.all");
+  return value;
+}
+
+function mergeStatusLabel(value: string, t: (key: string) => string) {
+  if (value === "pending") return t("merges.status.pending");
+  if (value === "running") return t("merges.status.running");
+  if (value === "success") return t("merges.status.success");
+  if (value === "error") return t("merges.status.error");
+  return value;
+}
+
 function humanizeKey(key: string) {
   return key.replace(/_/g, " ");
 }
@@ -273,9 +295,9 @@ export default function MergesPage() {
                   <Select value={form.strategy} onValueChange={(value) => setForm((prev) => ({ ...prev, strategy: value as MergeFormState["strategy"] }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="archive">archive</SelectItem>
-                      <SelectItem value="subtle">subtle</SelectItem>
-                      <SelectItem value="overhaul">overhaul</SelectItem>
+                      <SelectItem value="archive">{mergeStrategyLabel("archive", t)}</SelectItem>
+                      <SelectItem value="subtle">{mergeStrategyLabel("subtle", t)}</SelectItem>
+                      <SelectItem value="overhaul">{mergeStrategyLabel("overhaul", t)}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -284,9 +306,9 @@ export default function MergesPage() {
                   <Select value={form.dialogue_strategy} onValueChange={(value) => setForm((prev) => ({ ...prev, dialogue_strategy: value as MergeFormState["dialogue_strategy"] }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="recent_only">recent_only</SelectItem>
-                      <SelectItem value="balanced">balanced</SelectItem>
-                      <SelectItem value="all">all</SelectItem>
+                      <SelectItem value="recent_only">{dialogueStrategyLabel("recent_only", t)}</SelectItem>
+                      <SelectItem value="balanced">{dialogueStrategyLabel("balanced", t)}</SelectItem>
+                      <SelectItem value="all">{dialogueStrategyLabel("all", t)}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -325,10 +347,10 @@ export default function MergesPage() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value={STATUS_ALL}>{t("merges.statusAll")}</SelectItem>
-                      <SelectItem value="pending">pending</SelectItem>
-                      <SelectItem value="running">running</SelectItem>
-                      <SelectItem value="success">success</SelectItem>
-                      <SelectItem value="error">error</SelectItem>
+                      <SelectItem value="pending">{mergeStatusLabel("pending", t)}</SelectItem>
+                      <SelectItem value="running">{mergeStatusLabel("running", t)}</SelectItem>
+                      <SelectItem value="success">{mergeStatusLabel("success", t)}</SelectItem>
+                      <SelectItem value="error">{mergeStatusLabel("error", t)}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -350,7 +372,7 @@ export default function MergesPage() {
                   <button key={job.merge_uid} type="button" onClick={() => void openJob(job)} className="w-full rounded-2xl border border-border/70 p-4 text-left transition hover:border-primary/40 hover:bg-accent/40">
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <div className="font-medium">{job.merge_uid}</div>
-                      <Badge variant={job.status === "success" ? "default" : job.status === "error" ? "destructive" : "secondary"}>{job.status}</Badge>
+                      <Badge variant={job.status === "success" ? "default" : job.status === "error" ? "destructive" : "secondary"}>{mergeStatusLabel(job.status, t)}</Badge>
                     </div>
                     <div className="text-xs text-muted-foreground">{t("merges.lineage", { source: job.source_cocoon_id, target: job.target_cocoon_id })}</div>
                     <div className="mt-2 text-xs text-muted-foreground">{formatDate(job.created_at)}</div>
@@ -376,8 +398,8 @@ export default function MergesPage() {
             ) : selectedJob ? (
               <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <SummaryMetric icon={<ShieldCheck className="size-4" />} label={t("common.status")} value={<Badge variant={selectedJob.status === "success" ? "default" : selectedJob.status === "error" ? "destructive" : "secondary"}>{selectedJob.status}</Badge>} />
-                  <SummaryMetric icon={<GitMerge className="size-4" />} label={t("merges.strategy")} value={selectedJob.strategy} />
+                  <SummaryMetric icon={<ShieldCheck className="size-4" />} label={t("common.status")} value={<Badge variant={selectedJob.status === "success" ? "default" : selectedJob.status === "error" ? "destructive" : "secondary"}>{mergeStatusLabel(selectedJob.status, t)}</Badge>} />
+                  <SummaryMetric icon={<GitMerge className="size-4" />} label={t("merges.strategy")} value={mergeStrategyLabel(selectedJob.strategy, t)} />
                   <SummaryMetric icon={<Layers3 className="size-4" />} label={t("merges.candidateCount")} value={selectedJob.candidate_count} />
                   <SummaryMetric icon={<Sparkles className="size-4" />} label={t("merges.mergedCount")} value={selectedJob.merged_count} />
                 </div>
@@ -387,7 +409,7 @@ export default function MergesPage() {
                     <div className="space-y-2">
                       <div>{t("merges.lineage", { source: selectedJob.source_cocoon_id, target: selectedJob.target_cocoon_id })}</div>
                       <div>{t("merges.mergeUid")}: <span className="break-all">{selectedJob.merge_uid}</span></div>
-                      <div>{t("merges.strategy")}: {selectedJob.strategy}</div>
+                      <div>{t("merges.strategy")}: {mergeStrategyLabel(selectedJob.strategy, t)}</div>
                     </div>
                   </div>
                   <div className="rounded-2xl border border-border/70 p-4 text-sm">

@@ -69,6 +69,24 @@ function humanizeRoleDescription(role: RoleRead, t: (key: string, options?: Reco
   return fallback;
 }
 
+function MetricPanel({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-[24px] border border-border/70 bg-linear-to-br from-background to-primary/5 p-5">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="mt-2 text-3xl font-semibold tracking-tight">{value}</div>
+      {hint ? <div className="mt-2 text-xs text-muted-foreground">{hint}</div> : null}
+    </div>
+  );
+}
+
 export default function UsersPage() {
   const { t } = useTranslation();
   const userInfo = useUserStore((state) => state.userInfo);
@@ -167,6 +185,12 @@ export default function UsersPage() {
         form.permissions_json[key] !== undefined ? form.permissions_json[key] : Boolean(currentRolePermissions[key]),
       ).length,
     [currentRolePermissions, form.permissions_json, knownPermissionKeys],
+  );
+  const activeUsersCount = useMemo(() => users.filter((user) => user.is_active).length, [users]);
+  const auditUsersCount = useMemo(() => users.filter((user) => user.can_audit).length, [users]);
+  const overriddenUsersCount = useMemo(
+    () => users.filter((user) => Object.keys(user.permissions_json || {}).length > 0).length,
+    [users],
   );
 
   async function fetchUsers() {
@@ -286,6 +310,13 @@ export default function UsersPage() {
         </Button>
       }
     >
+      <div className="mb-6 grid gap-4 xl:grid-cols-4">
+        <MetricPanel label={t("users.list")} value={String(users.length)} hint={statsText} />
+        <MetricPanel label={t("users.active")} value={String(activeUsersCount)} />
+        <MetricPanel label={t("users.canAudit")} value={String(auditUsersCount)} />
+        <MetricPanel label={t("users.permissionOverridesTitle")} value={String(overriddenUsersCount)} />
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-4">
           <Card className="border-border/70 bg-card/90">
@@ -358,7 +389,7 @@ export default function UsersPage() {
                 users.map((item) => {
                   const effectivePermissions = Object.entries(item.effective_permissions || {}).filter(([, allowed]) => allowed);
                   return (
-                    <div key={item.uid} className="rounded-2xl border border-border/70 bg-background/40 p-4">
+                    <div key={item.uid} className="rounded-[24px] border border-border/70 bg-linear-to-br from-background via-background to-primary/5 p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <div className="flex items-center gap-2 text-base font-semibold">
@@ -443,7 +474,7 @@ export default function UsersPage() {
                 roles.map((role) => {
                   const permissions = parsePermissions(role.permissions_json);
                   return (
-                    <div key={role.code} className="rounded-2xl border border-border/70 p-4 text-sm">
+                    <div key={role.code} className="rounded-[24px] border border-border/70 bg-background/30 p-4 text-sm">
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <div className="font-medium">{role.name}</div>

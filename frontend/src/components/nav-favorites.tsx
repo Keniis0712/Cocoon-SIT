@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslation } from "react-i18next";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,11 +29,12 @@ export function NavFavorites({
     emoji: string
   }[]
 }) {
+  const { t } = useTranslation(["nav", "common"])
   const { isMobile } = useSidebar()
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Favorites</SidebarGroupLabel>
+      <SidebarGroupLabel>{t("nav:favorites")}</SidebarGroupLabel>
       <SidebarMenu>
         {favorites.map((item) => (
           <SidebarMenuItem key={item.name}>
@@ -50,7 +52,7 @@ export function NavFavorites({
                 >
                   <MoreHorizontalIcon
                   />
-                  <span className="sr-only">More</span>
+                  <span className="sr-only">{t("nav:more")}</span>
                 </SidebarMenuAction>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -60,21 +62,21 @@ export function NavFavorites({
               >
                 <DropdownMenuItem>
                   <StarOffIcon className="text-muted-foreground" />
-                  <span>Remove from Favorites</span>
+                  <span>{t("nav:removeFromFavorites")}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <LinkIcon className="text-muted-foreground" />
-                  <span>Copy Link</span>
+                  <span>{t("nav:copyLink")}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <ArrowUpRightIcon className="text-muted-foreground" />
-                  <span>Open in New Tab</span>
+                  <span>{t("nav:openInNewTab")}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <Trash2Icon className="text-muted-foreground" />
-                  <span>Delete</span>
+                  <span>{t("common:delete")}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -84,7 +86,7 @@ export function NavFavorites({
           <SidebarMenuButton className="text-sidebar-foreground/70">
             <MoreHorizontalIcon
             />
-            <span>More</span>
+            <span>{t("nav:more")}</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

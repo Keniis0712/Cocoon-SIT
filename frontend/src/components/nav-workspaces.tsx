@@ -3,6 +3,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import { useTranslation } from "react-i18next";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -30,9 +31,11 @@ export function NavWorkspaces({
     }[]
   }[]
 }) {
+  const { t } = useTranslation("nav");
+
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Workspaces</SidebarGroupLabel>
+      <SidebarGroupLabel>{t("workspaces")}</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
           {workspaces.map((workspace) => (
@@ -78,7 +81,7 @@ export function NavWorkspaces({
             <SidebarMenuButton className="text-sidebar-foreground/70">
               <MoreHorizontalIcon
               />
-              <span>More</span>
+              <span>{t("more")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

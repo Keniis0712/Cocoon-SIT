@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FolderTree, Pencil, Plus, Trash2, UserPlus, Users } from "lucide-react";
+import { FolderTree, Pencil, Plus, TextSearch, Trash2, UserPlus, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -43,6 +43,24 @@ const EMPTY_FORM: GroupFormState = {
 
 function formatTime(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString() : "-";
+}
+
+function MetricPanel({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-[24px] border border-border/70 bg-linear-to-br from-background to-primary/5 p-5">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="mt-2 text-3xl font-semibold tracking-tight">{value}</div>
+      {hint ? <div className="mt-2 text-xs text-muted-foreground">{hint}</div> : null}
+    </div>
+  );
 }
 
 export default function GroupsPage() {
@@ -236,6 +254,8 @@ export default function GroupsPage() {
     ],
     [groups, selectedGroupId, t],
   );
+  const rootGroupCount = useMemo(() => groups.filter((group) => !group.parent_group_id).length, [groups]);
+  const childGroupCount = Math.max(0, groups.length - rootGroupCount);
 
   return (
     <PageFrame
@@ -248,12 +268,23 @@ export default function GroupsPage() {
         </Button>
       }
     >
+      <div className="mb-6 grid gap-4 xl:grid-cols-4">
+        <MetricPanel label={t("groups.list")} value={String(groups.length)} hint={t("groups.listDescription")} />
+        <MetricPanel label={t("groups.rootGroup")} value={String(rootGroupCount)} />
+        <MetricPanel label={t("groups.parentGroup")} value={String(childGroupCount)} />
+        <MetricPanel
+          label={t("groups.membersTitle")}
+          value={selectedGroup ? String(members.length) : "0"}
+          hint={selectedGroup?.name || t("groups.noSelectionTitle")}
+        />
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.25fr]">
         <div className="space-y-4">
           <Card className="border-border/70 bg-card/90">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <FolderTree className="size-4 text-primary" />
+                <TextSearch className="size-4 text-primary" />
                 {t("groups.list")}
               </CardTitle>
               <CardDescription>{t("groups.listDescription")}</CardDescription>
@@ -273,8 +304,10 @@ export default function GroupsPage() {
                     key={group.gid}
                     type="button"
                     onClick={() => setSelectedGroupId(group.gid)}
-                    className={`w-full rounded-2xl border p-4 text-left transition ${
-                      selectedGroupId === group.gid ? "border-primary bg-primary/5" : "border-border/70 hover:border-primary/40 hover:bg-accent/40"
+                    className={`w-full rounded-[24px] border p-4 text-left transition ${
+                      selectedGroupId === group.gid
+                        ? "border-primary bg-linear-to-br from-primary/10 via-background to-background shadow-sm"
+                        : "border-border/70 hover:border-primary/40 hover:bg-accent/40"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -328,9 +361,9 @@ export default function GroupsPage() {
                       <div className="mt-2 font-medium">{formatTime(selectedGroup.updated_at)}</div>
                     </div>
                   </div>
-                  {selectedGroup.description ? (
-                    <div className="rounded-2xl border border-border/70 p-4 text-sm text-muted-foreground">{selectedGroup.description}</div>
-                  ) : null}
+                  <div className="rounded-[24px] border border-border/70 bg-background/40 p-4 text-sm text-muted-foreground">
+                    {selectedGroup.description || t("groups.noSelectionDescription")}
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={() => void handleRenameGroup()}>
                       <Pencil className="mr-2 size-4" />
@@ -386,7 +419,7 @@ export default function GroupsPage() {
                   <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">{t("groups.noMembers")}</div>
                 ) : (
                   members.map((member) => (
-                    <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 p-4 text-sm">
+                    <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-border/70 bg-background/30 p-4 text-sm">
                       <div>
                         <div className="font-medium">{member.user_uid}</div>
                         <div className="mt-1 text-muted-foreground">{formatTime(member.created_at)}</div>

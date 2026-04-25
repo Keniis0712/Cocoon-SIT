@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
-import { showErrorToast } from "@/api/client";
+import { localizeApiMessage, showErrorToast } from "@/api/client";
 import { getCharacters } from "@/api/characters";
 import {
   addChatGroupMember,
@@ -173,7 +173,7 @@ export default function ChatGroupWorkspacePage() {
       }
     },
     onRoundFailed: (detail) => {
-      toast.error(t("aiRequestFailed", { detail }));
+      toast.error(t("aiRequestFailed", { detail: localizeApiMessage(detail) }));
     },
   });
 
@@ -186,7 +186,7 @@ export default function ChatGroupWorkspacePage() {
       toast.success(t("realtimeRestored"));
     },
     onError: (message) => {
-      setError(sessionKey, message);
+      setError(sessionKey, localizeApiMessage(message));
     },
   });
 

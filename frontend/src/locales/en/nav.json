@@ -1,5 +1,7 @@
 {
   "workspace": "Workspace",
+  "workspaces": "Workspaces",
+  "favorites": "Favorites",
   "collaboration": "Collaboration",
   "management": "Management",
   "cocoons": "Cocoons",
@@ -23,6 +25,10 @@
   "subtitle": "Characters, users, and memory workspace",
   "intro": "Keep the core workflow usable first: manage users and models, organize nested cocoons, then continue the story in a dedicated chat page.",
   "accountCenter": "Profile",
+  "more": "More",
+  "removeFromFavorites": "Remove from Favorites",
+  "copyLink": "Copy Link",
+  "openInNewTab": "Open in New Tab",
   "switchLanguage": "Switch Language",
   "logout": "Log Out",
   "logoutSuccess": "Signed out"

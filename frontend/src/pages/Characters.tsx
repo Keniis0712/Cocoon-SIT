@@ -65,11 +65,11 @@ function permissionLabel(level: string | number, t: (key: string) => string) {
   return t("characters.permissionRead");
 }
 
-function subjectTypeLabel(type: string) {
-  if (type === "USER") return "User";
-  if (type === "GROUP") return "Group";
-  if (type === "SUBTREE") return "Subtree";
-  if (type === "AUTHENTICATED_ALL") return "Authenticated";
+function subjectTypeLabel(type: string, t: (key: string) => string) {
+  if (type === "USER") return t("characters.granteeUser");
+  if (type === "GROUP") return t("characters.granteeGroup");
+  if (type === "SUBTREE") return t("characters.granteeSubtree");
+  if (type === "AUTHENTICATED_ALL") return t("characters.authenticatedAll");
   return type;
 }
 
@@ -280,7 +280,7 @@ export default function CharactersPage() {
       const nextEntries = await appendCharacterAclEntries(aclCharacter.id, payload);
       setExistingAclEntries(nextEntries);
       setAclDrafts([]);
-      toast.success("ACL entries appended");
+      toast.success(t("characters.aclAppended"));
       await fetchData();
     } catch (error) {
       showErrorToast(error, t("characters.aclSaveFailed"));
@@ -308,7 +308,7 @@ export default function CharactersPage() {
   async function handleDeleteCharacter(item: CharacterRead) {
     const accepted = await confirm({
       title: t("common.delete"),
-      description: `Delete character "${item.name}"?`,
+      description: t("characters.confirmDeletePrompt", { name: item.name }),
       confirmLabel: t("common.delete"),
       cancelLabel: t("common.cancel"),
       variant: "destructive",
@@ -318,10 +318,10 @@ export default function CharactersPage() {
     }
     try {
       await deleteCharacter(item.id);
-      toast.success("Character deleted");
+      toast.success(t("characters.deleted"));
       await fetchData();
     } catch (error) {
-      showErrorToast(error, "Failed to delete character");
+      showErrorToast(error, t("characters.deleteFailed"));
     }
   }
 
@@ -332,9 +332,9 @@ export default function CharactersPage() {
     try {
       await deleteCharacterAclEntry(aclCharacter.id, entry.grantee_type, entry.grantee_id);
       setExistingAclEntries((prev) => prev.filter((item) => item.id !== entry.id));
-      toast.success("ACL entry deleted");
+      toast.success(t("characters.aclEntryDeleted"));
     } catch (error) {
-      showErrorToast(error, "Failed to delete ACL entry");
+      showErrorToast(error, t("characters.aclEntryDeleteFailed"));
     }
   }
 
@@ -520,15 +520,15 @@ export default function CharactersPage() {
           <DialogHeader>
             <DialogTitle>{t("characters.aclDialogTitle", { name: aclCharacter?.name || "-" })}</DialogTitle>
             <DialogDescription>
-              Existing ACL entries can be reviewed, removed, and extended from here.
+              {t("characters.aclDialogDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-2 xl:grid-cols-[1.15fr_0.85fr]">
             <div className="space-y-4">
               <Card className="border-border/70 bg-background/30">
                 <CardHeader>
-                  <CardTitle className="text-base">Existing ACL</CardTitle>
-                  <CardDescription>These entries come directly from the backend and can be removed one by one.</CardDescription>
+                  <CardTitle className="text-base">{t("characters.aclExistingTitle")}</CardTitle>
+                  <CardDescription>{t("characters.aclExistingDescription")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {existingAclEntries.length === 0 ? (
@@ -539,7 +539,7 @@ export default function CharactersPage() {
                     existingAclEntries.map((entry) => (
                       <div key={entry.id} className="rounded-2xl border border-border/70 p-4 text-sm">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline">{subjectTypeLabel(entry.grantee_type)}</Badge>
+                          <Badge variant="outline">{subjectTypeLabel(entry.grantee_type, t)}</Badge>
                           <Badge>{permissionLabel(entry.perm_level, t)}</Badge>
                         </div>
                         <div className="mt-2 break-all text-muted-foreground">{formatAclTarget(entry)}</div>
@@ -559,8 +559,8 @@ export default function CharactersPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <CardTitle className="text-base">Append ACL Entries</CardTitle>
-                      <CardDescription>Add new grants without implying full replace or delete support.</CardDescription>
+                      <CardTitle className="text-base">{t("characters.aclAppendTitle")}</CardTitle>
+                      <CardDescription>{t("characters.aclAppendDescription")}</CardDescription>
                     </div>
                     <Button variant="outline" size="sm" onClick={addAclDraft}>
                       <Plus className="mr-2 size-4" />
@@ -571,7 +571,7 @@ export default function CharactersPage() {
                 <CardContent className="space-y-3">
                   {aclDrafts.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-                      No pending ACL additions.
+                      {t("characters.aclDraftEmpty")}
                     </div>
                   ) : (
                     aclDrafts.map((entry) => (
@@ -653,7 +653,7 @@ export default function CharactersPage() {
                             onClick={() => setAclDrafts((prev) => prev.filter((item) => item.localId !== entry.localId))}
                           >
                             <Trash2 className="mr-2 size-4" />
-                            Remove draft
+                            {t("characters.removeDraft")}
                           </Button>
                         </div>
                       </div>
@@ -773,7 +773,7 @@ export default function CharactersPage() {
               {t("common.cancel")}
             </Button>
             <Button onClick={() => void saveAcl()} disabled={aclDrafts.length === 0}>
-              Append ACL Entries
+              {t("characters.appendAclEntries")}
             </Button>
           </DialogFooter>
         </DialogContent>

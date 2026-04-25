@@ -341,12 +341,12 @@ export default function PromptTemplatesPage() {
                   ))}
                   {editing && ["meta", "generator", "memory_summary"].includes(editing.template_type) ? (
                     <div className="rounded-2xl border border-border/70 bg-muted/20 p-3 text-sm text-muted-foreground">
-                      <div className="font-medium text-foreground">Tag Catalog Note</div>
+                      <div className="font-medium text-foreground">{t("prompts.tagCatalogNoteTitle")}</div>
                       <div className="mt-2">
-                        `tag_catalog` is a numbered allowlist. Models must output the index only, never a free-text tag name.
+                        {t("prompts.tagCatalogNoteBody")}
                       </div>
                       <div className="mt-2 font-mono text-xs">
-                        Example: {`{"tag_ops":[{"action":"add","tag_index":1}]}`}
+                        {t("prompts.example")}: {`{"tag_ops":[{"action":"add","tag_index":1}]}`}
                       </div>
                     </div>
                   ) : null}
