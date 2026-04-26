@@ -41,6 +41,7 @@ def normalize_config(config: dict[str, Any]) -> dict[str, Any]:
     normalized["command_sep"] = normalize_string_list(normalized.get("command_sep"), default=["."])
     normalized["default_owner_username"] = str(normalized.get("default_owner_username") or "").strip()
     normalized["default_model_id"] = str(normalized.get("default_model_id") or "").strip()
+    normalized["im_owner_id"] = str(normalized.get("im_owner_id") or "").strip()
     normalized["private_cocoon_name_prefix"] = str(normalized.get("private_cocoon_name_prefix") or "QQ").strip() or "QQ"
     normalized["group_room_name_prefix"] = str(normalized.get("group_room_name_prefix") or "QQ Group").strip() or "QQ Group"
     normalized["message_priority"] = int(normalized.get("message_priority") or 95)
@@ -59,6 +60,8 @@ def validate_settings(ctx) -> str | None:
             return "onebot_ws_urls entries must be valid WebSocket URLs."
     if not config["default_owner_username"]:
         return "default_owner_username is required."
+    if not config["im_owner_id"]:
+        return "im_owner_id is required."
     required_defaults = (config["default_model_id"],)
     if not all(required_defaults):
         return "default_model_id is required."

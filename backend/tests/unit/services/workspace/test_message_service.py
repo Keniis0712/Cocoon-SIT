@@ -22,6 +22,8 @@ def test_message_service_lists_serializes_and_retracts_messages():
             cocoon_id="cocoon-1",
             role="user",
             content="hello",
+            external_sender_id="peer-1",
+            external_sender_display_name="Alice",
             created_at=datetime(2026, 4, 22, 10, 0, 0),
         )
         second = Message(
@@ -44,6 +46,7 @@ def test_message_service_lists_serializes_and_retracts_messages():
             limit=1,
         )
         serialized = service.serialize_message(second)
+        serialized_first = service.serialize_message(first)
         retracted = service.retract_message(session, first, acting_user_id="user-1", note=None)
         unchanged = service.retract_message(session, retracted, acting_user_id="user-2", note="ignored")
 
@@ -51,6 +54,8 @@ def test_message_service_lists_serializes_and_retracts_messages():
         assert [message.id for message in latest] == ["msg-2"]
         assert [message.id for message in older_than_second] == ["msg-1"]
         assert serialized.content == MessageService.RETRACTED_PLACEHOLDER
+        assert serialized_first.external_sender_id == "peer-1"
+        assert serialized_first.external_sender_display_name == "Alice"
         assert retracted.is_retracted is True
         assert retracted.retraction_note == "Message retracted"
         assert retracted.retracted_by_user_id == "user-1"

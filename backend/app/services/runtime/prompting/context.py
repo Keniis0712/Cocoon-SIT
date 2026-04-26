@@ -138,23 +138,47 @@ def _character_settings_payload(context: ContextPackage) -> dict[str, Any]:
     return payload
 
 
-def _participant_alias(context: ContextPackage, sender_user_id: str | None) -> str | None:
-    if not sender_user_id:
+def _participant_key(message) -> str | None:
+    sender_user_id = getattr(message, "sender_user_id", None)
+    if sender_user_id:
+        return f"user:{sender_user_id}"
+    external_sender_id = getattr(message, "external_sender_id", None)
+    if external_sender_id:
+        return f"external:{external_sender_id}"
+    external_sender_display_name = getattr(message, "external_sender_display_name", None)
+    if external_sender_display_name:
+        return f"display:{external_sender_display_name}"
+    return None
+
+
+def _participant_alias(context: ContextPackage, message) -> str | None:
+    participant_key = _participant_key(message)
+    if participant_key is None:
         return None
-    sender = str(sender_user_id)
     if context.target_type == "cocoon":
         return "you"
     participants: dict[str, str] = {}
+    used_labels: dict[str, int] = {}
     next_index = 1
-    for message in context.visible_messages:
-        user_id = getattr(message, "sender_user_id", None)
-        if message.role != "user" or not user_id:
+    for visible_message in context.visible_messages:
+        if visible_message.role != "user":
             continue
-        normalized = str(user_id)
-        if normalized not in participants:
-            participants[normalized] = f"participant_{next_index}"
+        current_key = _participant_key(visible_message)
+        if current_key is None or current_key in participants:
+            continue
+        display_name = str(
+            getattr(visible_message, "external_sender_display_name", None) or ""
+        ).strip()
+        if display_name:
+            label = display_name
+            used_labels[label] = used_labels.get(label, 0) + 1
+            if used_labels[label] > 1:
+                label = f"{label} ({used_labels[label]})"
+        else:
+            label = f"participant_{next_index}"
             next_index += 1
-    return participants.get(sender, "participant")
+        participants[current_key] = label
+    return participants.get(participant_key, "participant")
 
 
 def _thought_event_summary(message) -> str | None:
@@ -191,7 +215,7 @@ def _runtime_message_payload(
     }
     if event_summary:
         payload["event_summary"] = event_summary
-    if alias := _participant_alias(context, getattr(message, "sender_user_id", None)):
+    if alias := _participant_alias(context, message):
         payload["speaker"] = alias
     return payload
 
@@ -289,7 +313,7 @@ def build_provider_message_payload(message, context: ContextPackage) -> dict[str
         else:
             content = f"[assistant_thought] {content}"
     if message.role == "user" and (
-        alias := _participant_alias(context, getattr(message, "sender_user_id", None))
+        alias := _participant_alias(context, message)
     ):
         content = f"[speaker:{alias}] {content}"
     if message.is_retracted:

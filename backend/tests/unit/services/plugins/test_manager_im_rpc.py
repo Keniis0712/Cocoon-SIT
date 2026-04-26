@@ -272,9 +272,67 @@ def test_manager_ingests_im_message_with_plugin_supplied_user_ids():
     kind, _, kwargs = dispatch_service.calls[0]
     assert kind == "cocoon"
     assert kwargs["sender_user_id"] == "user-1"
+    assert kwargs["external_sender_id"] == "peer-1"
+    assert kwargs["external_sender_display_name"] == "ken"
     assert kwargs["extra_payload"]["sender_user_id"] == "user-1"
     assert kwargs["extra_payload"]["owner_user_id"] == "user-1"
     assert kwargs["extra_payload"]["memory_owner_user_id"] == "user-1"
+
+
+def test_manager_ingests_group_message_with_external_only_identity():
+    session_factory = _session_factory()
+    dispatch_service = _RecordingDispatchService()
+    manager = PluginRuntimeManager(
+        session_factory=session_factory,
+        settings=SimpleNamespace(plugin_watchdog_interval_seconds=1, plugin_short_lived_max_workers=1),
+        external_wakeup_service=SimpleNamespace(),
+        message_dispatch_service=dispatch_service,
+        im_bind_token_service=ImBindTokenService(),
+    )
+
+    with session_factory() as session:
+        plugin = PluginDefinition(
+            name="bridge",
+            display_name="Bridge",
+            plugin_type="im",
+            entry_module="main",
+            service_function_name="run",
+            status="enabled",
+            data_dir="data/plugins/bridge",
+        )
+        session.add(plugin)
+        session.commit()
+
+        manager._ingest_im_inbound_message(
+            session,
+            plugin=plugin,
+            payload={
+                "message_kind": "group",
+                "route": {"target_type": "chat_group", "target_id": "group-1", "metadata_json": {"platform": "onebot"}},
+                "message": {
+                    "account_id": "bot-1",
+                    "conversation_id": "im-group-1",
+                    "sender_id": "member-qq",
+                    "sender_display_name": "Bob",
+                    "sender_user_id": None,
+                    "owner_user_id": None,
+                    "memory_owner_user_id": None,
+                    "text": "hello from group im",
+                    "message_id": "msg-group-1",
+                    "occurred_at": "2026-04-24T08:20:18+00:00",
+                    "raw_payload": {"raw_message": "hello from group im"},
+                    "metadata_json": {"platform": "onebot"},
+                },
+            },
+        )
+
+    assert len(dispatch_service.calls) == 1
+    kind, _, kwargs = dispatch_service.calls[0]
+    assert kind == "chat_group"
+    assert kwargs["sender_user_id"] is None
+    assert kwargs["external_sender_id"] == "member-qq"
+    assert kwargs["external_sender_display_name"] == "Bob"
+    assert kwargs["extra_payload"]["memory_owner_user_id"] is None
 
 
 def test_manager_rejects_unknown_plugin_supplied_user_ids():

@@ -64,6 +64,8 @@ class MessageService:
             action_id=message.action_id,
             client_request_id=message.client_request_id,
             sender_user_id=message.sender_user_id,
+            external_sender_id=message.external_sender_id,
+            external_sender_display_name=message.external_sender_display_name,
             role=message.role,
             content=content,
             is_thought=message.is_thought,

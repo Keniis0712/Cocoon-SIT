@@ -89,6 +89,8 @@ class ChatMessageOut(ORMModel):
     action_id: str | None
     client_request_id: str | None
     sender_user_id: str | None = None
+    external_sender_id: str | None = None
+    external_sender_display_name: str | None = None
     role: str
     content: str
     is_thought: bool

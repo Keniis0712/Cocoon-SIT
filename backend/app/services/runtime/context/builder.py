@@ -187,6 +187,8 @@ class ContextBuilder:
             return str(sender_user_id)
         if event.target_type == "cocoon":
             return conversation.owner_user_id
+        if event.payload.get("external_sender_id") or event.payload.get("external_sender_display_name"):
+            return conversation.owner_user_id
         for message in reversed(visible_messages):
             if message.role == "user" and message.sender_user_id:
                 return message.sender_user_id

@@ -116,6 +116,8 @@ class Message(Base, TimestampMixin, JsonDefaultMixin):
     action_id: Mapped[str | None] = mapped_column(ForeignKey("action_dispatches.id"), nullable=True)
     client_request_id: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True)
     sender_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    external_sender_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    external_sender_display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     is_thought: Mapped[bool] = mapped_column(Boolean, default=False)

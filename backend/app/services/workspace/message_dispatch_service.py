@@ -51,6 +51,8 @@ class MessageDispatchService(MessageDispatchBase):
         recent_turn_count: int | None = None,
         typing_hint_ms: int | None = None,
         sender_user_id: str | None = None,
+        external_sender_id: str | None = None,
+        external_sender_display_name: str | None = None,
         extra_payload: dict | None = None,
     ) -> ActionDispatch:
         """Create a chat action and user message, enqueue it, and emit a queue event."""
@@ -119,6 +121,8 @@ class MessageDispatchService(MessageDispatchBase):
             action_id=action.id,
             client_request_id=client_request_id,
             sender_user_id=sender_user_id,
+            external_sender_id=external_sender_id,
+            external_sender_display_name=external_sender_display_name,
             role="user",
             content=content,
             tags_json=state.active_tags_json,
@@ -163,6 +167,8 @@ class MessageDispatchService(MessageDispatchBase):
         recent_turn_count: int | None = None,
         typing_hint_ms: int | None = None,
         sender_user_id: str | None,
+        external_sender_id: str | None = None,
+        external_sender_display_name: str | None = None,
         extra_payload: dict | None = None,
     ) -> ActionDispatch:
         timezone_name = (timezone or "UTC").strip() or "UTC"
@@ -238,6 +244,8 @@ class MessageDispatchService(MessageDispatchBase):
             action_id=action.id,
             client_request_id=client_request_id,
             sender_user_id=sender_user_id,
+            external_sender_id=external_sender_id,
+            external_sender_display_name=external_sender_display_name,
             role="user",
             content=content,
             tags_json=state.active_tags_json,

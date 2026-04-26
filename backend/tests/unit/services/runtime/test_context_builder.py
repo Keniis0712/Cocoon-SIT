@@ -132,7 +132,11 @@ def test_context_builder_builds_chat_group_context_with_tags_and_pending_wakeups
     assert result.external_context["tag_catalog_by_ref"]["focus"]["is_isolated"] is True
     assert window_calls[0][0][1] == 8
     assert "tag-row-1" in window_calls[0][0][2]
-    assert window_calls[0][1] == {"cocoon_id": None, "chat_group_id": "room-1"}
+    assert window_calls[0][1] == {
+        "cocoon_id": None,
+        "chat_group_id": "room-1",
+        "context_start_message_id": None,
+    }
     assert memory_calls[0]["owner_user_id"] == "42"
     assert memory_calls[0]["character_id"] == "character-1"
     assert memory_calls[0]["query_text"] == "latest question"
@@ -363,6 +367,21 @@ def test_context_builder_resolves_memory_owner_from_payload_messages_and_owner()
             _event(chat_group_id="room-1", cocoon_id=None),
             chat_group_conversation,
             [SimpleNamespace(role="assistant", sender_user_id=None)],
+        )
+        == "owner-1"
+    )
+    assert (
+        builder._resolve_memory_owner_user_id(
+            _event(
+                chat_group_id="room-1",
+                cocoon_id=None,
+                payload={
+                    "external_sender_id": "member-qq",
+                    "external_sender_display_name": "Bob",
+                },
+            ),
+            chat_group_conversation,
+            visible_messages,
         )
         == "owner-1"
     )

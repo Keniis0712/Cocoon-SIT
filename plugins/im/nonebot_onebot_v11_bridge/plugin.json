@@ -1,6 +1,6 @@
 {
   "name": "nonebot_onebot_v11_bridge",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "display_name": "NoneBot OneBot V11 Bridge",
   "plugin_type": "im",
   "entry_module": "main",
@@ -13,7 +13,8 @@
       "driver",
       "onebot_ws_urls",
       "default_owner_username",
-      "default_model_id"
+      "default_model_id",
+      "im_owner_id"
     ],
     "properties": {
       "driver": {
@@ -62,6 +63,10 @@
         "type": "string",
         "title": "Default Model ID"
       },
+      "im_owner_id": {
+        "type": "string",
+        "title": "IM Owner ID"
+      },
       "private_cocoon_name_prefix": {
         "type": "string",
         "title": "Private Cocoon Name Prefix",
@@ -70,7 +75,7 @@
       "group_room_name_prefix": {
         "type": "string",
         "title": "Group Room Name Prefix",
-        "default": "QQ群"
+        "default": "QQ Group"
       },
       "message_priority": {
         "type": "integer",
@@ -93,8 +98,9 @@
     ],
     "default_owner_username": "",
     "default_model_id": "",
+    "im_owner_id": "",
     "private_cocoon_name_prefix": "QQ",
-    "group_room_name_prefix": "QQ群",
+    "group_room_name_prefix": "QQ Group",
     "message_priority": 95
   },
   "user_config_schema": {

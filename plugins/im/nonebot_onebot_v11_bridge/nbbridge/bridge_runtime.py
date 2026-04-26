@@ -104,22 +104,37 @@ class BridgeRuntimeMixin:
             )
 
     def _binding_route(self, payload: dict[str, Any]) -> ImInboundRoute | None:
-        binding = self.route_store.get_binding(
-            str(payload.get("message_kind") or ""),
-            str(payload.get("account_id") or ""),
-            str(payload.get("conversation_id") or ""),
-        )
-        if not binding or not bool(binding.get("attached")):
-            return None
-        route = dict(binding.get("route") or {})
+        message_kind = str(payload.get("message_kind") or "").strip()
+        account_id = str(payload.get("account_id") or "")
+        conversation_id = str(payload.get("conversation_id") or "")
+        if message_kind == "group":
+            group_state = self.route_store.get_group_state(account_id, conversation_id)
+            if (
+                not group_state
+                or not bool(group_state.get("enabled"))
+                or not bool(group_state.get("attached"))
+            ):
+                return None
+            route = dict(group_state.get("route") or {})
+        else:
+            binding = self.route_store.get_binding(
+                message_kind,
+                account_id,
+                conversation_id,
+            )
+            if not binding or not bool(binding.get("attached")):
+                return None
+            route = dict(binding.get("route") or {})
+            if route:
+                metadata_json = dict(route.get("metadata_json") or {})
+                metadata_json["tags"] = list(binding.get("tags") or [])
+                route["metadata_json"] = metadata_json
         if not route:
             return None
-        metadata_json = dict(route.get("metadata_json") or {})
-        metadata_json["tags"] = list(binding.get("tags") or [])
         return ImInboundRoute(
             target_type=str(route.get("target_type") or ""),
             target_id=str(route.get("target_id") or ""),
-            metadata_json=metadata_json,
+            metadata_json=dict(route.get("metadata_json") or {}),
         )
 
     def _platform_binding(self, payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -212,7 +227,10 @@ class BridgeRuntimeMixin:
                 )
                 if payload is None:
                     return
-                if self._is_command(str(payload.get("text") or "")):
+                if (
+                    str(payload.get("message_kind") or "") == "private"
+                    and self._is_command(str(payload.get("text") or ""))
+                ):
                     response = await self._handle_command(payload)
                     if response:
                         await self._send_direct_message(

@@ -165,6 +165,8 @@ class PluginImDeliveryMixin:
                 client_request_id=client_request_id,
                 timezone="UTC",
                 sender_user_id=sender_user_id,
+                external_sender_id=source_payload["external_sender_id"],
+                external_sender_display_name=source_payload["external_sender_display_name"],
                 extra_payload=source_payload,
             )
             return
@@ -175,5 +177,7 @@ class PluginImDeliveryMixin:
             client_request_id=client_request_id,
             timezone="UTC",
             sender_user_id=sender_user_id,
+            external_sender_id=source_payload["external_sender_id"],
+            external_sender_display_name=source_payload["external_sender_display_name"],
             extra_payload=source_payload,
         )
