@@ -649,25 +649,34 @@ export default function AuditsWorkbenchPage() {
                 </Card>
 
                 {promptNodes.length ? (
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-3">
                     {promptNodes.map((node) => (
-                      <Card key={node.key} className="border-border/70 bg-background/30">
-                        <CardHeader>
-                          <CardTitle className="text-base">{node.title}</CardTitle>
-                          <CardDescription>{node.description}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          {node.prompts.map((prompt) => (
-                            <PromptTraceCard
-                              key={`${node.key}-${prompt.templateType}`}
-                              title={t(`prompts.types.${prompt.templateType}.name`, { defaultValue: humanizeKey(prompt.templateType) })}
-                              badge={prompt.templateType === "system" ? t("settings.themeSystem", { defaultValue: "System" }) : t("common.user")}
-                              renderedPrompt={prompt.renderedPrompt}
-                              variables={prompt.variables}
-                            />
-                          ))}
-                        </CardContent>
-                      </Card>
+                      <Collapsible
+                        key={node.key}
+                        defaultOpen
+                        className="rounded-xl border border-border/70 bg-background/30"
+                      >
+                        <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 px-6 py-5 text-left">
+                          <div>
+                            <div className="text-base font-semibold">{node.title}</div>
+                            <div className="mt-1 text-sm text-muted-foreground">{node.description}</div>
+                          </div>
+                          <ChevronDown className="size-4 text-muted-foreground transition data-[state=open]:rotate-180" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="border-t border-border/70 px-6 py-4">
+                          <div className="space-y-3">
+                            {node.prompts.map((prompt) => (
+                              <PromptTraceCard
+                                key={`${node.key}-${prompt.templateType}`}
+                                title={t(`prompts.types.${prompt.templateType}.name`, { defaultValue: humanizeKey(prompt.templateType) })}
+                                badge={prompt.templateType === "system" ? t("settings.themeSystem", { defaultValue: "System" }) : t("common.user")}
+                                renderedPrompt={prompt.renderedPrompt}
+                                variables={prompt.variables}
+                              />
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     ))}
                   </div>
                 ) : null}
