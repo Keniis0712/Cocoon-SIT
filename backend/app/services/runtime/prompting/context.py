@@ -10,6 +10,7 @@ from app.services.runtime.prompting.helpers import (
     _sanitize_prompt_dict,
     _sanitize_prompt_value,
     _sanitize_provider_capabilities,
+    _serialize_tag_names,
     _serialize_tags,
     _tag_catalog,
     _tag_names,
@@ -210,7 +211,7 @@ def _runtime_message_payload(
         "content": f"{_message_prompt_content(message)}{retracted_suffix}",
         "is_thought": bool(getattr(message, "is_thought", False)),
         "is_retracted": message.is_retracted,
-        "tags": _serialize_tags(tag_refs, context, catalog),
+        "tags": _serialize_tag_names(tag_refs, context, catalog),
         "mentionable_in_current_target": _mentionable_for_target(tag_refs, context, catalog),
     }
     if event_summary:
@@ -228,7 +229,7 @@ def _runtime_memory_payload(
         "scope": memory.scope,
         "summary": memory.summary,
         "content": memory.content,
-        "tags": _serialize_tags(tag_refs, context, catalog),
+        "tags": _serialize_tag_names(tag_refs, context, catalog),
         "mentionable_in_current_target": _mentionable_for_target(tag_refs, context, catalog),
         "source": "chat_group" if memory.chat_group_id else "cocoon",
     }

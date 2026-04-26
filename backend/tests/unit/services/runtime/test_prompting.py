@@ -6,6 +6,7 @@ from app.services.runtime.prompting import (
     _resolve_tag_name,
     _runtime_memory_payload,
     _runtime_message_payload,
+    _serialize_tag_names,
     _serialize_tag,
     _serialize_tags,
     _tag_catalog,
@@ -132,6 +133,9 @@ def test_prompting_serializes_tags_messages_and_memory():
 
     serialized_tag = _serialize_tag("tag-public", context, catalog)
     serialized_tags = _serialize_tags(["tag-system", "tag-public", "tag-group"], context, catalog)
+    serialized_tag_names = _serialize_tag_names(
+        ["tag-system", "tag-public", "tag-group", "tag-public"], context, catalog
+    )
     message_payload = _runtime_message_payload(message, context, catalog)
     memory_payload = _runtime_memory_payload(memory, context, catalog)
     provider_payload = build_provider_message_payload(message, context)
@@ -140,6 +144,7 @@ def test_prompting_serializes_tags_messages_and_memory():
     assert serialized_tag["mentionable_in_current_target"] is True
     assert serialized_tags[0]["name"] == "default"
     assert serialized_tags[2]["name"] == "group-id"
+    assert serialized_tag_names == ["default", "Public Tag", "group-id"]
     assert message_payload["is_thought"] is True
     assert message_payload["content"] == "The wakeup checked in after a long silence."
     assert message_payload["event_summary"] == "The wakeup checked in after a long silence."
@@ -149,7 +154,7 @@ def test_prompting_serializes_tags_messages_and_memory():
     assert provider_payload["content"] == "[assistant_event_summary] The wakeup checked in after a long silence."
     assert memory_payload["source"] == "cocoon"
     assert memory_payload["mentionable_in_current_target"] is False
-    assert memory_payload["tags"][0]["is_isolated"] is True
+    assert memory_payload["tags"] == ["tag-private"]
     assert "owner_user_id" not in memory_payload
 
 
@@ -192,7 +197,7 @@ def test_build_runtime_prompt_variables_builds_full_payload():
     assert payload["conversation_target"] == {"type": "cocoon", "name": "Demo Cocoon"}
     assert payload["session_state"]["active_tags"][0]["name"] == "default"
     assert payload["tag_catalog"][0]["tag_id"] == "default"
-    assert payload["visible_messages"][0]["tags"][0]["name"] == "default"
+    assert payload["visible_messages"][0]["tags"] == ["default", "Public Tag"]
     assert payload["visible_messages"][0]["speaker"] == "you"
     assert payload["memory_context"][0]["source"] == "chat_group"
     assert payload["runtime_event"]["source"] == "user"

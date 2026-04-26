@@ -319,5 +319,4 @@ def test_runtime_prompt_exposes_readable_tag_metadata(
         assert "tag_refs" not in visible_message
         assert "tag_visibility" not in visible_message
         if visible_message["tags"]:
-            visible_tag_names = [item["name"] for item in visible_message["tags"]]
-            assert visible_tag_names[0] == "default"
+            assert visible_message["tags"][0] == "default"

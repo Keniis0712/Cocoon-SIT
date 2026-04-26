@@ -117,6 +117,20 @@ def _serialize_tags(
     return [_serialize_tag(tag_ref, context, catalog) for tag_ref in tag_refs]
 
 
+def _serialize_tag_names(
+    tag_refs: list[str], context: ContextPackage, catalog: dict[str, dict[str, Any]]
+) -> list[str]:
+    names: list[str] = []
+    seen: set[str] = set()
+    for tag_ref in tag_refs:
+        tag_name = _resolve_tag_name(catalog.get(tag_ref) or {}, tag_ref).strip()
+        if not tag_name or tag_name in seen:
+            continue
+        seen.add(tag_name)
+        names.append(tag_name)
+    return names
+
+
 def _looks_like_uuid(value: str) -> bool:
     return bool(_UUID_RE.fullmatch(value.strip()))
 
