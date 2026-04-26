@@ -10,6 +10,10 @@
 coverage/
 htmlcov/
 .pnpm-store/
+dist/
+.coverage
+.coverage.*
+backend/pytest-cache-files-*/
 
 # Python caches and virtualenvs
 **/__pycache__/
@@ -24,14 +28,19 @@ htmlcov/
 backend/.venv/
 backend/.coverage
 backend/.artifacts/
+backend/.plugins/
+backend/data/
+backend/tests/
 .tmp_pytest
 
 # Node install/build output
 node_modules/
 **/node_modules/
 frontend/node_modules/
+frontend/.vite/
 packages/*/node_modules/
 frontend/dist/
+packages/*/dist/
 packages/ts-sdk/node_modules/
 
 # Local env files
@@ -44,4 +53,8 @@ packages/ts-sdk/node_modules/
 # Docs and local notes are not needed in image builds
 docs/
 current-architecture.md
+frontend-api-structure.md
 frontend-architecture.md
+
+# Plugin packaging output is for local distribution only
+plugins/packages/
