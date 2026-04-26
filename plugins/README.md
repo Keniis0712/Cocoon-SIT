@@ -40,6 +40,8 @@ The backend treats `plugin.json` as the source of truth for metadata, config sch
 1. Edit the local source directory in this repo.
 2. Confirm `plugin.json` matches the actual runtime entrypoints.
 3. Package the plugin so the zip root contains `plugin.json` and the declared module files.
+   - Versioned packages: `python scripts/package_plugins.py`
+   - Dev package for one plugin: `python scripts/package_plugin_dev.py external/qweather_daily_alert`
 4. Upload the zip in the admin plugin UI.
 5. Configure plugin-level settings in admin.
 6. For external plugins, configure event schedules or trigger manual runs.

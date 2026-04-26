@@ -164,7 +164,7 @@ class PluginManagerAccessMixin:
                 if not self._binding_target_exists(session, binding):
                     continue
                 user_config = self._ensure_user_config(session, plugin, binding.scope_id)
-                if not user_config.is_enabled or user_config.error_text:
+                if not user_config.is_enabled or user_config.validation_error_text:
                     continue
                 if not self._can_deliver_to_user(session, plugin, binding.scope_id):
                     continue
@@ -178,7 +178,7 @@ class PluginManagerAccessMixin:
                 if not session.get(ChatGroupRoom, binding.scope_id):
                     continue
                 group_config = self._ensure_chat_group_config(session, plugin, binding.scope_id)
-                if not group_config.is_enabled or group_config.error_text:
+                if not group_config.is_enabled or group_config.validation_error_text:
                     continue
                 scopes[key] = ShortLivedScope(
                     scope_type="chat_group",
@@ -221,16 +221,16 @@ class PluginManagerAccessMixin:
         self, session: Session, *, plugin: PluginDefinition, user_id: str, message: str
     ) -> None:
         row = self._ensure_user_config(session, plugin, user_id)
-        row.error_text = message.strip() or "Plugin runtime error"
-        row.error_at = datetime.now(UTC).replace(tzinfo=None)
+        row.runtime_error_text = message.strip() or "Plugin runtime error"
+        row.runtime_error_at = datetime.now(UTC).replace(tzinfo=None)
         session.flush()
 
     def _record_chat_group_error(
         self, session: Session, *, plugin: PluginDefinition, chat_group_id: str, message: str
     ) -> None:
         row = self._ensure_chat_group_config(session, plugin, chat_group_id)
-        row.error_text = message.strip() or "Plugin runtime error"
-        row.error_at = datetime.now(UTC).replace(tzinfo=None)
+        row.runtime_error_text = message.strip() or "Plugin runtime error"
+        row.runtime_error_at = datetime.now(UTC).replace(tzinfo=None)
         session.flush()
 
     def _clear_user_error(self, session: Session, *, plugin_id: str, user_id: str) -> None:
@@ -242,6 +242,6 @@ class PluginManagerAccessMixin:
         )
         if not current:
             return
-        current.error_text = None
-        current.error_at = None
+        current.runtime_error_text = None
+        current.runtime_error_at = None
         session.flush()

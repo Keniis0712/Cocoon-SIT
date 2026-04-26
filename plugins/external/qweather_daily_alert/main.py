@@ -10,6 +10,11 @@ import requests
 from app.services.plugins.errors import PluginUserVisibleError
 
 
+REQUEST_TIMEOUT_SECONDS = 20
+REQUEST_MAX_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = 1.5
+
+
 def _setting(ctx, key: str, default: Any = "") -> Any:
     return (ctx.user_config or {}).get(key, default)
 
@@ -42,13 +47,22 @@ def _required_settings(ctx) -> dict[str, Any]:
         if not cfg[key]
     ]
     if missing:
-        raise PluginUserVisibleError(f"和风天气配置缺少必填项: {', '.join(missing)}", user_id=ctx.user_id)
+        raise PluginUserVisibleError(
+            f"和风天气配置缺少必填项: {', '.join(missing)}",
+            user_id=ctx.user_id,
+        )
     if "BEGIN PRIVATE KEY" not in cfg["private_key_pem"]:
-        raise PluginUserVisibleError("和风天气私钥不是 PEM PRIVATE KEY 格式。", user_id=ctx.user_id)
+        raise PluginUserVisibleError(
+            "和风天气私钥必须是 PEM PRIVATE KEY 格式。",
+            user_id=ctx.user_id,
+        )
     if cfg["unit"] not in {"m", "i"}:
         raise PluginUserVisibleError("和风天气 unit 只能是 m 或 i。", user_id=ctx.user_id)
     if cfg["jwt_ttl_seconds"] < 60 or cfg["jwt_ttl_seconds"] > 86400:
-        raise PluginUserVisibleError("和风天气 JWT TTL 必须在 60 到 86400 秒之间。", user_id=ctx.user_id)
+        raise PluginUserVisibleError(
+            "和风天气 JWT TTL 必须在 60 到 86400 秒之间。",
+            user_id=ctx.user_id,
+        )
     return cfg
 
 
@@ -62,6 +76,14 @@ def _build_jwt(private_key_pem: str, project_id: str, key_id: str, ttl_seconds: 
     )
 
 
+def _is_retryable_request_error(exc: requests.RequestException) -> bool:
+    if isinstance(exc, (requests.Timeout, requests.ConnectionError)):
+        return True
+    response = getattr(exc, "response", None)
+    status_code = getattr(response, "status_code", None)
+    return isinstance(status_code, int) and status_code >= 500
+
+
 def _qweather_get(
     api_host: str,
     token: str,
@@ -70,33 +92,53 @@ def _qweather_get(
     *,
     allow_zero_result: bool = False,
 ) -> dict[str, Any]:
-    try:
-        resp = requests.get(
-            f"https://{api_host}{path}",
-            headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
-            params=params,
-            timeout=20,
+    last_request_error: requests.RequestException | None = None
+    for attempt in range(1, REQUEST_MAX_ATTEMPTS + 1):
+        try:
+            resp = requests.get(
+                f"https://{api_host}{path}",
+                headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+                params=params,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            break
+        except requests.RequestException as exc:
+            last_request_error = exc
+            if attempt < REQUEST_MAX_ATTEMPTS and _is_retryable_request_error(exc):
+                time.sleep(RETRY_BACKOFF_SECONDS * attempt)
+                continue
+            raise RuntimeError(
+                f"和风天气请求失败: {exc} (attempts={attempt}/{REQUEST_MAX_ATTEMPTS})"
+            ) from exc
+        except ValueError as exc:
+            raise RuntimeError("和风天气返回内容不是有效 JSON。") from exc
+    else:
+        raise RuntimeError(
+            f"和风天气请求失败: {last_request_error} (attempts={REQUEST_MAX_ATTEMPTS}/{REQUEST_MAX_ATTEMPTS})"
         )
-        resp.raise_for_status()
-        data = resp.json()
-    except requests.RequestException as exc:
-        raise RuntimeError(f"和风天气请求失败: {exc}") from exc
-    except ValueError as exc:
-        raise RuntimeError("和风天气返回内容不是有效 JSON。") from exc
 
     code = data.get("code")
     zero_result = bool((data.get("metadata") or {}).get("zeroResult"))
     if allow_zero_result and zero_result:
         return data
     if code != "200":
-        raise RuntimeError(f"和风天气 API 返回非成功 code={code}, body={json.dumps(data, ensure_ascii=False)}")
+        raise RuntimeError(
+            f"和风天气 API 返回非成功 code={code}, body={json.dumps(data, ensure_ascii=False)}"
+        )
     return data
 
 
 def _token_and_config(ctx) -> tuple[str, dict[str, Any]]:
     cfg = _required_settings(ctx)
     try:
-        token = _build_jwt(cfg["private_key_pem"], cfg["project_id"], cfg["key_id"], cfg["jwt_ttl_seconds"])
+        token = _build_jwt(
+            cfg["private_key_pem"],
+            cfg["project_id"],
+            cfg["key_id"],
+            cfg["jwt_ttl_seconds"],
+        )
     except Exception as exc:
         raise PluginUserVisibleError(f"和风天气 JWT 生成失败: {exc}", user_id=ctx.user_id) from exc
     return token, cfg
@@ -134,10 +176,10 @@ def _format_today_summary(now_data: dict[str, Any], daily_data: dict[str, Any]) 
     now = now_data.get("now") or {}
     today = (daily_data.get("daily") or [{}])[0] or {}
     parts = [
-        "今日天气",
-        f"当前{now.get('text', '未知')}，{now.get('temp', '?')}°，体感{now.get('feelsLike', '?')}°",
+        "今天天气",
+        f"当前{now.get('text', '未知')}，{now.get('temp', '?')}度，体感{now.get('feelsLike', '?')}度",
         f"今日{today.get('textDay', '未知')} / {today.get('textNight', '未知')}",
-        f"气温{today.get('tempMin', '?')}°~{today.get('tempMax', '?')}°",
+        f"气温{today.get('tempMin', '?')}度~{today.get('tempMax', '?')}度",
         f"湿度{now.get('humidity', '?')}%，风向{now.get('windDir', '未知')}，风速{now.get('windSpeed', '?')}",
     ]
     if today.get("precip"):

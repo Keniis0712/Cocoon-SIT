@@ -251,7 +251,7 @@ def test_external_wakeup_service_schedules_and_records_cocoon_and_chat_group_wak
         assert records[1].target_type == "chat_group"
 
 
-def test_external_wakeup_service_honors_user_visibility_enablement_and_errors():
+def test_external_wakeup_service_honors_user_visibility_enablement_and_validation_errors():
     session_factory = _session_factory()
     scheduler = _SchedulerNode()
     service = ExternalWakeupService(scheduler)
@@ -339,7 +339,7 @@ def test_external_wakeup_service_honors_user_visibility_enablement_and_errors():
         )
 
         user_config.is_enabled = True
-        user_config.error_text = "api key invalid"
+        user_config.validation_error_text = "api key invalid"
         session.commit()
         assert (
             service.ingest(
@@ -350,4 +350,70 @@ def test_external_wakeup_service_honors_user_visibility_enablement_and_errors():
                 envelope={"summary": "wake cocoon"},
             )
             == []
+        )
+
+
+def test_external_wakeup_service_runtime_errors_do_not_block_retry():
+    session_factory = _session_factory()
+    scheduler = _SchedulerNode()
+    service = ExternalWakeupService(scheduler)
+
+    with session_factory() as session:
+        plugin = PluginDefinition(
+            id="plugin-1",
+            name="plugin",
+            display_name="Plugin",
+            plugin_type="external",
+            entry_module="main",
+            status="enabled",
+            is_globally_visible=True,
+            data_dir="data/plugin",
+        )
+        version = PluginVersion(
+            id="version-1",
+            plugin_id=plugin.id,
+            version="1.0.0",
+            source_zip_path="plugins/plugin/source.zip",
+            extracted_path="plugins/plugin/content",
+            manifest_path="plugins/plugin/manifest.json",
+            metadata_json={},
+        )
+        owner = User(id="user-1", username="owner", password_hash="hash", is_active=True)
+        cocoon = Cocoon(
+            id="cocoon-1",
+            name="Cocoon",
+            owner_user_id="user-1",
+            character_id="character-1",
+            selected_model_id="model-1",
+        )
+        session.add_all([owner, plugin, version, cocoon])
+        session.add(
+            PluginTargetBinding(
+                plugin_id=plugin.id,
+                scope_type="user",
+                scope_id="user-1",
+                target_type="cocoon",
+                target_id=cocoon.id,
+            )
+        )
+        session.add(
+            PluginUserConfig(
+                plugin_id=plugin.id,
+                user_id="user-1",
+                is_enabled=True,
+                config_json={},
+                runtime_error_text="timeout",
+            )
+        )
+        session.commit()
+
+        assert (
+            service.ingest(
+                session,
+                plugin=plugin,
+                version=version,
+                event_name="tick",
+                envelope={"summary": "wake cocoon"},
+            )
+            == ["task-1"]
         )

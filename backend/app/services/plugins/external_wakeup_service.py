@@ -174,7 +174,7 @@ class ExternalWakeupService:
         )
         if user_config and not user_config.is_enabled:
             return False
-        if user_config and user_config.error_text:
+        if user_config and user_config.validation_error_text:
             return False
 
         group_ids = [
@@ -207,6 +207,6 @@ class ExternalWakeupService:
         )
         if group_config and not group_config.is_enabled:
             return False
-        if group_config and group_config.error_text:
+        if group_config and group_config.validation_error_text:
             return False
         return True

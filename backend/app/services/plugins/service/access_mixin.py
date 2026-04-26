@@ -243,8 +243,8 @@ class PluginServiceAccessMixin:
         plugin: PluginDefinition,
         user_config: PluginUserConfig,
     ) -> None:
-        user_config.error_text = None
-        user_config.error_at = None
+        user_config.validation_error_text = None
+        user_config.validation_error_at = None
         if not plugin.settings_validation_function_name:
             return
         if not plugin.active_version_id:
@@ -267,8 +267,8 @@ class PluginServiceAccessMixin:
         except Exception as exc:
             message = str(exc)
         if message:
-            user_config.error_text = message
-            user_config.error_at = datetime.now(UTC).replace(tzinfo=None)
+            user_config.validation_error_text = message
+            user_config.validation_error_at = datetime.now(UTC).replace(tzinfo=None)
 
     def _refresh_chat_group_config_validation(
         self,
@@ -276,8 +276,8 @@ class PluginServiceAccessMixin:
         plugin: PluginDefinition,
         chat_group_config: PluginChatGroupConfig,
     ) -> None:
-        chat_group_config.error_text = None
-        chat_group_config.error_at = None
+        chat_group_config.validation_error_text = None
+        chat_group_config.validation_error_at = None
         if not plugin.settings_validation_function_name:
             return
         if not plugin.active_version_id:
@@ -302,8 +302,8 @@ class PluginServiceAccessMixin:
         except Exception as exc:
             message = str(exc)
         if message:
-            chat_group_config.error_text = message
-            chat_group_config.error_at = datetime.now(UTC).replace(tzinfo=None)
+            chat_group_config.validation_error_text = message
+            chat_group_config.validation_error_at = datetime.now(UTC).replace(tzinfo=None)
 
     def _serialize_chat_group_plugin_config(
         self,
@@ -317,8 +317,10 @@ class PluginServiceAccessMixin:
             config_schema_json=dict(plugin.user_config_schema_json or {}),
             default_config_json=dict(plugin.user_default_config_json or {}),
             config_json=dict(chat_group_config.config_json or {}),
-            error_text=chat_group_config.error_text,
-            error_at=chat_group_config.error_at,
+            error_text=(
+                chat_group_config.validation_error_text or chat_group_config.runtime_error_text
+            ),
+            error_at=chat_group_config.validation_error_at or chat_group_config.runtime_error_at,
         )
 
     def _serialize_user_plugin(
@@ -346,6 +348,14 @@ class PluginServiceAccessMixin:
                 if user_config
                 else dict(plugin.user_default_config_json or {})
             ),
-            "user_error_text": user_config.error_text if user_config else None,
-            "user_error_at": user_config.error_at if user_config else None,
+            "user_error_text": (
+                (user_config.validation_error_text or user_config.runtime_error_text)
+                if user_config
+                else None
+            ),
+            "user_error_at": (
+                (user_config.validation_error_at or user_config.runtime_error_at)
+                if user_config
+                else None
+            ),
         }

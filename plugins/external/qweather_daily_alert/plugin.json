@@ -1,6 +1,6 @@
 {
   "name": "qweather_daily_alert",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "display_name": "和风天气预报与预警",
   "plugin_type": "external",
   "entry_module": "main",
@@ -40,7 +40,7 @@
       },
       "weather_location": {
         "type": "string",
-        "title": "天气 LocationID 或经度,纬度"
+        "title": "天气 LocationID 或经纬度"
       },
       "alert_latitude": {
         "type": "string",

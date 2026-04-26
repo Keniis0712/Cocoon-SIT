@@ -163,8 +163,10 @@ class PluginUserConfig(Base, TimestampMixin, JsonDefaultMixin):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     config_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
-    error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    validation_error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    validation_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    runtime_error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    runtime_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
 
 
 class PluginChatGroupConfig(Base, TimestampMixin, JsonDefaultMixin):
@@ -178,8 +180,10 @@ class PluginChatGroupConfig(Base, TimestampMixin, JsonDefaultMixin):
     chat_group_id: Mapped[str] = mapped_column(ForeignKey("chat_group_rooms.id"), nullable=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     config_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
-    error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    validation_error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    validation_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    runtime_error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    runtime_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
 
 
 class PluginGroupVisibility(Base, TimestampMixin):

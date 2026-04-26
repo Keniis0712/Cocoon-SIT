@@ -136,8 +136,8 @@ class PluginServiceUserMixin:
         if not self._resolve_plugin_visibility(plugin, visibility_overrides):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
         current = self._ensure_user_config(session, plugin, user.id)
-        current.error_text = None
-        current.error_at = None
+        current.runtime_error_text = None
+        current.runtime_error_at = None
         session.flush()
         session.commit()
         session.refresh(current)
@@ -220,8 +220,8 @@ class PluginServiceUserMixin:
         plugin = self._require_user_visible_plugin(session, user, plugin_id)
         self._require_user_can_manage_chat_group(session, user, chat_group_id)
         current = self._ensure_chat_group_config(session, plugin, chat_group_id)
-        current.error_text = None
-        current.error_at = None
+        current.runtime_error_text = None
+        current.runtime_error_at = None
         session.flush()
         session.commit()
         session.refresh(current)
@@ -381,8 +381,8 @@ class PluginServiceUserMixin:
         if not plugin:
             return
         row = self._ensure_user_config(session, plugin, user_id)
-        row.error_text = error_text.strip() or "Plugin runtime error"
-        row.error_at = datetime.now(UTC).replace(tzinfo=None)
+        row.runtime_error_text = error_text.strip() or "Plugin runtime error"
+        row.runtime_error_at = datetime.now(UTC).replace(tzinfo=None)
         session.flush()
 
     def clear_user_plugin_error_for_runtime(
@@ -392,6 +392,6 @@ class PluginServiceUserMixin:
         if not plugin:
             return
         row = self._ensure_user_config(session, plugin, user_id)
-        row.error_text = None
-        row.error_at = None
+        row.runtime_error_text = None
+        row.runtime_error_at = None
         session.flush()

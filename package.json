@@ -10,6 +10,7 @@
     "backend:test:unit": "python -m pytest -p no:cacheprovider backend/tests/unit",
     "backend:test:unit:cov": "python -m pytest -p no:cacheprovider --cov=backend/app --cov-report=term-missing backend/tests/unit",
     "backend:test:cov": "python -m pytest -p no:cacheprovider --cov=backend/app --cov-report=term-missing backend/tests",
+    "plugins:package": "python scripts/package_plugins.py",
     "frontend:dev": "corepack pnpm --dir frontend dev",
     "frontend:build": "corepack pnpm --dir frontend build",
     "sdk:generate": "corepack pnpm --dir packages/ts-sdk generate",

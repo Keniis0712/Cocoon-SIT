@@ -209,7 +209,7 @@ def validate_settings(ctx):
 
     cleared = client.post(f"/api/v1/plugins/{plugin_id}/clear-error", headers=user_headers)
     assert cleared.status_code == 200, cleared.text
-    assert cleared.json()["user_error_text"] is None
+    assert cleared.json()["user_error_text"] == "weather location not found"
 
     disabled = client.post(f"/api/v1/plugins/{plugin_id}/disable", headers=user_headers)
     assert disabled.status_code == 200, disabled.text
