@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { showErrorToast } from "@/api/client";
 import { createEmbeddingProvider, listEmbeddingProviders, updateEmbeddingProvider } from "@/api/embeddingProviders";
 import type { EmbeddingProviderPayload, EmbeddingProviderRead } from "@/api/types/providers";
+import AccessCard from "@/components/AccessCard";
 import PageFrame from "@/components/PageFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useUserStore } from "@/store/useUserStore";
 
 const EMPTY_FORM: EmbeddingProviderPayload = {
   name: "",
@@ -55,15 +57,19 @@ function embeddingProviderKindLabel(value: string, t: (key: string) => string) {
 
 export default function EmbeddingProvidersPage() {
   const { t } = useTranslation(["providers", "common"]);
+  const userInfo = useUserStore((state) => state.userInfo);
   const [items, setItems] = useState<EmbeddingProviderRead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EmbeddingProviderRead | null>(null);
   const [form, setForm] = useState<EmbeddingProviderPayload>(EMPTY_FORM);
+  const canManage = Boolean(userInfo?.can_manage_providers);
 
   useEffect(() => {
-    void fetchItems();
-  }, []);
+    if (canManage) {
+      void fetchItems();
+    }
+  }, [canManage]);
 
   async function fetchItems() {
     setIsLoading(true);
@@ -118,6 +124,10 @@ export default function EmbeddingProvidersPage() {
       console.error(error);
       showErrorToast(error, t("providers:embeddingSaveFailed"));
     }
+  }
+
+  if (!canManage) {
+    return <AccessCard description={t("providers:noPermission")} />;
   }
 
   return (

@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import { buildTimezoneOptions, resolveBrowserTimezone } from "@/lib/timezones";
 import { useUserStore } from "@/store/useUserStore";
 
@@ -94,6 +95,11 @@ export default function MePage() {
   }, [bindTokenExpiresAt, nowMs]);
 
   const bindTokenExpired = Boolean(bindTokenExpiresAt) && bindTokenSecondsRemaining <= 0;
+  const bindTokenCountdownText = !bindToken
+    ? ""
+    : bindTokenExpired
+      ? t("me.imBindExpired")
+      : t("me.imBindCountdown", { count: bindTokenSecondsRemaining });
 
   async function saveProfile() {
     if (!userInfo) {
@@ -150,7 +156,7 @@ export default function MePage() {
       return;
     }
     try {
-      await navigator.clipboard.writeText(bindToken);
+      await copyTextToClipboard(bindToken);
       toast.success(t("me.imBindTokenCopied"));
     } catch (error) {
       showErrorToast(error, t("me.imBindTokenCopyFailed"));
@@ -287,9 +293,9 @@ export default function MePage() {
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label>{t("me.imBindExpiresAt")}</Label>
+                <Label>{t("me.imBindCountdownLabel", { defaultValue: "Expires In" })}</Label>
                 <Input
-                  value={bindTokenExpiresAt ? new Date(bindTokenExpiresAt).toLocaleTimeString() : ""}
+                  value={bindTokenCountdownText}
                   disabled
                   placeholder="-"
                 />

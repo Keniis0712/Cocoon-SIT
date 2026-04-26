@@ -103,7 +103,7 @@ function buildMeResponse(profile: AuthMeProfileResponse): MeResponse {
     can_manage_prompts: Boolean(
       permissions["prompt_templates:read"] || permissions["prompt_templates:write"],
     ),
-    can_manage_providers: Boolean(permissions["providers:read"] || permissions["providers:write"]),
+    can_manage_providers: Boolean(permissions["providers:read"] && permissions["providers:write"]),
     timezone: profile.timezone || "UTC",
     permissions,
     invite_quota_remaining: null,

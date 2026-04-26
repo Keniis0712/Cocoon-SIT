@@ -34,12 +34,16 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { hasAnyPermission } from "@/lib/permissions";
+import { hasAnyPermission, hasPermission } from "@/lib/permissions";
 import { useUserStore } from "@/store/useUserStore";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation(["nav", "wakeups"]);
   const userInfo = useUserStore((state) => state.userInfo);
+  const canManageProviders =
+    hasPermission(userInfo, "providers:read") && hasPermission(userInfo, "providers:write");
+  const hasVisibleNavItems = (items: { title: string; url: string; icon: ReactNode }[]) =>
+    items.some((item) => Boolean(item.title && item.url));
 
   const workspaceItems = [
     hasAnyPermission(userInfo, ["cocoons:read", "cocoons:write"])
@@ -73,13 +77,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     hasAnyPermission(userInfo, ["users:read", "users:write"])
       ? { title: t("users"), url: "/users", icon: <Users /> }
       : null,
-    hasAnyPermission(userInfo, ["providers:read", "providers:write"])
+    canManageProviders
       ? { title: t("providers"), url: "/providers", icon: <Binary /> }
       : null,
     hasAnyPermission(userInfo, ["prompt_templates:read", "prompt_templates:write"])
       ? { title: t("prompts"), url: "/prompt-templates", icon: <FileCode2 /> }
       : null,
-    hasAnyPermission(userInfo, ["providers:read", "providers:write"])
+    canManageProviders
       ? { title: t("embeddingProviders"), url: "/embedding-providers", icon: <Binary /> }
       : null,
     hasAnyPermission(userInfo, ["audits:read"])
@@ -123,7 +127,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <NavMain items={workspaceItems} />
           </SidebarGroupContent>
         </SidebarGroup>
-        {collaborationItems.length > 0 ? (
+        {hasVisibleNavItems(collaborationItems) ? (
           <SidebarGroup>
             <SidebarGroupLabel>{t("collaboration")}</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -131,7 +135,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarGroupContent>
           </SidebarGroup>
         ) : null}
-        {managementItems.length > 0 ? (
+        {hasVisibleNavItems(managementItems) ? (
           <SidebarGroup>
             <SidebarGroupLabel>{t("management")}</SidebarGroupLabel>
             <SidebarGroupContent>
