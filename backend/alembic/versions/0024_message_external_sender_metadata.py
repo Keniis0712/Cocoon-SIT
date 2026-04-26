@@ -1,6 +1,6 @@
 """add external sender metadata to messages
 
-Revision ID: 0024_message_external_sender_metadata
+Revision ID: 0024_ext_sender_meta
 Revises: 0023_plugin_scope_error_split
 Create Date: 2026-04-26 12:30:00
 """
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "0024_message_external_sender_metadata"
+revision: str = "0024_ext_sender_meta"
 down_revision: str | None = "0023_plugin_scope_error_split"
 branch_labels = None
 depends_on = None
