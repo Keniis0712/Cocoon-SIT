@@ -26,6 +26,7 @@ class WorkerRuntime:
             session_factory=session_factory,
             chat_queue=chat_queue,
             chat_runtime=chat_runtime,
+            realtime_hub=realtime_hub,
         )
         self.durable_job_worker_service = DurableJobWorkerService(
             session_factory=session_factory,

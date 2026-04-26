@@ -17,5 +17,6 @@ class SystemSettings(Base, TimestampMixin, JsonDefaultMixin):
     default_max_context_messages: Mapped[int] = mapped_column(Integer, default=12)
     default_auto_compaction_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     private_chat_debounce_seconds: Mapped[int] = mapped_column(Integer, default=2)
+    group_chat_debounce_seconds: Mapped[int] = mapped_column(Integer, default=2)
     rollback_retention_days: Mapped[int] = mapped_column(Integer, default=30)
     rollback_cleanup_interval_hours: Mapped[int] = mapped_column(Integer, default=24)

@@ -76,6 +76,7 @@ def test_system_settings_drive_public_features_and_registration(client, auth_hea
             "default_max_context_messages": 18,
             "default_auto_compaction_enabled": False,
             "private_chat_debounce_seconds": 5,
+            "group_chat_debounce_seconds": 7,
             "rollback_retention_days": 14,
             "rollback_cleanup_interval_hours": 12,
         },
@@ -85,6 +86,7 @@ def test_system_settings_drive_public_features_and_registration(client, auth_hea
     assert payload["allow_registration"] is True
     assert payload["allowed_model_ids"] == [model_id]
     assert payload["private_chat_debounce_seconds"] == 5
+    assert payload["group_chat_debounce_seconds"] == 7
 
     features = client.get("/api/v1/auth/features")
     assert features.status_code == 200, features.text

@@ -103,6 +103,7 @@ export default function SettingsPage() {
         default_max_context_messages: form.default_max_context_messages,
         default_auto_compaction_enabled: form.default_auto_compaction_enabled,
         private_chat_debounce_seconds: form.private_chat_debounce_seconds,
+        group_chat_debounce_seconds: form.group_chat_debounce_seconds,
         rollback_retention_days: form.rollback_retention_days,
         rollback_cleanup_interval_hours: form.rollback_cleanup_interval_hours,
       };
@@ -170,6 +171,21 @@ export default function SettingsPage() {
                         setForm((prev) =>
                           prev
                             ? { ...prev, private_chat_debounce_seconds: Number(event.target.value || 0) }
+                            : prev
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{t("settings.groupChatDebounceSeconds")}</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={String(form.group_chat_debounce_seconds)}
+                      onChange={(event) =>
+                        setForm((prev) =>
+                          prev
+                            ? { ...prev, group_chat_debounce_seconds: Number(event.target.value || 0) }
                             : prev
                         )
                       }

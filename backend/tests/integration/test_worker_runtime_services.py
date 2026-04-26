@@ -28,6 +28,7 @@ def test_chat_dispatch_worker_service_processes_queued_message(client, auth_head
         session_factory=container.session_factory,
         chat_queue=container.chat_queue,
         chat_runtime=container.chat_runtime,
+        realtime_hub=container.realtime_hub,
     )
     client.post(
         f"/api/v1/cocoons/{default_cocoon_id}/messages",

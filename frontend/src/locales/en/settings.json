@@ -13,6 +13,7 @@
   "allowRegistrationHint": "When enabled, the login page exposes self-service registration backed by invite-code validation.",
   "maxChatTurns": "Maximum chat turns",
   "privateChatDebounceSeconds": "Chat debounce window (seconds)",
+  "groupChatDebounceSeconds": "Group chat aggregation window (seconds)",
   "defaultCocoonTemperature": "Default cocoon temperature",
   "defaultMaxContextMessages": "Default max context messages",
   "defaultAutoCompaction": "Enable auto compaction by default",

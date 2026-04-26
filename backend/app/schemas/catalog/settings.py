@@ -12,6 +12,7 @@ class SystemSettingsUpdate(BaseModel):
     default_max_context_messages: int | None = Field(default=None, ge=1)
     default_auto_compaction_enabled: bool | None = None
     private_chat_debounce_seconds: int | None = Field(default=None, ge=0)
+    group_chat_debounce_seconds: int | None = Field(default=None, ge=0)
     rollback_retention_days: int | None = Field(default=None, ge=0)
     rollback_cleanup_interval_hours: int | None = Field(default=None, ge=1)
 
@@ -24,6 +25,7 @@ class SystemSettingsOut(ORMModel):
     default_max_context_messages: int
     default_auto_compaction_enabled: bool
     private_chat_debounce_seconds: int
+    group_chat_debounce_seconds: int
     rollback_retention_days: int
     rollback_cleanup_interval_hours: int
     created_at: datetime

@@ -35,6 +35,7 @@ class SystemSettingsService:
             default_max_context_messages=12,
             default_auto_compaction_enabled=True,
             private_chat_debounce_seconds=2,
+            group_chat_debounce_seconds=2,
             rollback_retention_days=30,
             rollback_cleanup_interval_hours=24,
         )

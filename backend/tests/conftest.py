@@ -129,6 +129,9 @@ def client(test_settings: Settings) -> TestClient:
                     )
                 )
                 session.flush()
+            settings = container.system_settings_service.get_settings(session)
+            settings.private_chat_debounce_seconds = 0
+            settings.group_chat_debounce_seconds = 0
             session.commit()
         yield test_client
 

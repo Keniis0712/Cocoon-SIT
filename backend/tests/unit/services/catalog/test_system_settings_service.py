@@ -29,10 +29,10 @@ def test_system_settings_service_creates_default_row_and_updates_whitelist():
                 allow_registration=True,
                 max_chat_turns=9,
                 allowed_model_ids=[model_two.id, model_one.id],
-                default_cocoon_temperature=0.9,
                 default_max_context_messages=20,
                 default_auto_compaction_enabled=False,
                 private_chat_debounce_seconds=5,
+                group_chat_debounce_seconds=6,
                 rollback_retention_days=7,
                 rollback_cleanup_interval_hours=3,
             ),
@@ -43,10 +43,10 @@ def test_system_settings_service_creates_default_row_and_updates_whitelist():
         assert updated.allow_registration is True
         assert updated.max_chat_turns == 9
         assert updated.allowed_model_ids_json == [model_two.id, model_one.id]
-        assert updated.default_cocoon_temperature == 0.9
         assert updated.default_max_context_messages == 20
         assert updated.default_auto_compaction_enabled is False
         assert updated.private_chat_debounce_seconds == 5
+        assert updated.group_chat_debounce_seconds == 6
         assert updated.rollback_retention_days == 7
         assert updated.rollback_cleanup_interval_hours == 3
         assert [item.id for item in allowed] == [model_two.id, model_one.id]

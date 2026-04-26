@@ -6,6 +6,7 @@ from app.models import ActionDispatch, AuditRun, Message
 from app.services.plugins.im_delivery_service import PluginImDeliveryService
 from app.services.audit.service import AuditService
 from app.services.realtime.hub import RealtimeHub
+from app.services.runtime.errors import RuntimeActionAbortedError
 from app.services.runtime.orchestration.side_effects import SideEffects
 from app.services.runtime.types import ContextPackage, GenerationOutput
 
@@ -34,6 +35,7 @@ class ReplyDeliveryService:
         generator_step,
         generation: GenerationOutput,
     ) -> Message:
+        self.side_effects.ensure_action_is_writable(session, action)
         self.realtime_hub.publish(
             context.channel_key,
             {
@@ -44,6 +46,7 @@ class ReplyDeliveryService:
             },
         )
         for chunk in generation.chunks:
+            self.side_effects.ensure_action_is_writable(session, action)
             self.realtime_hub.publish(
                 context.channel_key,
                 {
@@ -51,9 +54,12 @@ class ReplyDeliveryService:
                     "action_id": action.id,
                     "text": chunk,
                     "cocoon_id": context.runtime_event.cocoon_id,
-                "chat_group_id": context.runtime_event.chat_group_id,
-            },
-        )
+                    "chat_group_id": context.runtime_event.chat_group_id,
+                },
+            )
+        self.side_effects.ensure_action_is_writable(session, action)
+        if action.status != "running":
+            raise RuntimeActionAbortedError(f"Action {action.id} is no longer writable")
         message = self.side_effects.persist_generated_message(session, context, action, generation)
         self.plugin_im_delivery_service.enqueue_reply(session, action=action, message=message)
         self.realtime_hub.publish(

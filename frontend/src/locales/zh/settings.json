@@ -49,6 +49,7 @@
   "systemConfigDescription": "这些值会持久化到后端系统设置，并影响公开特性、Cocoon 默认值和请求防抖行为。",
   "allowRegistrationHint": "开启后，登录页会展示自助注册入口，并通过邀请码完成校验。",
   "privateChatDebounceSeconds": "对话防抖窗口（秒）",
+  "groupChatDebounceSeconds": "群聊聚合窗口（秒）",
   "defaultCocoonTemperature": "Cocoon 默认温度",
   "defaultMaxContextMessages": "默认上下文消息数",
   "defaultAutoCompaction": "默认开启自动压缩",

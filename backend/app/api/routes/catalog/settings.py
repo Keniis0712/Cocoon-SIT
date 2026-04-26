@@ -18,6 +18,7 @@ def _serialize(settings: SystemSettings) -> SystemSettingsOut:
         default_max_context_messages=settings.default_max_context_messages,
         default_auto_compaction_enabled=settings.default_auto_compaction_enabled,
         private_chat_debounce_seconds=settings.private_chat_debounce_seconds,
+        group_chat_debounce_seconds=settings.group_chat_debounce_seconds,
         rollback_retention_days=settings.rollback_retention_days,
         rollback_cleanup_interval_hours=settings.rollback_cleanup_interval_hours,
         created_at=settings.created_at,

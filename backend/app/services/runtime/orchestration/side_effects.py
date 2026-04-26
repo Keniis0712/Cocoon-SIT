@@ -10,6 +10,7 @@ from app.models.workspace import DEFAULT_RELATION_SCORE, MAX_RELATION_SCORE, MIN
 from app.services.audit.service import AuditService
 from app.services.catalog.tag_policy import canonicalize_tag_refs, ensure_state_default_tag
 from app.services.memory.service import MemoryService
+from app.services.runtime.errors import RuntimeActionAbortedError
 from app.services.runtime.types import ContextPackage, GenerationOutput, MemoryCandidate, MetaDecision
 
 
@@ -75,6 +76,7 @@ class SideEffects:
         action: ActionDispatch,
         meta: MetaDecision,
     ) -> Message:
+        self.ensure_action_is_writable(session, action)
         thought_text = str(meta.internal_thought or "").strip() or "Structured meta decision completed."
         event_summary = str(meta.event_summary or "").strip() or None
         return self._persist_message(
@@ -94,6 +96,7 @@ class SideEffects:
         action: ActionDispatch,
         generation: GenerationOutput,
     ) -> Message:
+        self.ensure_action_is_writable(session, action)
         event_type = context.runtime_event.event_type
         role = "assistant"
         if event_type == "pull":
@@ -260,11 +263,21 @@ class SideEffects:
         status: str,
         error_text: str | None = None,
     ) -> None:
+        session.refresh(action)
+        if action.status != ActionStatus.running:
+            return
         action.status = status
         action.error_text = error_text
         action.finished_at = datetime.now(UTC).replace(tzinfo=None)
         self.audit_service.finish_run(session, audit_run, status)
         session.flush()
+
+    def ensure_action_is_writable(self, session: Session, action: ActionDispatch) -> None:
+        session.refresh(action)
+        if action.status != ActionStatus.running:
+            raise RuntimeActionAbortedError(
+                f"Action {action.id} is no longer writable: status={action.status}"
+            )
 
     def _persist_message(
         self,

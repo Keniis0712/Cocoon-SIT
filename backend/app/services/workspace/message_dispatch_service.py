@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import ActionDispatch, ChatGroupRoom, Cocoon, Message, MessageTag
@@ -57,9 +57,7 @@ class MessageDispatchService(MessageDispatchBase):
     ) -> ActionDispatch:
         """Create a chat action and user message, enqueue it, and emit a queue event."""
         timezone_name = (timezone or "UTC").strip() or "UTC"
-        existing = session.scalar(
-            select(ActionDispatch).where(ActionDispatch.client_request_id == client_request_id)
-        )
+        existing = self._find_action_for_client_request_id(session, client_request_id)
         if existing:
             self.logger.info(
                 "Reusing existing chat action_id=%s for client_request_id=%s cocoon_id=%s",
@@ -68,20 +66,6 @@ class MessageDispatchService(MessageDispatchBase):
                 cocoon_id,
             )
             return existing
-        debounce_key = self._build_debounce_key("chat", content)
-        if existing_debounced := self._find_debounced_action(
-            session,
-            cocoon_id=cocoon_id,
-            event_type="chat",
-            debounce_key=debounce_key,
-        ):
-            self.logger.info(
-                "Reusing debounced chat action_id=%s cocoon_id=%s debounce_key=%s",
-                existing_debounced.id,
-                cocoon_id,
-                debounce_key,
-            )
-            return existing_debounced
 
         cocoon = session.get(Cocoon, cocoon_id)
         if not cocoon:
@@ -93,28 +77,47 @@ class MessageDispatchService(MessageDispatchBase):
             only_trigger_kind="idle_timeout",
             cancelled_reason="Cancelled because the user sent a new message",
         )
-        debounce_seconds = self._current_debounce_seconds(session)
-
-        action = ActionDispatch(
-            cocoon_id=cocoon_id,
-            event_type="chat",
-            status=ActionStatus.queued,
-            client_request_id=client_request_id,
-            debounce_until=datetime.now(UTC).replace(tzinfo=None)
-            + timedelta(seconds=debounce_seconds),
-            payload_json={
-                "timezone": timezone_name,
-                "debounce_key": debounce_key,
-                "client_sent_at": client_sent_at.isoformat() if client_sent_at else None,
-                "locale": locale,
-                "idle_seconds": idle_seconds,
-                "recent_turn_count": recent_turn_count,
-                "typing_hint_ms": typing_hint_ms,
-                **dict(extra_payload or {}),
-            },
+        debounce_seconds = self._current_debounce_seconds(session, target_type="cocoon")
+        now = datetime.now(UTC).replace(tzinfo=None)
+        debounce_until = now + timedelta(seconds=debounce_seconds)
+        pending_action = (
+            self._find_pending_chat_action(session, cocoon_id=cocoon_id)
+            if debounce_seconds > 0
+            else None
         )
-        session.add(action)
-        session.flush()
+        if pending_action:
+            self.logger.info(
+                "Aggregating chat message into pending action_id=%s cocoon_id=%s",
+                pending_action.id,
+                cocoon_id,
+            )
+        debounce_key = self._build_debounce_key("chat", cocoon_id)
+
+        action = pending_action
+        if action is None:
+            action = ActionDispatch(
+                cocoon_id=cocoon_id,
+                event_type="chat",
+                status=ActionStatus.queued,
+                client_request_id=client_request_id,
+                debounce_until=debounce_until,
+                payload_json={
+                    "timezone": timezone_name,
+                    "debounce_key": debounce_key,
+                    "chat_retry_attempt": 1,
+                    "client_sent_at": client_sent_at.isoformat() if client_sent_at else None,
+                    "locale": locale,
+                    "idle_seconds": idle_seconds,
+                    "recent_turn_count": recent_turn_count,
+                    "typing_hint_ms": typing_hint_ms,
+                    "aggregated_message_count": 0,
+                    **dict(extra_payload or {}),
+                },
+            )
+            session.add(action)
+            session.flush()
+        else:
+            action.debounce_until = debounce_until
 
         message = Message(
             cocoon_id=cocoon_id,
@@ -131,26 +134,34 @@ class MessageDispatchService(MessageDispatchBase):
         session.flush()
         action.payload_json = {
             "message_id": message.id,
-            "client_request_id": client_request_id,
+            "client_request_id": action.client_request_id or client_request_id,
             "timezone": timezone_name,
             "debounce_key": debounce_key,
+            "chat_retry_attempt": int((action.payload_json or {}).get("chat_retry_attempt") or 1),
             "client_sent_at": client_sent_at.isoformat() if client_sent_at else None,
             "locale": locale,
             "idle_seconds": idle_seconds,
             "recent_turn_count": recent_turn_count,
             "typing_hint_ms": typing_hint_ms,
+            "sender_user_id": sender_user_id,
+            "external_sender_id": external_sender_id,
+            "external_sender_display_name": external_sender_display_name,
+            "aggregated_message_count": self._count_action_messages(session, action.id),
             **dict(extra_payload or {}),
         }
         for tag in state.active_tags_json:
             session.add(MessageTag(message_id=message.id, tag_id=tag))
         session.flush()
-        self._commit_then_enqueue(
-            session,
-            action=action,
-            cocoon_id=cocoon_id,
-            event_type="chat",
-            payload=dict(action.payload_json),
-        )
+        if pending_action is None:
+            self._commit_then_enqueue(
+                session,
+                action=action,
+                cocoon_id=cocoon_id,
+                event_type="chat",
+                payload=dict(action.payload_json),
+            )
+        else:
+            session.commit()
         return action
 
     def enqueue_chat_group_message(
@@ -172,9 +183,7 @@ class MessageDispatchService(MessageDispatchBase):
         extra_payload: dict | None = None,
     ) -> ActionDispatch:
         timezone_name = (timezone or "UTC").strip() or "UTC"
-        existing = session.scalar(
-            select(ActionDispatch).where(ActionDispatch.client_request_id == client_request_id)
-        )
+        existing = self._find_action_for_client_request_id(session, client_request_id)
         if existing:
             self.logger.info(
                 "Reusing existing chat-group action_id=%s for client_request_id=%s "
@@ -184,22 +193,6 @@ class MessageDispatchService(MessageDispatchBase):
                 chat_group_id,
             )
             return existing
-        debounce_key = self._build_debounce_key(
-            "chat_group", chat_group_id, sender_user_id, content
-        )
-        if existing_debounced := self._find_debounced_action(
-            session,
-            chat_group_id=chat_group_id,
-            event_type="chat",
-            debounce_key=debounce_key,
-        ):
-            self.logger.info(
-                "Reusing debounced chat-group action_id=%s chat_group_id=%s debounce_key=%s",
-                existing_debounced.id,
-                chat_group_id,
-                debounce_key,
-            )
-            return existing_debounced
 
         room = session.get(ChatGroupRoom, chat_group_id)
         if not room:
@@ -211,33 +204,51 @@ class MessageDispatchService(MessageDispatchBase):
             only_trigger_kind="idle_timeout",
             cancelled_reason="Cancelled because the user sent a new group message",
         )
-        debounce_seconds = self._current_debounce_seconds(session)
-        debounce_sender = sender_user_id or ""
-
-        action = ActionDispatch(
-            chat_group_id=chat_group_id,
-            event_type="chat",
-            status=ActionStatus.queued,
-            client_request_id=client_request_id,
-            debounce_until=datetime.now(UTC).replace(tzinfo=None)
-            + timedelta(seconds=debounce_seconds),
-            payload_json={
-                "timezone": timezone_name,
-                "debounce_key": self._build_debounce_key(
-                    "chat_group", chat_group_id, debounce_sender, content
-                ),
-                "sender_user_id": sender_user_id,
-                "character_id": room.character_id,
-                "client_sent_at": client_sent_at.isoformat() if client_sent_at else None,
-                "locale": locale,
-                "idle_seconds": idle_seconds,
-                "recent_turn_count": recent_turn_count,
-                "typing_hint_ms": typing_hint_ms,
-                **dict(extra_payload or {}),
-            },
+        debounce_seconds = self._current_debounce_seconds(session, target_type="chat_group")
+        now = datetime.now(UTC).replace(tzinfo=None)
+        debounce_until = now + timedelta(seconds=debounce_seconds)
+        pending_action = (
+            self._find_pending_chat_action(session, chat_group_id=chat_group_id)
+            if debounce_seconds > 0
+            else None
         )
-        session.add(action)
-        session.flush()
+        if pending_action:
+            self.logger.info(
+                "Aggregating chat-group message into pending action_id=%s chat_group_id=%s",
+                pending_action.id,
+                chat_group_id,
+            )
+        debounce_key = self._build_debounce_key("chat_group", chat_group_id)
+
+        action = pending_action
+        if action is None:
+            action = ActionDispatch(
+                chat_group_id=chat_group_id,
+                event_type="chat",
+                status=ActionStatus.queued,
+                client_request_id=client_request_id,
+                debounce_until=debounce_until,
+                payload_json={
+                    "timezone": timezone_name,
+                    "debounce_key": debounce_key,
+                    "chat_retry_attempt": 1,
+                    "sender_user_id": sender_user_id,
+                    "external_sender_id": external_sender_id,
+                    "external_sender_display_name": external_sender_display_name,
+                    "character_id": room.character_id,
+                    "client_sent_at": client_sent_at.isoformat() if client_sent_at else None,
+                    "locale": locale,
+                    "idle_seconds": idle_seconds,
+                    "recent_turn_count": recent_turn_count,
+                    "typing_hint_ms": typing_hint_ms,
+                    "aggregated_message_count": 0,
+                    **dict(extra_payload or {}),
+                },
+            )
+            session.add(action)
+            session.flush()
+        else:
+            action.debounce_until = debounce_until
 
         message = Message(
             chat_group_id=chat_group_id,
@@ -254,28 +265,35 @@ class MessageDispatchService(MessageDispatchBase):
         session.flush()
         action.payload_json = {
             "message_id": message.id,
-            "client_request_id": client_request_id,
+            "client_request_id": action.client_request_id or client_request_id,
             "timezone": timezone_name,
             "debounce_key": debounce_key,
+            "chat_retry_attempt": int((action.payload_json or {}).get("chat_retry_attempt") or 1),
             "sender_user_id": sender_user_id,
+            "external_sender_id": external_sender_id,
+            "external_sender_display_name": external_sender_display_name,
             "character_id": room.character_id,
             "client_sent_at": client_sent_at.isoformat() if client_sent_at else None,
             "locale": locale,
             "idle_seconds": idle_seconds,
             "recent_turn_count": recent_turn_count,
             "typing_hint_ms": typing_hint_ms,
+            "aggregated_message_count": self._count_action_messages(session, action.id),
             **dict(extra_payload or {}),
         }
         for tag in state.active_tags_json:
             session.add(MessageTag(message_id=message.id, tag_id=tag))
         session.flush()
-        self._commit_then_enqueue(
-            session,
-            action=action,
-            chat_group_id=chat_group_id,
-            event_type="chat",
-            payload=dict(action.payload_json),
-        )
+        if pending_action is None:
+            self._commit_then_enqueue(
+                session,
+                action=action,
+                chat_group_id=chat_group_id,
+                event_type="chat",
+                payload=dict(action.payload_json),
+            )
+        else:
+            session.commit()
         return action
 
     def enqueue_user_message_edit(
@@ -351,3 +369,9 @@ class MessageDispatchService(MessageDispatchBase):
             payload=dict(action.payload_json),
         )
         return action
+
+    def _count_action_messages(self, session: Session, action_id: str) -> int:
+        return int(
+            session.scalar(select(func.count()).select_from(Message).where(Message.action_id == action_id))
+            or 0
+        )
