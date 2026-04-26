@@ -139,6 +139,42 @@ def _character_settings_payload(context: ContextPackage) -> dict[str, Any]:
     return payload
 
 
+def _compact_im_runtime_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    compact: dict[str, Any] = {}
+    im_metadata = payload.get("im_metadata_json")
+    if isinstance(im_metadata, dict):
+        im_context: dict[str, Any] = {}
+        for key in ("platform", "conversation_kind", "occurred_at"):
+            value = im_metadata.get(key)
+            if value not in (None, "", [], {}):
+                im_context[key] = value
+        raw_payload = im_metadata.get("raw_payload")
+        if isinstance(raw_payload, dict):
+            sender = raw_payload.get("sender")
+            if isinstance(sender, dict):
+                nickname = sender.get("nickname")
+                if nickname not in (None, ""):
+                    im_context["sender_nickname"] = nickname
+        if im_context:
+            compact["im_context"] = im_context
+
+    route_metadata = payload.get("im_route_metadata_json")
+    if isinstance(route_metadata, dict):
+        route_context: dict[str, Any] = {}
+        for key in ("platform", "conversation_kind"):
+            value = route_metadata.get(key)
+            if value not in (None, "", [], {}):
+                route_context[key] = value
+        route_tags = route_metadata.get("tags")
+        if isinstance(route_tags, list):
+            names = [str(item).strip() for item in route_tags if str(item).strip()]
+            if names:
+                route_context["tags"] = names
+        if route_context:
+            compact["im_route_context"] = route_context
+    return compact
+
+
 def _participant_key(message) -> str | None:
     sender_user_id = getattr(message, "sender_user_id", None)
     if sender_user_id:
@@ -254,16 +290,20 @@ def _merge_context_payload(
         "source_state": {
             "relation_score": source_state_payload.get("relation_score", 0),
             "persona_json": _sanitize_prompt_value(source_state_payload.get("persona_json", {})),
-            "active_tags": _serialize_tags(tag_refs, context, catalog),
+            "active_tags": _serialize_tag_names(tag_refs, context, catalog),
         },
     }
 
 
 def _runtime_event_payload(context: ContextPackage) -> dict[str, Any]:
+    payload = _sanitize_prompt_dict(context.runtime_event.payload)
+    payload.pop("im_metadata_json", None)
+    payload.pop("im_route_metadata_json", None)
     return {
         "event_type": context.runtime_event.event_type,
         "target_type": context.runtime_event.target_type,
-        **_sanitize_prompt_dict(context.runtime_event.payload),
+        **payload,
+        **_compact_im_runtime_payload(context.runtime_event.payload),
     }
 
 
@@ -344,8 +384,9 @@ def build_runtime_prompt_variables(
         "session_state": {
             "relation_score": context.session_state.relation_score,
             "persona": context.session_state.persona_json,
-            "active_tags": _serialize_tags(list(context.session_state.active_tags_json or []), context, catalog),
-            "tag_catalog": _prompt_tag_catalog(context),
+            "active_tags": _serialize_tag_names(
+                list(context.session_state.active_tags_json or []), context, catalog
+            ),
         },
         "tag_catalog": _prompt_tag_catalog(context),
         "visible_messages": [

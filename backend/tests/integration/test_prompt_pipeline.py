@@ -99,7 +99,9 @@ def test_runtime_uses_meta_and_system_prompt_templates(
         assert system_snapshot is not None
         assert generator_snapshot is not None
 
-        assert "META CUSTOM MARKER" in _read_artifact_payload(meta_snapshot)["rendered_prompt"]
+        meta_rendered = _read_artifact_payload(meta_snapshot)["rendered_prompt"]
+        assert "META CUSTOM MARKER" in meta_rendered
+        assert "raw_payload" not in meta_rendered
         assert "SYSTEM CUSTOM MARKER" in _read_artifact_payload(system_snapshot)["rendered_prompt"]
         assert _read_artifact_payload(generator_snapshot)["template_type"] == "generator"
 
@@ -304,12 +306,8 @@ def test_runtime_prompt_exposes_readable_tag_metadata(
         payload = _read_artifact_payload(meta_variables)["variables"]
         active_tags = payload["session_state"]["active_tags"]
         assert active_tags
-        active_tag_names = [item["name"] for item in active_tags]
-        assert active_tag_names[0] == "default"
-        assert "focus-readable" in active_tag_names
-        focus_active_tag = next(item for item in active_tags if item["name"] == "focus-readable")
-        assert focus_active_tag["brief"] == "Readable focus tag"
-        assert focus_active_tag["visibility"]["description"]
+        assert active_tags[0] == "default"
+        assert "focus-readable" in active_tags
         assert payload["tag_catalog"]
         tag_catalog_ids = [item["tag_id"] for item in payload["tag_catalog"]]
         assert tag_catalog_ids[0] == "default"

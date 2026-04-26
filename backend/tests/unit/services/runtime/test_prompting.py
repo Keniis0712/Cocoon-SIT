@@ -30,6 +30,25 @@ def _build_context(*, target_type: str = "chat_group") -> ContextPackage:
             "message_id": "3d12bf20-37c7-43c7-85b6-941ad74eb22f",
             "client_request_id": "2ac72c91-27db-4cfd-b3f7-04ca0f4f8950",
             "timezone": "Asia/Shanghai",
+            "aggregated_message_count": 2,
+            "chat_retry_attempt": 1,
+            "im_message_kind": "group",
+            "external_sender_display_name": "Ken",
+            "im_metadata_json": {
+                "platform": "nonebot_onebot_v11",
+                "conversation_kind": "group",
+                "occurred_at": "2026-04-26T06:10:05+00:00",
+                "raw_payload": {
+                    "sender": {"nickname": "ken"},
+                    "raw": {"msgId": "7632946327361689287"},
+                    "message": [{"type": "text", "data": {"text": "hello"}}],
+                },
+            },
+            "im_route_metadata_json": {
+                "platform": "nonebot_onebot_v11",
+                "conversation_kind": "group",
+                "tags": ["default", "focus"],
+            },
         },
     )
     tag_group_visible = target_type == "cocoon"
@@ -195,19 +214,24 @@ def test_build_runtime_prompt_variables_builds_full_payload():
 
     assert payload["character_settings"]["prompt_summary"] == "friendly companion"
     assert payload["conversation_target"] == {"type": "cocoon", "name": "Demo Cocoon"}
-    assert payload["session_state"]["active_tags"][0]["name"] == "default"
+    assert payload["session_state"]["active_tags"] == ["default", "Public Tag", "group-id"]
     assert payload["tag_catalog"][0]["tag_id"] == "default"
     assert payload["visible_messages"][0]["tags"] == ["default", "Public Tag"]
     assert payload["visible_messages"][0]["speaker"] == "you"
     assert payload["memory_context"][0]["source"] == "chat_group"
     assert payload["runtime_event"]["source"] == "user"
     assert payload["runtime_event"]["timezone"] == "Asia/Shanghai"
+    assert payload["runtime_event"]["im_context"]["platform"] == "nonebot_onebot_v11"
+    assert payload["runtime_event"]["im_context"]["sender_nickname"] == "ken"
+    assert payload["runtime_event"]["im_route_context"]["tags"] == ["default", "focus"]
     assert payload["current_time"]["timezone"] == "Asia/Shanghai"
     assert payload["current_time"]["local_time"]
     assert payload["current_time"]["local_time_iso"].endswith("+08:00")
     assert "message_id" not in payload["runtime_event"]
+    assert "im_metadata_json" not in payload["runtime_event"]
+    assert "im_route_metadata_json" not in payload["runtime_event"]
     assert payload["pending_wakeups"] == [{"id": "wake-1", "run_at": None, "reason": None, "status": None, "has_payload": False}]
-    assert payload["merge_context"]["source_state"]["active_tags"][0]["name"] == "Public Tag"
+    assert payload["merge_context"]["source_state"]["active_tags"] == ["Public Tag"]
     assert payload["provider_capabilities"] == {"streaming": True}
 
 def test_build_runtime_prompt_variables_drops_duplicate_prompt_summary():
@@ -230,7 +254,7 @@ def test_build_runtime_prompt_variables_handles_non_dict_catalog_and_merge_paylo
 
     payload = build_runtime_prompt_variables(context)
 
-    assert payload["session_state"]["active_tags"][0]["name"] == "tag-system"
+    assert payload["session_state"]["active_tags"][0] == "tag-system"
     assert payload["merge_context"] == "plain"
 
 

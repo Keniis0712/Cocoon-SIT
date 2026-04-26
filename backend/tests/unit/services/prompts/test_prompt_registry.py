@@ -21,6 +21,17 @@ def test_get_default_template_payload_returns_named_template_and_rejects_unknown
     assert isinstance(name, str)
     assert description == ""
     assert isinstance(content, str)
+    assert name == "生成模板"
+    assert "角色专属设定：" in content
+    assert "生成要求：" in content
 
     with pytest.raises(KeyError):
         get_default_template_payload("missing")
+
+
+def test_system_template_uses_readable_chinese_headings():
+    name, _, content = get_default_template_payload(PromptTemplateType.system)
+
+    assert name == "系统模板"
+    assert "当前会话状态：" in content
+    assert "全局规则：" in content
