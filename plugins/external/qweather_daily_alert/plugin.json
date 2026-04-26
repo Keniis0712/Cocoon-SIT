@@ -1,6 +1,6 @@
 {
   "name": "qweather_daily_alert",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "display_name": "和风天气预报与预警",
   "plugin_type": "external",
   "entry_module": "main",

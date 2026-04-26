@@ -29,7 +29,7 @@ class _FakeResponse:
         return self._payload
 
 
-def test_weather_alerts_accepts_zero_result_response(monkeypatch):
+def test_weather_alerts_skips_wakeup_for_zero_result_response(monkeypatch):
     module = _load_plugin_module()
     ctx = SimpleNamespace(user_id="user-1")
     cfg = {
@@ -49,9 +49,30 @@ def test_weather_alerts_accepts_zero_result_response(monkeypatch):
 
     result = module.weather_alerts(ctx)
 
-    assert "没有" in result["summary"]
-    assert result["payload"]["kind"] == "qweather_alerts"
-    assert result["payload"]["weather_alerts"]["alerts"] == []
+    assert result is None
+
+
+def test_weather_alerts_skips_wakeup_for_empty_alert_list(monkeypatch):
+    module = _load_plugin_module()
+    ctx = SimpleNamespace(user_id="user-1")
+    cfg = {
+        "api_host": "api.example.com",
+        "alert_latitude": "31.23",
+        "alert_longitude": "121.47",
+        "lang": "zh",
+        "local_time": True,
+    }
+
+    monkeypatch.setattr(module, "_token_and_config", lambda _ctx: ("token-1", cfg))
+    monkeypatch.setattr(
+        module.requests,
+        "get",
+        lambda *args, **kwargs: _FakeResponse({"code": "200", "alerts": []}),
+    )
+
+    result = module.weather_alerts(ctx)
+
+    assert result is None
 
 
 def test_qweather_get_keeps_non_alert_calls_strict(monkeypatch):
@@ -74,7 +95,7 @@ def test_qweather_get_retries_timeout_before_succeeding(monkeypatch):
         calls["count"] += 1
         if calls["count"] < 3:
             raise module.requests.Timeout("timed out")
-        return _FakeResponse({"code": "200", "now": {"text": "晴"}})
+        return _FakeResponse({"code": "200", "now": {"text": "Sunny"}})
 
     monkeypatch.setattr(module.requests, "get", fake_get)
     monkeypatch.setattr(module.time, "sleep", lambda *_args, **_kwargs: None)

@@ -240,6 +240,9 @@ def weather_alerts(ctx):
         alert_data = _weather_alerts(cfg["api_host"], token, cfg)
     except Exception as exc:
         raise PluginUserVisibleError(str(exc), user_id=ctx.user_id) from exc
+    alerts = alert_data.get("alerts") or []
+    if not alerts:
+        return None
     return {
         "summary": _format_alert_summary(alert_data),
         "payload": {
