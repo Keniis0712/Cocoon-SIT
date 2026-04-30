@@ -34,6 +34,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--basetemp=.tmp_pytest/pytest"
 markers = [
   "api: HTTP/API surface tests",
   "pgvector: requires a PostgreSQL database with pgvector enabled",

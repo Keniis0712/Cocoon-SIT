@@ -1125,6 +1125,138 @@
         ]
       }
     },
+    "/api/v1/invites/quotas": {
+      "get": {
+        "tags": [
+          "invites"
+        ],
+        "summary": "List Invite Quota Accounts",
+        "operationId": "list_invite_quota_accounts_api_v1_invites_quotas_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/InviteQuotaAccountOut"
+                      },
+                      "type": "array",
+                      "title": "Response List Invite Quota Accounts Api V1 Invites Quotas Get"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/invites/quotas/{target_type}/{target_id}": {
+      "patch": {
+        "tags": [
+          "invites"
+        ],
+        "summary": "Update Invite Summary",
+        "operationId": "update_invite_summary_api_v1_invites_quotas__target_type___target_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "target_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target Type"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteQuotaUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/InviteSummaryOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invites/grants/{grant_id}": {
       "delete": {
         "tags": [
@@ -7012,6 +7144,90 @@
         }
       }
     },
+    "/api/v1/plugins/{plugin_id}/events/{event_name}/schedule": {
+      "patch": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Update User Plugin Event Schedule",
+        "operationId": "update_user_plugin_event_schedule_api_v1_plugins__plugin_id__events__event_name__schedule_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plugin_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plugin Id"
+            }
+          },
+          {
+            "name": "event_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Event Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserPluginEventScheduleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "msg": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserPluginOut"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/plugins/{plugin_id}/chat-groups/{chat_group_id}/config": {
       "get": {
         "tags": [
@@ -9258,90 +9474,6 @@
         }
       }
     },
-    "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/schedule": {
-      "patch": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Update Event Schedule",
-        "operationId": "update_event_schedule_api_v1_admin_plugins__plugin_id__events__event_name__schedule_patch",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "plugin_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Plugin Id"
-            }
-          },
-          {
-            "name": "event_name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Event Name"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PluginEventScheduleUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "code",
-                    "msg",
-                    "data"
-                  ],
-                  "properties": {
-                    "code": {
-                      "type": "string",
-                      "example": "OK"
-                    },
-                    "msg": {
-                      "type": "string",
-                      "example": "ok"
-                    },
-                    "data": {
-                      "$ref": "#/components/schemas/PluginDetailOut"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiValidationEnvelope"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/run": {
       "post": {
         "tags": [
@@ -10099,6 +10231,50 @@
               }
             ],
             "title": "Action Id"
+          },
+          "user_message_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Message Id"
+          },
+          "assistant_message_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assistant Message Id"
+          },
+          "trigger_input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger Input"
+          },
+          "assistant_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assistant Output"
           },
           "operation_type": {
             "type": "string",
@@ -11212,6 +11388,28 @@
             ],
             "title": "Sender User Id"
           },
+          "external_sender_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Sender Id"
+          },
+          "external_sender_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Sender Display Name"
+          },
           "role": {
             "type": "string",
             "title": "Role"
@@ -11359,11 +11557,25 @@
             "title": "Name"
           },
           "character_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Character Id"
           },
           "selected_model_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Selected Model Id"
           },
           "parent_id": {
@@ -11414,9 +11626,7 @@
         },
         "type": "object",
         "required": [
-          "name",
-          "character_id",
-          "selected_model_id"
+          "name"
         ],
         "title": "CocoonCreate"
       },
@@ -12768,6 +12978,69 @@
         ],
         "title": "InviteOut"
       },
+      "InviteQuotaAccountOut": {
+        "properties": {
+          "target_type": {
+            "type": "string",
+            "title": "Target Type"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "invite_quota_remaining": {
+            "type": "integer",
+            "title": "Invite Quota Remaining"
+          },
+          "invite_quota_unlimited": {
+            "type": "boolean",
+            "title": "Invite Quota Unlimited"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_type",
+          "target_id",
+          "invite_quota_remaining",
+          "invite_quota_unlimited",
+          "updated_at"
+        ],
+        "title": "InviteQuotaAccountOut"
+      },
+      "InviteQuotaUpdate": {
+        "properties": {
+          "invite_quota_remaining": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite Quota Remaining"
+          },
+          "invite_quota_unlimited": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite Quota Unlimited"
+          }
+        },
+        "type": "object",
+        "title": "InviteQuotaUpdate"
+      },
       "InviteRedeemRequest": {
         "properties": {
           "user_id": {
@@ -13606,47 +13879,6 @@
           "schedule_cron"
         ],
         "title": "PluginEventOut"
-      },
-      "PluginEventScheduleUpdate": {
-        "properties": {
-          "schedule_mode": {
-            "type": "string",
-            "enum": [
-              "manual",
-              "interval",
-              "cron"
-            ],
-            "title": "Schedule Mode"
-          },
-          "schedule_interval_seconds": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Schedule Interval Seconds"
-          },
-          "schedule_cron": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Schedule Cron"
-          }
-        },
-        "type": "object",
-        "required": [
-          "schedule_mode"
-        ],
-        "title": "PluginEventScheduleUpdate"
       },
       "PluginGroupVisibilityOut": {
         "properties": {
@@ -14556,13 +14788,18 @@
             "type": "string",
             "minLength": 4,
             "title": "Invite Code"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
           }
         },
         "type": "object",
         "required": [
           "username",
           "password",
-          "invite_code"
+          "invite_code",
+          "timezone"
         ],
         "title": "RegisterRequest"
       },
@@ -14828,10 +15065,6 @@
             "type": "array",
             "title": "Allowed Model Ids"
           },
-          "default_cocoon_temperature": {
-            "type": "number",
-            "title": "Default Cocoon Temperature"
-          },
           "default_max_context_messages": {
             "type": "integer",
             "title": "Default Max Context Messages"
@@ -14843,6 +15076,10 @@
           "private_chat_debounce_seconds": {
             "type": "integer",
             "title": "Private Chat Debounce Seconds"
+          },
+          "group_chat_debounce_seconds": {
+            "type": "integer",
+            "title": "Group Chat Debounce Seconds"
           },
           "rollback_retention_days": {
             "type": "integer",
@@ -14869,10 +15106,10 @@
           "allow_registration",
           "max_chat_turns",
           "allowed_model_ids",
-          "default_cocoon_temperature",
           "default_max_context_messages",
           "default_auto_compaction_enabled",
           "private_chat_debounce_seconds",
+          "group_chat_debounce_seconds",
           "rollback_retention_days",
           "rollback_cleanup_interval_hours",
           "created_at",
@@ -14919,17 +15156,6 @@
             ],
             "title": "Allowed Model Ids"
           },
-          "default_cocoon_temperature": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Default Cocoon Temperature"
-          },
           "default_max_context_messages": {
             "anyOf": [
               {
@@ -14964,6 +15190,18 @@
               }
             ],
             "title": "Private Chat Debounce Seconds"
+          },
+          "group_chat_debounce_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Chat Debounce Seconds"
           },
           "rollback_retention_days": {
             "anyOf": [
@@ -15371,6 +15609,116 @@
         "type": "object",
         "title": "UserPluginConfigUpdate"
       },
+      "UserPluginEventOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "function_name": {
+            "type": "string",
+            "title": "Function Name"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "config_schema_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config Schema Json"
+          },
+          "default_config_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Default Config Json"
+          },
+          "schedule_mode": {
+            "type": "string",
+            "title": "Schedule Mode"
+          },
+          "schedule_interval_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule Interval Seconds"
+          },
+          "schedule_cron": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule Cron"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "mode",
+          "function_name",
+          "title",
+          "description",
+          "config_schema_json",
+          "default_config_json",
+          "schedule_mode",
+          "schedule_interval_seconds",
+          "schedule_cron"
+        ],
+        "title": "UserPluginEventOut"
+      },
+      "UserPluginEventScheduleUpdate": {
+        "properties": {
+          "schedule_mode": {
+            "type": "string",
+            "title": "Schedule Mode"
+          },
+          "schedule_interval_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule Interval Seconds"
+          },
+          "schedule_cron": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule Cron"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schedule_mode"
+        ],
+        "title": "UserPluginEventScheduleUpdate"
+      },
       "UserPluginOut": {
         "properties": {
           "id": {
@@ -15452,6 +15800,13 @@
               }
             ],
             "title": "User Error At"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/UserPluginEventOut"
+            },
+            "type": "array",
+            "title": "Events"
           }
         },
         "type": "object",

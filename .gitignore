@@ -26,10 +26,12 @@ _tmp_*
 backend/.artifacts/
 backend/.plugins/
 backend/.pytest_cache/
+backend/.tmp_pytest/
 backend/.mypy_cache/
 backend/.ruff_cache/
 backend/.coverage
 backend/data
+backend/pytest-cache-files-*/
 frontend/dist/
 plugins/packages/
 *.db

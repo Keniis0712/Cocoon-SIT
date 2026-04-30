@@ -4,7 +4,7 @@ import type { MessageRead } from "@/api/types/chat";
 
 const DEFAULT_RELATION_SCORE = 50;
 
-type SessionState = {
+export type ChatSessionState = {
   messages: MessageRead[];
   streamingAssistant: string;
   relationScore: number | null;
@@ -22,7 +22,7 @@ type SessionState = {
 type SessionKey = string | number;
 
 type ChatSessionStore = {
-  sessions: Record<string, SessionState>;
+  sessions: Record<string, ChatSessionState>;
   ensureSession: (sessionKey: SessionKey) => void;
   resetSession: (sessionKey: SessionKey) => void;
   setMessages: (sessionKey: SessionKey, messages: MessageRead[]) => void;
@@ -47,7 +47,7 @@ type ChatSessionStore = {
   setError: (sessionKey: SessionKey, error: string | null) => void;
 };
 
-const EMPTY_SESSION: SessionState = {
+const EMPTY_SESSION: ChatSessionState = {
   messages: [],
   streamingAssistant: "",
   relationScore: DEFAULT_RELATION_SCORE,

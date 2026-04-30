@@ -264,6 +264,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/invites/quotas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Invite Quota Accounts */
+        get: operations["list_invite_quota_accounts_api_v1_invites_quotas_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invites/quotas/{target_type}/{target_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Invite Summary */
+        patch: operations["update_invite_summary_api_v1_invites_quotas__target_type___target_id__patch"];
+        trace?: never;
+    };
     "/api/v1/invites/grants/{grant_id}": {
         parameters: {
             query?: never;
@@ -1295,6 +1329,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plugins/{plugin_id}/events/{event_name}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update User Plugin Event Schedule */
+        patch: operations["update_user_plugin_event_schedule_api_v1_plugins__plugin_id__events__event_name__schedule_patch"];
+        trace?: never;
+    };
     "/api/v1/plugins/{plugin_id}/chat-groups/{chat_group_id}/config": {
         parameters: {
             query?: never;
@@ -1776,23 +1827,6 @@ export interface paths {
         patch: operations["update_event_config_api_v1_admin_plugins__plugin_id__events__event_name__config_patch"];
         trace?: never;
     };
-    "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/schedule": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Update Event Schedule */
-        patch: operations["update_event_schedule_api_v1_admin_plugins__plugin_id__events__event_name__schedule_patch"];
-        trace?: never;
-    };
     "/api/v1/admin/plugins/{plugin_id}/events/{event_name}/run": {
         parameters: {
             query?: never;
@@ -1995,6 +2029,14 @@ export interface components {
             chat_group_id?: string | null;
             /** Action Id */
             action_id: string | null;
+            /** User Message Id */
+            user_message_id?: string | null;
+            /** Assistant Message Id */
+            assistant_message_id?: string | null;
+            /** Trigger Input */
+            trigger_input?: string | null;
+            /** Assistant Output */
+            assistant_output?: string | null;
             /** Operation Type */
             operation_type: string;
             /** Status */
@@ -2383,6 +2425,10 @@ export interface components {
             client_request_id: string | null;
             /** Sender User Id */
             sender_user_id?: string | null;
+            /** External Sender Id */
+            external_sender_id?: string | null;
+            /** External Sender Display Name */
+            external_sender_display_name?: string | null;
             /** Role */
             role: string;
             /** Content */
@@ -2437,9 +2483,9 @@ export interface components {
             /** Name */
             name: string;
             /** Character Id */
-            character_id: string;
+            character_id?: string | null;
             /** Selected Model Id */
-            selected_model_id: string;
+            selected_model_id?: string | null;
             /** Parent Id */
             parent_id?: string | null;
             /** Default Temperature */
@@ -2932,6 +2978,29 @@ export interface components {
              */
             updated_at: string;
         };
+        /** InviteQuotaAccountOut */
+        InviteQuotaAccountOut: {
+            /** Target Type */
+            target_type: string;
+            /** Target Id */
+            target_id: string;
+            /** Invite Quota Remaining */
+            invite_quota_remaining: number;
+            /** Invite Quota Unlimited */
+            invite_quota_unlimited: boolean;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** InviteQuotaUpdate */
+        InviteQuotaUpdate: {
+            /** Invite Quota Remaining */
+            invite_quota_remaining?: number | null;
+            /** Invite Quota Unlimited */
+            invite_quota_unlimited?: boolean | null;
+        };
         /** InviteRedeemRequest */
         InviteRedeemRequest: {
             /** User Id */
@@ -3261,18 +3330,6 @@ export interface components {
             schedule_interval_seconds: number | null;
             /** Schedule Cron */
             schedule_cron: string | null;
-        };
-        /** PluginEventScheduleUpdate */
-        PluginEventScheduleUpdate: {
-            /**
-             * Schedule Mode
-             * @enum {string}
-             */
-            schedule_mode: "manual" | "interval" | "cron";
-            /** Schedule Interval Seconds */
-            schedule_interval_seconds?: number | null;
-            /** Schedule Cron */
-            schedule_cron?: string | null;
         };
         /** PluginGroupVisibilityOut */
         PluginGroupVisibilityOut: {
@@ -3770,14 +3827,14 @@ export interface components {
             max_chat_turns: number;
             /** Allowed Model Ids */
             allowed_model_ids: string[];
-            /** Default Cocoon Temperature */
-            default_cocoon_temperature: number;
             /** Default Max Context Messages */
             default_max_context_messages: number;
             /** Default Auto Compaction Enabled */
             default_auto_compaction_enabled: boolean;
             /** Private Chat Debounce Seconds */
             private_chat_debounce_seconds: number;
+            /** Group Chat Debounce Seconds */
+            group_chat_debounce_seconds: number;
             /** Rollback Retention Days */
             rollback_retention_days: number;
             /** Rollback Cleanup Interval Hours */
@@ -3801,14 +3858,14 @@ export interface components {
             max_chat_turns?: number | null;
             /** Allowed Model Ids */
             allowed_model_ids?: string[] | null;
-            /** Default Cocoon Temperature */
-            default_cocoon_temperature?: number | null;
             /** Default Max Context Messages */
             default_max_context_messages?: number | null;
             /** Default Auto Compaction Enabled */
             default_auto_compaction_enabled?: boolean | null;
             /** Private Chat Debounce Seconds */
             private_chat_debounce_seconds?: number | null;
+            /** Group Chat Debounce Seconds */
+            group_chat_debounce_seconds?: number | null;
             /** Rollback Retention Days */
             rollback_retention_days?: number | null;
             /** Rollback Cleanup Interval Hours */
@@ -3962,6 +4019,42 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** UserPluginEventOut */
+        UserPluginEventOut: {
+            /** Name */
+            name: string;
+            /** Mode */
+            mode: string;
+            /** Function Name */
+            function_name: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Config Schema Json */
+            config_schema_json: {
+                [key: string]: unknown;
+            };
+            /** Default Config Json */
+            default_config_json: {
+                [key: string]: unknown;
+            };
+            /** Schedule Mode */
+            schedule_mode: string;
+            /** Schedule Interval Seconds */
+            schedule_interval_seconds: number | null;
+            /** Schedule Cron */
+            schedule_cron: string | null;
+        };
+        /** UserPluginEventScheduleUpdate */
+        UserPluginEventScheduleUpdate: {
+            /** Schedule Mode */
+            schedule_mode: string;
+            /** Schedule Interval Seconds */
+            schedule_interval_seconds?: number | null;
+            /** Schedule Cron */
+            schedule_cron?: string | null;
+        };
         /** UserPluginOut */
         UserPluginOut: {
             /** Id */
@@ -4004,6 +4097,8 @@ export interface components {
             user_error_text: string | null;
             /** User Error At */
             user_error_at: string | null;
+            /** Events */
+            events?: components["schemas"]["UserPluginEventOut"][];
         };
         /** UserPluginTargetBindingCreate */
         UserPluginTargetBindingCreate: {
@@ -4793,6 +4888,75 @@ export interface operations {
                         /** @example ok */
                         msg: string;
                         data: components["schemas"]["InviteGrantOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
+    list_invite_quota_accounts_api_v1_invites_quotas_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        /** Response List Invite Quota Accounts Api V1 Invites Quotas Get */
+                        data: components["schemas"]["InviteQuotaAccountOut"][];
+                    };
+                };
+            };
+        };
+    };
+    update_invite_summary_api_v1_invites_quotas__target_type___target_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                target_type: string;
+                target_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteQuotaUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["InviteSummaryOut"];
                     };
                 };
             };
@@ -8053,6 +8217,48 @@ export interface operations {
             };
         };
     };
+    update_user_plugin_event_schedule_api_v1_plugins__plugin_id__events__event_name__schedule_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plugin_id: string;
+                event_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserPluginEventScheduleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example OK */
+                        code: string;
+                        /** @example ok */
+                        msg: string;
+                        data: components["schemas"]["UserPluginOut"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiValidationEnvelope"];
+                };
+            };
+        };
+    };
     get_chat_group_plugin_config_api_v1_plugins__plugin_id__chat_groups__chat_group_id__config_get: {
         parameters: {
             query?: never;
@@ -9230,48 +9436,6 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["PluginEventConfigUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example OK */
-                        code: string;
-                        /** @example ok */
-                        msg: string;
-                        data: components["schemas"]["PluginDetailOut"];
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiValidationEnvelope"];
-                };
-            };
-        };
-    };
-    update_event_schedule_api_v1_admin_plugins__plugin_id__events__event_name__schedule_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                plugin_id: string;
-                event_name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PluginEventScheduleUpdate"];
             };
         };
         responses: {

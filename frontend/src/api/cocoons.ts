@@ -305,14 +305,19 @@ export function getCocoonSessionState(cocoonId: number) {
 
 export function createCocoon(data: CocoonPayload): Promise<CocoonRead> {
   return apiCall(async (client) => {
-    const created = await client.createCocoon({
+    const payload: Parameters<typeof client.createCocoon>[0] = {
       name: data.name.trim(),
-      ...(data.character_id ? { character_id: resolveActualId("character", data.character_id) } : {}),
-      ...(data.selected_model_id ? { selected_model_id: resolveActualId("model", data.selected_model_id) } : {}),
       parent_id: data.parent_id ? resolveActualId("cocoon", data.parent_id) : null,
       default_temperature: data.default_temperature ?? 0.7,
       max_context_messages: data.max_context_messages ?? data.max_context_tokens ?? 12,
-    });
+    };
+    if (data.character_id) {
+      payload.character_id = resolveActualId("character", data.character_id);
+    }
+    if (data.selected_model_id) {
+      payload.selected_model_id = resolveActualId("model", data.selected_model_id);
+    }
+    const created = await client.createCocoon(payload);
     return getCocoon(rememberLegacyId("cocoon", created.id));
   });
 }

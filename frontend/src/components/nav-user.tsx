@@ -30,7 +30,11 @@ export function NavUser() {
   const { isMobile } = useSidebar();
   const logoutStore = useUserStore((state) => state.logout);
   const refreshToken = useUserStore((state) => state.userInfo?.refresh_token);
-  const userInfo = useUserStore((state) => state.userInfo)!;
+  const userInfo = useUserStore((state) => state.userInfo);
+
+  if (!userInfo) {
+    return null;
+  }
 
   async function handleLogout() {
     try {
