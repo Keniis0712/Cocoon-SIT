@@ -29,3 +29,11 @@ def test_next_cron_run_treats_weekday_seven_as_sunday_alias() -> None:
 
     assert zero_result == datetime(2026, 4, 26, 0, 0, 0)
     assert seven_result == zero_result
+
+
+def test_next_cron_run_uses_user_timezone_for_cron_boundaries() -> None:
+    after = datetime(2026, 4, 25, 15, 30, 0)
+
+    result = next_cron_run("0 0 * * *", after, timezone="Asia/Shanghai")
+
+    assert result == datetime(2026, 4, 25, 16, 0, 0)

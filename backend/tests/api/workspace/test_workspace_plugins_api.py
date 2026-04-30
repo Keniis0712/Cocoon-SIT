@@ -36,7 +36,14 @@ def _login(client, username: str, password: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-def _ensure_user_with_role(client, *, username: str, password: str, role_name: str) -> str:
+def _ensure_user_with_role(
+    client,
+    *,
+    username: str,
+    password: str,
+    role_name: str,
+    timezone: str = "UTC",
+) -> str:
     container = client.app.state.container
     with container.session_factory() as session:
         role = session.scalar(select(Role).where(Role.name == role_name))
@@ -49,10 +56,14 @@ def _ensure_user_with_role(client, *, username: str, password: str, role_name: s
                 password_hash=hash_secret(password),
                 role_id=role.id,
                 is_active=True,
+                timezone=timezone,
             )
             session.add(user)
             session.commit()
             session.refresh(user)
+        else:
+            user.timezone = timezone
+            session.commit()
         return user.id
 
 
@@ -214,6 +225,65 @@ def validate_settings(ctx):
     disabled = client.post(f"/api/v1/plugins/{plugin_id}/disable", headers=user_headers)
     assert disabled.status_code == 200, disabled.text
     assert disabled.json()["is_enabled"] is False
+
+    scheduled = client.patch(
+        f"/api/v1/plugins/{plugin_id}/events/tick/schedule",
+        headers=user_headers,
+        json={"schedule_mode": "cron", "schedule_interval_seconds": None, "schedule_cron": "0 0 * * *"},
+    )
+    assert scheduled.status_code == 200, scheduled.text
+    tick_event = next(item for item in scheduled.json()["events"] if item["name"] == "tick")
+    assert tick_event["schedule_mode"] == "cron"
+    assert tick_event["schedule_cron"] == "0 0 * * *"
+
+
+def test_user_plugin_event_schedule_uses_user_scoped_settings(client, auth_headers):
+    install_payload = _plugin_zip(
+        manifest={
+            "name": "schedule-plugin",
+            "version": "1.0.0",
+            "display_name": "Schedule Plugin",
+            "plugin_type": "external",
+            "entry_module": "main",
+            "events": [
+                {
+                    "name": "tick",
+                    "mode": "short_lived",
+                    "function_name": "tick",
+                    "title": "Tick",
+                    "description": "Tick event",
+                    "config_schema": {"type": "object"},
+                }
+            ],
+        },
+        sources={"main.py": "def tick(ctx):\n    return None\n"},
+    )
+    install = client.post(
+        "/api/v1/admin/plugins/install",
+        headers=auth_headers,
+        files={"file": ("plugin.zip", install_payload, "application/zip")},
+    )
+    assert install.status_code == 200, install.text
+    plugin_id = install.json()["id"]
+
+    _ensure_user_with_role(
+        client,
+        username="schedule-user",
+        password="pass123",
+        role_name="user",
+        timezone="Asia/Shanghai",
+    )
+    user_headers = _login(client, "schedule-user", "pass123")
+
+    scheduled = client.patch(
+        f"/api/v1/plugins/{plugin_id}/events/tick/schedule",
+        headers=user_headers,
+        json={"schedule_mode": "cron", "schedule_interval_seconds": None, "schedule_cron": "0 0 * * *"},
+    )
+    assert scheduled.status_code == 200, scheduled.text
+    tick_event = next(item for item in scheduled.json()["events"] if item["name"] == "tick")
+    assert tick_event["schedule_mode"] == "cron"
+    assert tick_event["schedule_cron"] == "0 0 * * *"
 
 
 def test_only_bootstrap_admin_can_manage_plugin_visibility(client, auth_headers, test_settings):

@@ -168,11 +168,13 @@ class PluginManagerAccessMixin:
                     continue
                 if not self._can_deliver_to_user(session, plugin, binding.scope_id):
                     continue
+                user = session.get(User, binding.scope_id)
                 scopes[key] = ShortLivedScope(
                     scope_type="user",
                     scope_id=binding.scope_id,
                     user_id=binding.scope_id,
                     config_json=dict(user_config.config_json or {}),
+                    timezone=(user.timezone if user and user.timezone else "UTC"),
                 )
             elif binding.scope_type == "chat_group":
                 if not session.get(ChatGroupRoom, binding.scope_id):
@@ -185,6 +187,7 @@ class PluginManagerAccessMixin:
                     scope_id=binding.scope_id,
                     user_id=None,
                     config_json=dict(group_config.config_json or {}),
+                    timezone=None,
                 )
         return list(scopes.values())
 

@@ -145,15 +145,6 @@ def test_plugin_service_get_detail_list_and_shared_packages(tmp_path):
         ("delete_plugin", ("missing",), {}),
         ("update_plugin_config", ("missing", {}), {}),
         ("update_event_config", ("missing", "tick", {}), {}),
-        (
-            "update_event_schedule",
-            ("missing", "tick"),
-            {
-                "schedule_mode": "manual",
-                "schedule_interval_seconds": None,
-                "schedule_cron": None,
-            },
-        ),
         ("run_short_lived_event_now", ("missing", "tick"), {}),
         ("set_event_enabled", ("missing", "tick", True), {}),
     ],

@@ -17,6 +17,7 @@ import {
   setChatGroupPluginEnabled,
   setWorkspacePluginEnabled,
   updateChatGroupPluginConfig,
+  updateWorkspacePluginEventSchedule,
   updateWorkspacePluginConfig,
   validateChatGroupPluginConfig,
   validateWorkspacePluginConfig,
@@ -64,6 +65,12 @@ type SchemaProperty = {
   enum?: unknown[];
   minimum?: number;
   maximum?: number;
+};
+
+type EventScheduleDraft = {
+  mode: "manual" | "interval" | "cron";
+  intervalSeconds: string;
+  cronExpression: string;
 };
 
 function schemaProperties(schema: Record<string, unknown>): Record<string, SchemaProperty> {
@@ -193,7 +200,7 @@ function ConfigSchemaDialog({
                         checked={Boolean(value)}
                         onCheckedChange={(checked) => updateField(key, checked === true)}
                       />
-                      <span className="text-sm">{Boolean(value) ? t("plugins:enabled") : t("plugins:disabled")}</span>
+                      <span className="text-sm">{value === true ? t("plugins:enabled") : t("plugins:disabled")}</span>
                     </div>
                   ) : type === "integer" || type === "number" ? (
                     <Input
@@ -273,8 +280,11 @@ export default function PluginsPage() {
   const [isGroupConfigSaving, setIsGroupConfigSaving] = useState(false);
   const [isGroupConfigValidating, setIsGroupConfigValidating] = useState(false);
   const [isGroupErrorClearing, setIsGroupErrorClearing] = useState(false);
+  const [isEventScheduleSaving, setIsEventScheduleSaving] = useState(false);
   const [isUserConfigDialogOpen, setIsUserConfigDialogOpen] = useState(false);
   const [isGroupConfigDialogOpen, setIsGroupConfigDialogOpen] = useState(false);
+  const [eventScheduleDrafts, setEventScheduleDrafts] = useState<Record<string, EventScheduleDraft>>({});
+  const [eventScheduleErrors, setEventScheduleErrors] = useState<Record<string, string | null>>({});
   const [groupConfig, setGroupConfig] = useState<ChatGroupPluginConfigRead | null>(null);
   const [targetBindings, setTargetBindings] = useState<PluginTargetBindingRead[]>([]);
   const [cocoons, setCocoons] = useState<CocoonRead[]>([]);
@@ -340,6 +350,31 @@ export default function PluginsPage() {
       setSelectedChatGroupId(chatGroups[0].id);
     }
   }, [chatGroups, selectedChatGroupId]);
+
+  useEffect(() => {
+    if (!selectedPlugin) {
+      setEventScheduleDrafts({});
+      setEventScheduleErrors({});
+      return;
+    }
+    setEventScheduleDrafts(
+      Object.fromEntries(
+        selectedPlugin.events
+          .filter((event) => event.mode === "short_lived")
+          .map((event) => [
+            event.name,
+            {
+              mode: event.schedule_mode === "interval" || event.schedule_mode === "cron" ? event.schedule_mode : "manual",
+              intervalSeconds: event.schedule_interval_seconds ? String(event.schedule_interval_seconds) : "60",
+              cronExpression: event.schedule_cron || "0 0 * * *",
+            },
+          ]),
+      ),
+    );
+    setEventScheduleErrors(
+      Object.fromEntries(selectedPlugin.events.map((event) => [event.name, null])),
+    );
+  }, [selectedPlugin]);
 
   async function loadPlugins() {
     setIsLoading(true);
@@ -579,6 +614,41 @@ export default function PluginsPage() {
     }
   }
 
+  async function handleSaveEventSchedule(eventName: string) {
+    if (!selectedPlugin) {
+      return;
+    }
+    const draft = eventScheduleDrafts[eventName] || {
+      mode: "manual",
+      intervalSeconds: "60",
+      cronExpression: "0 0 * * *",
+    };
+    const intervalSeconds = Number(draft.intervalSeconds);
+    if (draft.mode === "interval" && (!Number.isInteger(intervalSeconds) || intervalSeconds < 1)) {
+      setEventScheduleErrors((prev) => ({ ...prev, [eventName]: "scheduleIntervalInvalid" }));
+      return;
+    }
+    if (draft.mode === "cron" && !draft.cronExpression.trim()) {
+      setEventScheduleErrors((prev) => ({ ...prev, [eventName]: "scheduleCronInvalid" }));
+      return;
+    }
+    setEventScheduleErrors((prev) => ({ ...prev, [eventName]: null }));
+    setIsEventScheduleSaving(true);
+    try {
+      const updated = await updateWorkspacePluginEventSchedule(selectedPlugin.id, eventName, {
+        schedule_mode: draft.mode,
+        schedule_interval_seconds: draft.mode === "interval" ? intervalSeconds : null,
+        schedule_cron: draft.mode === "cron" ? draft.cronExpression.trim() : null,
+      });
+      patchPlugin(updated);
+      toast.success(t("plugins:saveEventScheduleSuccess"));
+    } catch (error) {
+      showErrorToast(error, t("plugins:saveEventScheduleFailed"));
+    } finally {
+      setIsEventScheduleSaving(false);
+    }
+  }
+
   return (
     <PageFrame
       title={t("plugins:userTitle")}
@@ -717,6 +787,117 @@ export default function PluginsPage() {
                     </div>
                   </div>
                 )}
+
+                {selectedPlugin.events.filter((event) => event.mode === "short_lived").length > 0 ? (
+                  <div className="rounded-xl border border-border/70 p-4">
+                    <div className="mb-4">
+                      <div className="font-medium">{t("plugins:eventScheduleTitle")}</div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        {t("plugins:eventScheduleDescription")}
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {selectedPlugin.events
+                        .filter((event) => event.mode === "short_lived")
+                        .map((event) => (
+                          <div key={event.name} className="rounded-lg border border-border/70 bg-muted/20 p-3">
+                            <div className="mb-3">
+                              <div className="font-medium">{event.title || event.name}</div>
+                              <div className="mt-1 text-xs text-muted-foreground">{event.description}</div>
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-[170px_1fr_auto] md:items-end">
+                              <div className="grid gap-2">
+                                <Label>{t("plugins:scheduleMode")}</Label>
+                                <Select
+                                  value={eventScheduleDrafts[event.name]?.mode || "manual"}
+                                  onValueChange={(value) =>
+                                    setEventScheduleDrafts((prev) => ({
+                                      ...prev,
+                                      [event.name]: {
+                                        ...(prev[event.name] || {
+                                          mode: "manual",
+                                          intervalSeconds: "60",
+                                          cronExpression: "0 0 * * *",
+                                        }),
+                                        mode: value as "manual" | "interval" | "cron",
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="manual">{t("plugins:scheduleManual")}</SelectItem>
+                                    <SelectItem value="interval">{t("plugins:scheduleInterval")}</SelectItem>
+                                    <SelectItem value="cron">{t("plugins:scheduleCron")}</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="grid gap-2">
+                                <Label>
+                                  {(eventScheduleDrafts[event.name]?.mode || "manual") === "cron"
+                                    ? t("plugins:scheduleCronExpression")
+                                    : t("plugins:scheduleIntervalSeconds")}
+                                </Label>
+                                {(eventScheduleDrafts[event.name]?.mode || "manual") === "interval" ? (
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    value={eventScheduleDrafts[event.name]?.intervalSeconds || "60"}
+                                    onChange={(changeEvent) =>
+                                      setEventScheduleDrafts((prev) => ({
+                                        ...prev,
+                                        [event.name]: {
+                                          ...(prev[event.name] || {
+                                            mode: "interval",
+                                            intervalSeconds: "60",
+                                            cronExpression: "0 0 * * *",
+                                          }),
+                                          intervalSeconds: changeEvent.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                ) : (eventScheduleDrafts[event.name]?.mode || "manual") === "cron" ? (
+                                  <Input
+                                    value={eventScheduleDrafts[event.name]?.cronExpression || "0 0 * * *"}
+                                    placeholder="0 0 * * *"
+                                    onChange={(changeEvent) =>
+                                      setEventScheduleDrafts((prev) => ({
+                                        ...prev,
+                                        [event.name]: {
+                                          ...(prev[event.name] || {
+                                            mode: "cron",
+                                            intervalSeconds: "60",
+                                            cronExpression: "0 0 * * *",
+                                          }),
+                                          cronExpression: changeEvent.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                ) : (
+                                  <Input value={t("plugins:scheduleManualHint")} readOnly />
+                                )}
+                              </div>
+                              <Button disabled={isEventScheduleSaving} onClick={() => void handleSaveEventSchedule(event.name)}>
+                                {isEventScheduleSaving ? t("common:saving") : t("plugins:saveEventSchedule")}
+                              </Button>
+                            </div>
+                            {(eventScheduleDrafts[event.name]?.mode || "manual") === "cron" ? (
+                              <div className="mt-2 text-xs text-muted-foreground">{t("plugins:scheduleCronHint")}</div>
+                            ) : null}
+                            {eventScheduleErrors[event.name] ? (
+                              <div className="mt-2 text-sm text-destructive">
+                                {t(`plugins:${eventScheduleErrors[event.name]}`)}
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="rounded-xl border border-border/70 p-4">
                   <div className="flex items-start gap-3">

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 from app.schemas.common import ORMModel
 
@@ -14,24 +13,6 @@ class PluginConfigUpdate(BaseModel):
 
 class PluginEventConfigUpdate(BaseModel):
     config_json: dict = Field(default_factory=dict)
-
-
-class PluginEventScheduleUpdate(BaseModel):
-    schedule_mode: Literal["manual", "interval", "cron"]
-    schedule_interval_seconds: int | None = Field(default=None, ge=1)
-    schedule_cron: str | None = None
-
-    @model_validator(mode="after")
-    def validate_schedule(self) -> "PluginEventScheduleUpdate":
-        if self.schedule_mode == "interval" and self.schedule_interval_seconds is None:
-            raise ValueError("schedule_interval_seconds is required for interval schedule")
-        if self.schedule_mode == "cron" and not (self.schedule_cron or "").strip():
-            raise ValueError("schedule_cron is required for cron schedule")
-        if self.schedule_mode != "cron":
-            self.schedule_cron = None
-        if self.schedule_mode != "interval":
-            self.schedule_interval_seconds = None
-        return self
 
 
 class PluginVisibilityUpdate(BaseModel):

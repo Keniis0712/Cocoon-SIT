@@ -4,6 +4,7 @@ import multiprocessing as mp
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 
 def _parse_cron_field(
@@ -51,14 +52,18 @@ def validate_cron_expression(expression: str) -> str:
     return " ".join(fields)
 
 
-def next_cron_run(expression: str, after: datetime) -> datetime:
+def next_cron_run(expression: str, after: datetime, *, timezone: str = "UTC") -> datetime:
     fields = validate_cron_expression(expression).split()
     minutes = _parse_cron_field(fields[0], minimum=0, maximum=59)
     hours = _parse_cron_field(fields[1], minimum=0, maximum=23)
     days = _parse_cron_field(fields[2], minimum=1, maximum=31)
     months = _parse_cron_field(fields[3], minimum=1, maximum=12)
     weekdays = _parse_cron_field(fields[4], minimum=0, maximum=7, sunday_alias=True)
-    candidate = after.replace(second=0, microsecond=0) + timedelta(minutes=1)
+
+    tzinfo = ZoneInfo(timezone)
+    utc_after = after if after.tzinfo is not None else after.replace(tzinfo=ZoneInfo("UTC"))
+    local_after = utc_after.astimezone(tzinfo)
+    candidate = local_after.replace(second=0, microsecond=0) + timedelta(minutes=1)
     deadline = candidate + timedelta(days=366)
     while candidate <= deadline:
         cron_weekday = (candidate.weekday() + 1) % 7
@@ -69,7 +74,7 @@ def next_cron_run(expression: str, after: datetime) -> datetime:
             and candidate.month in months
             and cron_weekday in weekdays
         ):
-            return candidate
+            return candidate.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
         candidate += timedelta(minutes=1)
     raise ValueError("cron expression has no run time in the next year")
 
@@ -90,3 +95,4 @@ class ShortLivedScope:
     scope_id: str
     user_id: str | None
     config_json: dict[str, Any]
+    timezone: str | None = None

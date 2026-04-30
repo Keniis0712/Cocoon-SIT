@@ -72,16 +72,6 @@ def test_plugin_admin_routes_cover_detail_shared_libs_and_event_toggles(client, 
     event_enable = client.post(f"/api/v1/admin/plugins/{plugin_id}/events/tick/enable", headers=auth_headers)
     assert event_enable.status_code == 200, event_enable.text
 
-    event_schedule = client.patch(
-        f"/api/v1/admin/plugins/{plugin_id}/events/tick/schedule",
-        headers=auth_headers,
-        json={"schedule_mode": "cron", "schedule_interval_seconds": None, "schedule_cron": "0 9 * * *"},
-    )
-    assert event_schedule.status_code == 200, event_schedule.text
-    scheduled_tick = next(item for item in event_schedule.json()["events"] if item["name"] == "tick")
-    assert scheduled_tick["schedule_mode"] == "cron"
-    assert scheduled_tick["schedule_cron"] == "0 9 * * *"
-
     event_run = client.post(f"/api/v1/admin/plugins/{plugin_id}/events/tick/run", headers=auth_headers)
     assert event_run.status_code == 409, event_run.text
     assert event_run.envelope_json()["code"] == "NO_ELIGIBLE_PLUGIN_TARGET_BINDINGS_WERE_SUBMITTED_FOR_THIS_EVENT"

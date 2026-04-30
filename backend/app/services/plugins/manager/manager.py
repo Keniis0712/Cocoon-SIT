@@ -56,7 +56,7 @@ class PluginRuntimeManager(
         self._pool: ProcessPoolExecutor | None = None
         self._daemon_handles: dict[str, DaemonHandle] = {}
         self._short_lived_futures: dict[tuple[str, str, str, str], Future] = {}
-        self._short_lived_next_run: dict[tuple[str, str], datetime] = {}
+        self._short_lived_next_run: dict[tuple[str, str, str, str], datetime] = {}
         self._im_deliveries_in_flight: dict[str, tuple[str, datetime]] = {}
         self._lock = threading.RLock()
         self._stop_event = threading.Event()
@@ -118,8 +118,11 @@ class PluginRuntimeManager(
         schedule_mode: str,
         interval_seconds: int | None,
         cron_expression: str | None,
+        scope_type: str,
+        scope_id: str,
+        timezone: str | None = None,
     ) -> None:
-        key = (plugin_id, event_name)
+        key = (plugin_id, event_name, scope_type, scope_id)
         now = datetime.now(UTC).replace(tzinfo=None)
         with self._lock:
             if schedule_mode == "interval" and interval_seconds:
@@ -127,7 +130,11 @@ class PluginRuntimeManager(
                     seconds=max(int(interval_seconds), 1)
                 )
             elif schedule_mode == "cron" and cron_expression:
-                self._short_lived_next_run[key] = next_cron_run(cron_expression, now)
+                self._short_lived_next_run[key] = next_cron_run(
+                    cron_expression,
+                    now,
+                    timezone=timezone or "UTC",
+                )
             else:
                 self._short_lived_next_run.pop(key, None)
 

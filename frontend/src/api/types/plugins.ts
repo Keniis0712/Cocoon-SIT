@@ -14,6 +14,20 @@ export interface UserPluginRead {
   user_config_json: Record<string, unknown>;
   user_error_text: string | null;
   user_error_at: string | null;
+  events: UserPluginEventRead[];
+}
+
+export interface UserPluginEventRead {
+  name: string;
+  mode: string;
+  function_name: string;
+  title: string;
+  description: string;
+  config_schema_json: Record<string, unknown>;
+  default_config_json: Record<string, unknown>;
+  schedule_mode: "manual" | "interval" | "cron" | string;
+  schedule_interval_seconds: number | null;
+  schedule_cron: string | null;
 }
 
 export interface AdminPluginVersionRead {

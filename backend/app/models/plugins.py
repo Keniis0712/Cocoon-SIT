@@ -78,9 +78,6 @@ class PluginEventConfig(Base, TimestampMixin, JsonDefaultMixin):
     event_name: Mapped[str] = mapped_column(String(128), nullable=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     config_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
-    schedule_mode: Mapped[str] = mapped_column(String(32), default="manual")
-    schedule_interval_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    schedule_cron: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class PluginRunState(Base, TimestampMixin, JsonDefaultMixin):
@@ -167,6 +164,26 @@ class PluginUserConfig(Base, TimestampMixin, JsonDefaultMixin):
     validation_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
     runtime_error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     runtime_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+
+
+class PluginUserEventConfig(Base, TimestampMixin, JsonDefaultMixin):
+    __tablename__ = "plugin_user_event_configs"
+    __table_args__ = (
+        UniqueConstraint(
+            "plugin_id",
+            "user_id",
+            "event_name",
+            name="uq_plugin_user_event_configs_plugin_id_user_id_event_name",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    plugin_id: Mapped[str] = mapped_column(ForeignKey("plugin_definitions.id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    event_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    schedule_mode: Mapped[str] = mapped_column(String(32), default="manual")
+    schedule_interval_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    schedule_cron: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class PluginChatGroupConfig(Base, TimestampMixin, JsonDefaultMixin):

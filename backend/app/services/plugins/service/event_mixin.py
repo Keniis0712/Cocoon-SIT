@@ -11,7 +11,6 @@ from app.models import (
 from app.schemas.admin.plugins import (
     PluginDetailOut,
 )
-from app.services.plugins.manager import validate_cron_expression
 
 
 class PluginServiceEventMixin:
@@ -45,73 +44,6 @@ class PluginServiceEventMixin:
         session.commit()
         self.runtime_manager.reload_plugin(plugin_id)
         self.runtime_manager.run_once()
-        return self.get_plugin_detail(session, plugin_id)
-
-    def update_event_schedule(
-        self,
-        session: Session,
-        plugin_id: str,
-        event_name: str,
-        *,
-        schedule_mode: str,
-        schedule_interval_seconds: int | None,
-        schedule_cron: str | None,
-    ) -> PluginDetailOut:
-        plugin = session.get(PluginDefinition, plugin_id)
-        if not plugin:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
-        event = self._get_active_event_definition(session, plugin, event_name)
-        if event.mode != "short_lived":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Only short-lived events can be scheduled",
-            )
-        if schedule_mode not in {"manual", "interval", "cron"}:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid schedule_mode"
-            )
-        if schedule_mode == "interval" and not schedule_interval_seconds:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="schedule_interval_seconds is required",
-            )
-        normalized_cron = None
-        if schedule_mode == "cron":
-            try:
-                normalized_cron = validate_cron_expression(schedule_cron or "")
-            except ValueError as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-                ) from exc
-        current = session.scalar(
-            select(PluginEventConfig).where(
-                PluginEventConfig.plugin_id == plugin_id,
-                PluginEventConfig.event_name == event_name,
-            )
-        )
-        if not current:
-            current = PluginEventConfig(
-                plugin_id=plugin_id,
-                event_name=event_name,
-                config_json=dict(event.default_config_json or {}),
-                is_enabled=True,
-            )
-            session.add(current)
-            session.flush()
-        current.schedule_mode = schedule_mode
-        current.schedule_interval_seconds = (
-            int(schedule_interval_seconds) if schedule_mode == "interval" else None
-        )
-        current.schedule_cron = normalized_cron if schedule_mode == "cron" else None
-        session.flush()
-        session.commit()
-        self.runtime_manager.update_short_lived_schedule(
-            plugin_id,
-            event_name,
-            schedule_mode=current.schedule_mode,
-            interval_seconds=current.schedule_interval_seconds,
-            cron_expression=current.schedule_cron,
-        )
         return self.get_plugin_detail(session, plugin_id)
 
     def run_short_lived_event_now(

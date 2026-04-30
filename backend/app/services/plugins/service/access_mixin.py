@@ -12,14 +12,20 @@ from app.models import (
     Cocoon,
     PluginChatGroupConfig,
     PluginDefinition,
+    PluginEventDefinition,
     PluginGroupVisibility,
     PluginTargetBinding,
     PluginUserConfig,
+    PluginUserEventConfig,
     PluginVersion,
     User,
     UserGroupMember,
 )
-from app.schemas.workspace.plugins import ChatGroupPluginConfigOut, UserPluginTargetBindingOut
+from app.schemas.workspace.plugins import (
+    ChatGroupPluginConfigOut,
+    UserPluginEventOut,
+    UserPluginTargetBindingOut,
+)
 from app.services.plugins.runtime import validate_plugin_settings
 
 
@@ -213,6 +219,35 @@ class PluginServiceAccessMixin:
         session.flush()
         return current
 
+    def _ensure_user_event_config(
+        self,
+        session: Session,
+        *,
+        plugin_id: str,
+        user_id: str,
+        event_name: str,
+    ) -> PluginUserEventConfig:
+        current = session.scalar(
+            select(PluginUserEventConfig).where(
+                PluginUserEventConfig.plugin_id == plugin_id,
+                PluginUserEventConfig.user_id == user_id,
+                PluginUserEventConfig.event_name == event_name,
+            )
+        )
+        if current:
+            return current
+        current = PluginUserEventConfig(
+            plugin_id=plugin_id,
+            user_id=user_id,
+            event_name=event_name,
+            schedule_mode="manual",
+            schedule_interval_seconds=None,
+            schedule_cron=None,
+        )
+        session.add(current)
+        session.flush()
+        return current
+
     def _ensure_chat_group_config(
         self,
         session: Session,
@@ -325,11 +360,59 @@ class PluginServiceAccessMixin:
 
     def _serialize_user_plugin(
         self,
+        session: Session,
         plugin: PluginDefinition,
+        user: User,
         user_config: PluginUserConfig | None,
         group_overrides: list[bool],
     ) -> dict:
         visible = self._resolve_plugin_visibility(plugin, group_overrides)
+        events: list[UserPluginEventOut] = []
+        if plugin.active_version_id:
+            event_defs = list(
+                session.scalars(
+                    select(PluginEventDefinition).where(
+                        PluginEventDefinition.plugin_id == plugin.id,
+                        PluginEventDefinition.plugin_version_id == plugin.active_version_id,
+                    )
+                ).all()
+            )
+            event_schedule_map = {
+                item.event_name: item
+                for item in session.scalars(
+                    select(PluginUserEventConfig).where(
+                        PluginUserEventConfig.plugin_id == plugin.id,
+                        PluginUserEventConfig.user_id == user.id,
+                    )
+                ).all()
+            }
+            events = [
+                UserPluginEventOut(
+                    name=item.name,
+                    mode=item.mode,
+                    function_name=item.function_name,
+                    title=item.title,
+                    description=item.description,
+                    config_schema_json=dict(item.config_schema_json or {}),
+                    default_config_json=dict(item.default_config_json or {}),
+                    schedule_mode=(
+                        event_schedule_map[item.name].schedule_mode
+                        if item.name in event_schedule_map
+                        else "manual"
+                    ),
+                    schedule_interval_seconds=(
+                        event_schedule_map[item.name].schedule_interval_seconds
+                        if item.name in event_schedule_map
+                        else None
+                    ),
+                    schedule_cron=(
+                        event_schedule_map[item.name].schedule_cron
+                        if item.name in event_schedule_map
+                        else None
+                    ),
+                )
+                for item in event_defs
+            ]
         return {
             "id": plugin.id,
             "name": plugin.name,
@@ -358,4 +441,5 @@ class PluginServiceAccessMixin:
                 if user_config
                 else None
             ),
+            "events": [item.model_dump() for item in events],
         }

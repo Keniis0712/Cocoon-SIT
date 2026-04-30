@@ -38,6 +38,21 @@ export function clearWorkspacePluginError(pluginId: string): Promise<UserPluginR
   });
 }
 
+export function updateWorkspacePluginEventSchedule(
+  pluginId: string,
+  eventName: string,
+  payload: {
+    schedule_mode: "manual" | "interval" | "cron";
+    schedule_interval_seconds?: number | null;
+    schedule_cron?: string | null;
+  },
+): Promise<UserPluginRead> {
+  return apiJson<UserPluginRead>(`/plugins/${pluginId}/events/${encodeURIComponent(eventName)}/schedule`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function listWorkspacePluginTargetBindings(pluginId: string): Promise<PluginTargetBindingRead[]> {
   return apiJson<PluginTargetBindingRead[]>(`/plugins/${pluginId}/targets`);
 }

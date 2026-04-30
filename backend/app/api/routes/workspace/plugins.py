@@ -9,6 +9,7 @@ from app.schemas.workspace.plugins import (
     ChatGroupPluginConfigOut,
     ChatGroupPluginConfigUpdate,
     UserPluginConfigUpdate,
+    UserPluginEventScheduleUpdate,
     UserPluginOut,
     UserPluginTargetBindingCreate,
     UserPluginTargetBindingOut,
@@ -101,6 +102,25 @@ def clear_user_plugin_error(
         db,
         user,
         plugin_id,
+    )
+
+
+@router.patch("/{plugin_id}/events/{event_name}/schedule", response_model=UserPluginOut)
+def update_user_plugin_event_schedule(
+    plugin_id: str,
+    event_name: str,
+    payload: UserPluginEventScheduleUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> UserPluginOut:
+    return db.info["container"].plugin_service.update_user_event_schedule(
+        db,
+        user,
+        plugin_id,
+        event_name,
+        schedule_mode=payload.schedule_mode,
+        schedule_interval_seconds=payload.schedule_interval_seconds,
+        schedule_cron=payload.schedule_cron,
     )
 
 

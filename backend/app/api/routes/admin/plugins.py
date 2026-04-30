@@ -10,7 +10,6 @@ from app.schemas.admin.plugins import (
     PluginConfigUpdate,
     PluginDetailOut,
     PluginEventConfigUpdate,
-    PluginEventScheduleUpdate,
     PluginGroupVisibilityOut,
     PluginGroupVisibilityUpdate,
     PluginListItemOut,
@@ -133,25 +132,6 @@ def update_event_config(
     _=Depends(require_permission("plugins:write")),
 ) -> PluginDetailOut:
     return container.plugin_service.update_event_config(db, plugin_id, event_name, payload.config_json)
-
-
-@router.patch("/{plugin_id}/events/{event_name}/schedule", response_model=PluginDetailOut)
-def update_event_schedule(
-    plugin_id: str,
-    event_name: str,
-    payload: PluginEventScheduleUpdate,
-    db: Session = Depends(get_db),
-    container: AppContainer = Depends(get_container),
-    _=Depends(require_permission("plugins:write")),
-) -> PluginDetailOut:
-    return container.plugin_service.update_event_schedule(
-        db,
-        plugin_id,
-        event_name,
-        schedule_mode=payload.schedule_mode,
-        schedule_interval_seconds=payload.schedule_interval_seconds,
-        schedule_cron=payload.schedule_cron,
-    )
 
 
 @router.post("/{plugin_id}/events/{event_name}/run", response_model=PluginDetailOut)

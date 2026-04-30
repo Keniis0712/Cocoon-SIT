@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import select
 
 from app.core.config import Settings
 from app.models import (
@@ -11,7 +12,9 @@ from app.models import (
     PluginEventConfig,
     PluginEventDefinition,
     PluginRunState,
+    PluginUserEventConfig,
     PluginVersion,
+    User,
 )
 from app.services.plugins.service import PluginService
 from tests.sqlite_helpers import make_sqlite_session_factory
@@ -62,8 +65,16 @@ def _service(tmp_path):
 
 
 def _seed_plugin(session, *, enabled: bool = False, with_event_config: bool = False):
+    user = User(
+        id="user-1",
+        username="owner",
+        password_hash="hash",
+        is_active=True,
+        timezone="Asia/Shanghai",
+    )
     plugin = PluginDefinition(
         id="plugin-1",
+        owner_user_id="user-1",
         name="demo",
         display_name="Demo Plugin",
         plugin_type="external",
@@ -98,7 +109,7 @@ def _seed_plugin(session, *, enabled: bool = False, with_event_config: bool = Fa
         default_config_json={"interval": 5},
     )
     run_state = PluginRunState(id="run-state-1", plugin_id=plugin.id, status="running", pid=1234)
-    session.add_all([plugin, version, event, run_state])
+    session.add_all([user, plugin, version, event, run_state])
     if with_event_config:
         session.add(
             PluginEventConfig(
@@ -119,29 +130,32 @@ def test_plugin_service_updates_event_schedule_and_manual_run(tmp_path):
 
     with session_factory() as session:
         plugin = _seed_plugin(session, enabled=True, with_event_config=False)
+        user = session.get(User, "user-1")
+        assert user is not None
 
-        detail = service.update_event_schedule(
+        detail = service.update_user_event_schedule(
             session,
+            user,
             plugin.id,
             "tick",
             schedule_mode="interval",
             schedule_interval_seconds=30,
             schedule_cron=None,
         )
-        run_detail = service.run_short_lived_event_now(session, plugin.id, "tick")
+        service.run_short_lived_event_now(session, plugin.id, "tick")
 
         config = session.scalar(
-            __import__("sqlalchemy")
-            .select(PluginEventConfig)
+            select(PluginUserEventConfig)
             .where(
-                PluginEventConfig.plugin_id == plugin.id,
-                PluginEventConfig.event_name == "tick",
+                PluginUserEventConfig.plugin_id == plugin.id,
+                PluginUserEventConfig.user_id == user.id,
+                PluginUserEventConfig.event_name == "tick",
             )
         )
 
-    assert detail.events[0].schedule_mode == "interval"
-    assert detail.events[0].schedule_interval_seconds == 30
-    assert run_detail.events[0].schedule_interval_seconds == 30
+    scheduled_event = next(item for item in detail["events"] if item["name"] == "tick")
+    assert scheduled_event["schedule_mode"] == "interval"
+    assert scheduled_event["schedule_interval_seconds"] == 30
     assert config is not None and config.schedule_mode == "interval"
     assert runtime_calls == [
         (
@@ -152,6 +166,9 @@ def test_plugin_service_updates_event_schedule_and_manual_run(tmp_path):
                 "schedule_mode": "interval",
                 "interval_seconds": 30,
                 "cron_expression": None,
+                "scope_type": "user",
+                "scope_id": "user-1",
+                "timezone": "Asia/Shanghai",
             },
         ),
         ("run", "plugin-1", "tick"),

@@ -14,11 +14,12 @@ from app.models import (
     User,
     UserGroup,
 )
-from app.schemas.admin.plugins import (
-    PluginDetailOut,
-    PluginGroupVisibilityOut,
+from app.schemas.admin.plugins import PluginGroupVisibilityOut
+from app.schemas.workspace.plugins import (
+    ChatGroupPluginConfigOut,
+    UserPluginTargetBindingOut,
 )
-from app.schemas.workspace.plugins import ChatGroupPluginConfigOut, UserPluginTargetBindingOut
+from app.services.plugins.manager import validate_cron_expression
 
 
 class PluginServiceUserMixin:
@@ -42,7 +43,7 @@ class PluginServiceUserMixin:
         )
         return [
             self._serialize_user_plugin(
-                item, user_configs.get(item.id), visibility_map.get(item.id, [])
+                session, item, user, user_configs.get(item.id), visibility_map.get(item.id, [])
             )
             for item in plugins
             if self._resolve_plugin_visibility(item, visibility_map.get(item.id, []))
@@ -64,7 +65,7 @@ class PluginServiceUserMixin:
                 PluginUserConfig.user_id == user.id,
             )
         )
-        return self._serialize_user_plugin(plugin, user_config, visibility_overrides)
+        return self._serialize_user_plugin(session, plugin, user, user_config, visibility_overrides)
 
     def set_plugin_enabled_for_user(
         self, session: Session, user: User, plugin_id: str, *, enabled: bool
@@ -83,7 +84,7 @@ class PluginServiceUserMixin:
         session.flush()
         session.commit()
         session.refresh(current)
-        return self._serialize_user_plugin(plugin, current, visibility_overrides)
+        return self._serialize_user_plugin(session, plugin, user, current, visibility_overrides)
 
     def update_user_plugin_config(
         self, session: Session, user: User, plugin_id: str, config_json: dict
@@ -106,7 +107,7 @@ class PluginServiceUserMixin:
         session.flush()
         session.commit()
         session.refresh(current)
-        return self._serialize_user_plugin(plugin, current, visibility_overrides)
+        return self._serialize_user_plugin(session, plugin, user, current, visibility_overrides)
 
     def validate_user_plugin_config(self, session: Session, user: User, plugin_id: str) -> dict:
         plugin = session.get(PluginDefinition, plugin_id)
@@ -123,7 +124,7 @@ class PluginServiceUserMixin:
         session.flush()
         session.commit()
         session.refresh(current)
-        return self._serialize_user_plugin(plugin, current, visibility_overrides)
+        return self._serialize_user_plugin(session, plugin, user, current, visibility_overrides)
 
     def clear_user_plugin_error(self, session: Session, user: User, plugin_id: str) -> dict:
         plugin = session.get(PluginDefinition, plugin_id)
@@ -141,7 +142,77 @@ class PluginServiceUserMixin:
         session.flush()
         session.commit()
         session.refresh(current)
-        return self._serialize_user_plugin(plugin, current, visibility_overrides)
+        return self._serialize_user_plugin(session, plugin, user, current, visibility_overrides)
+
+    def update_user_event_schedule(
+        self,
+        session: Session,
+        user: User,
+        plugin_id: str,
+        event_name: str,
+        *,
+        schedule_mode: str,
+        schedule_interval_seconds: int | None,
+        schedule_cron: str | None,
+    ) -> dict:
+        plugin = session.get(PluginDefinition, plugin_id)
+        if not plugin:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
+        group_ids = self._group_ids_for_user(session, user.id)
+        visibility_overrides = self._group_visibility_map(
+            session, plugin_ids=[plugin.id], group_ids=group_ids
+        ).get(plugin.id, [])
+        if not self._resolve_plugin_visibility(plugin, visibility_overrides):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
+        event = self._get_active_event_definition(session, plugin, event_name)
+        if event.mode != "short_lived":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only short-lived events can be scheduled",
+            )
+        if schedule_mode not in {"manual", "interval", "cron"}:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid schedule_mode",
+            )
+        normalized_cron = None
+        if schedule_mode == "interval" and not schedule_interval_seconds:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="schedule_interval_seconds is required",
+            )
+        if schedule_mode == "cron":
+            try:
+                normalized_cron = validate_cron_expression(schedule_cron or "")
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+                ) from exc
+        current = self._ensure_user_event_config(
+            session,
+            plugin_id=plugin_id,
+            user_id=user.id,
+            event_name=event_name,
+        )
+        current.schedule_mode = schedule_mode
+        current.schedule_interval_seconds = (
+            int(schedule_interval_seconds) if schedule_mode == "interval" else None
+        )
+        current.schedule_cron = normalized_cron if schedule_mode == "cron" else None
+        session.flush()
+        session.commit()
+        self.runtime_manager.update_short_lived_schedule(
+            plugin_id,
+            event_name,
+            schedule_mode=current.schedule_mode,
+            interval_seconds=current.schedule_interval_seconds,
+            cron_expression=current.schedule_cron,
+            scope_type="user",
+            scope_id=user.id,
+            timezone=user.timezone,
+        )
+        user_config = self._ensure_user_config(session, plugin, user.id)
+        return self._serialize_user_plugin(session, plugin, user, user_config, visibility_overrides)
 
     def get_chat_group_plugin_config(
         self,

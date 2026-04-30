@@ -49,6 +49,7 @@ from app.models.plugins import (
     PluginRunState,
     PluginTargetBinding,
     PluginUserConfig,
+    PluginUserEventConfig,
     PluginVersion,
 )
 from app.models.system import SystemSettings
@@ -116,6 +117,7 @@ __all__ = [
     "PluginRunState",
     "PluginTargetBinding",
     "PluginUserConfig",
+    "PluginUserEventConfig",
     "PluginVersion",
     "ProviderCredential",
     "TagChatGroupVisibility",

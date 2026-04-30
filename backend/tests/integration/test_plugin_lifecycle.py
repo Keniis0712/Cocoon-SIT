@@ -172,15 +172,6 @@ def test_plugin_config_and_event_config_validate_json_schema(client, auth_header
     )
     assert good_event_config.status_code == 200, good_event_config.text
 
-    schedule = client.patch(
-        f"/api/v1/admin/plugins/{plugin_id}/events/poller/schedule",
-        headers=auth_headers,
-        json={"schedule_mode": "interval", "schedule_interval_seconds": 30, "schedule_cron": None},
-    )
-    assert schedule.status_code == 200, schedule.text
-    assert schedule.json()["events"][0]["schedule_mode"] == "interval"
-    assert schedule.json()["events"][0]["schedule_interval_seconds"] == 30
-
 
 def test_plugin_install_rejects_invalid_default_config(client, auth_headers):
     response = _install_response(

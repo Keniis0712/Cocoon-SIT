@@ -234,9 +234,6 @@ class PluginServiceInstallMixin:
                             event_name=item.name,
                             is_enabled=True,
                             config_json=dict(item.default_config or {}),
-                            schedule_mode="manual",
-                            schedule_interval_seconds=None,
-                            schedule_cron=None,
                         )
                     )
             plugin.active_version_id = version.id

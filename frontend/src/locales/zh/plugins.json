@@ -95,7 +95,7 @@
   "scheduleIntervalSeconds": "间隔秒数",
   "scheduleCronExpression": "Cron 表达式",
   "scheduleManualHint": "仅手动触发",
-  "scheduleCronHint": "使用五段格式：分钟 小时 日期 月份 星期。例如 0 9 * * * 表示按服务器时间每天 09:00 运行。",
+  "scheduleCronHint": "使用五段格式：分钟 小时 日期 月份 星期。例如 0 9 * * * 表示按你的时区每天 09:00 运行。",
   "saveEventSchedule": "保存计划",
   "saveEventScheduleSuccess": "事件计划已保存。",
   "saveEventScheduleFailed": "保存事件计划失败。",

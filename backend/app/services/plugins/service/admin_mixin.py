@@ -100,20 +100,9 @@ class PluginServiceAdminMixin:
                     is_enabled=event_configs.get(item.name).is_enabled
                     if event_configs.get(item.name)
                     else True,
-                    schedule_mode=(
-                        event_configs.get(item.name).schedule_mode
-                        if event_configs.get(item.name)
-                        else "manual"
-                    )
-                    or "manual",
-                    schedule_interval_seconds=(
-                        event_configs.get(item.name).schedule_interval_seconds
-                        if event_configs.get(item.name)
-                        else None
-                    ),
-                    schedule_cron=event_configs.get(item.name).schedule_cron
-                    if event_configs.get(item.name)
-                    else None,
+                    schedule_mode="manual",
+                    schedule_interval_seconds=None,
+                    schedule_cron=None,
                 )
                 for item in event_defs
             ],

@@ -66,3 +66,4 @@ def test_list_short_lived_scopes_keeps_runtime_error_scopes_eligible():
     assert [(scope.scope_type, scope.scope_id, scope.user_id) for scope in scopes] == [
         ("user", "user-1", "user-1")
     ]
+    assert scopes[0].timezone == "UTC"

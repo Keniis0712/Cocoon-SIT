@@ -87,24 +87,6 @@ export function updateAdminPluginEventConfig(
   );
 }
 
-export function updateAdminPluginEventSchedule(
-  pluginId: string,
-  eventName: string,
-  payload: {
-    schedule_mode: "manual" | "interval" | "cron";
-    schedule_interval_seconds?: number | null;
-    schedule_cron?: string | null;
-  },
-): Promise<AdminPluginDetailRead> {
-  return apiJson<AdminPluginDetailRead>(
-    `/admin/plugins/${pluginId}/events/${encodePath(eventName)}/schedule`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    },
-  );
-}
-
 export function runAdminPluginEventNow(
   pluginId: string,
   eventName: string,
