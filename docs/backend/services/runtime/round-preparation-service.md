@@ -1,6 +1,6 @@
 # RoundPreparationService
 
-Source: `backend/app/services/runtime/round_preparation_service.py`
+Source: `backend/app/services/runtime/orchestration/round_preparation_service.py`
 
 ## Purpose
 

@@ -1,6 +1,6 @@
 # PluginRuntimeManager
 
-Source: `backend/app/services/plugins/manager.py`
+Source: `backend/app/services/plugins/manager/manager.py`
 
 ## Purpose
 

@@ -11,6 +11,7 @@ Updated: 2026-04-19
 ```text
 frontend/src/api
 |-- adapters/
+|-- admin-plugins.ts
 |-- admin-users.ts
 |-- adminArtifacts.ts
 |-- adminAudits.ts
@@ -25,6 +26,7 @@ frontend/src/api
 |-- insights.ts
 |-- invites.ts
 |-- merges.ts
+|-- plugins.ts
 |-- prompts.ts
 |-- providers.ts
 |-- roles.ts
@@ -32,7 +34,8 @@ frontend/src/api
 |-- tags.ts
 |-- types/
 |-- types.ts
-`-- user.ts
+|-- user.ts
+`-- wakeups.ts
 ```
 
 ## Responsibilities
@@ -51,10 +54,12 @@ Owns:
 
 Examples:
 
+- `admin-plugins.ts`
 - `cocoons.ts`
 - `chatGroups.ts`
 - `characters.ts`
 - `providers.ts`
+- `wakeups.ts`
 
 These files should:
 
@@ -90,6 +95,8 @@ Current modules:
 - `types/audit.ts`
 - `types/insights.ts`
 - `types/access.ts`
+- `types/plugins.ts`
+- `types/wakeups.ts`
 
 `types.ts` now primarily acts as a compatibility barrel. Most shared transport contracts already live in dedicated modules under `types/`.
 
@@ -97,9 +104,9 @@ Current modules:
 
 Next type split targets:
 
-1. workspace-specific admin operations
-2. remaining page-level helper types that are still colocated outside `types/`
-3. import-path cleanup for files that can safely move from `@/api/types` to direct domain modules
+1. remaining page-level helper types that are still colocated outside `types/`
+2. import-path cleanup for files that can safely move from `@/api/types` to direct domain modules
+3. continued consolidation between workspace plugin APIs and admin plugin APIs where shared transport shapes overlap
 
 ## Notes
 

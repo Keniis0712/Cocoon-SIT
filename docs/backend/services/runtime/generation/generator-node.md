@@ -1,6 +1,6 @@
 # GeneratorNode
 
-源码：`backend/app/services/runtime/generator_node.py`
+源码：`backend/app/services/runtime/generation/generator_node.py`
 
 ## 功能
 

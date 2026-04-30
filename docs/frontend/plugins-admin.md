@@ -23,12 +23,12 @@ The frontend can already rely on these admin actions:
 
 ## Current UI
 
-The plugin admin UI is now wired and available under the plugins route.
+The plugin admin UI is now wired and available under the admin plugins route.
 
 Implemented frontend pieces:
 
-- `frontend/src/pages/PluginsPage.tsx`
-- `frontend/src/api/plugins.ts`
+- `frontend/src/pages/AdminPlugins.tsx`
+- `frontend/src/api/admin-plugins.ts`
 - `frontend/src/api/types/plugins.ts`
 
 Current screen capabilities:
@@ -54,6 +54,11 @@ Frontend responsibilities:
 - support file upload for install/update
 - display active version, events, enable state, and runtime state
 - display shared warehouse package inventory and deduplicated package reuse
+
+## Route Boundary
+
+- Admin plugin management lives at `/admin/plugins`
+- The separate `/plugins` screen is the workspace/user-facing plugin binding and per-target configuration surface
 
 ## Remaining Gaps
 

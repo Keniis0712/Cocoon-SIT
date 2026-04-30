@@ -1,6 +1,6 @@
 # MetaNode
 
-源码：`backend/app/services/runtime/meta_node.py`
+源码：`backend/app/services/runtime/meta/node.py`
 
 ## 功能
 

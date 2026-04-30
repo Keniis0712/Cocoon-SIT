@@ -1,6 +1,6 @@
 # Runtime Prompting Helpers
 
-源码：`backend/app/services/runtime/prompting.py`
+源码：`backend/app/services/runtime/prompting/prompting.py`
 
 ## 功能
 

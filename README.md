@@ -1,16 +1,21 @@
 # Cocoon-SIT
 
-Monorepo scaffold for the Cocoon-SIT AI workspace platform.
+English | [简体中文](README.zh-CN.md)
 
-## Layout
+Monorepo for the Cocoon-SIT AI workspace platform.
 
-- `backend/`: FastAPI API, worker, runtime, persistence, prompt templates, audit, memory, RBAC.
-- `frontend/`: React/Vite admin console for workspace runtime, governance, prompt templates, and operations.
-- `packages/ts-sdk/`: OpenAPI-driven TypeScript SDK generation target.
-- `deploy/`: Docker Compose, Dockerfiles, init scripts, env templates.
-- `docs/`: ADRs, event protocol, prompt variable documentation.
+## Repository Layout
 
-## Backend stack
+- `backend/`: FastAPI API, worker runtime, persistence, prompts, audit, memory, RBAC, plugins
+- `frontend/`: React/Vite admin console and workspace UI
+- `packages/ts-sdk/`: OpenAPI-based TypeScript SDK
+- `plugins/`: local example plugins and packaged plugin artifacts
+- `deploy/`: Docker Compose files, Dockerfiles, env templates, init scripts
+- `docs/`: maintained architecture and implementation notes
+
+## Stack
+
+### Backend
 
 - FastAPI
 - SQLAlchemy 2 + Alembic
@@ -19,94 +24,93 @@ Monorepo scaffold for the Cocoon-SIT AI workspace platform.
 - Pydantic Settings
 - Fernet-based provider secret encryption
 
-## Quick start
+### Frontend
 
-1. Copy `deploy/.env.example` to `.env` and adjust values.
+- React 19
+- Vite 6
+- TypeScript
+- Zustand
+- i18next
+
+## Quick Start
+
+1. Copy `deploy/.env.example` to `deploy/.env` and adjust values.
 2. Install workspace dependencies with `corepack pnpm install`.
-3. In `backend/`, activate `.venv` and run `python -m uv run uvicorn app.main:app --reload`.
-4. In `backend/`, start the worker with `python -m uv run python -m app.worker.main`.
-5. Copy `frontend/.env.example` to `frontend/.env` if you want to change the backend target. In development the frontend now defaults to same-origin requests and uses the Vite dev proxy for `/api`.
-6. In `frontend/`, run `corepack pnpm dev`.
+3. Start the backend API with `pnpm run backend:dev`.
+4. Start the worker with `pnpm run backend:worker`.
+5. Copy `frontend/.env.example` to `frontend/.env` if you need a custom backend target.
+6. Start the frontend with `pnpm run frontend:dev`.
 7. Sign in at `http://127.0.0.1:5173` with `admin / admin`.
 
-## Docker Compose
+The frontend defaults to same-origin API calls in production and uses the Vite dev proxy for `/api` in local development.
 
-- Full stack with bundled frontend:
-  - `docker compose -f deploy/docker-compose.yml up --build`
-- Production compose now reads `deploy/.env`, not `deploy/.env.example`.
-- The `api` image now builds the frontend and serves it as static files on the same origin.
-- The Docker `api` service now runs `alembic upgrade head` before startup, so schema changes are applied automatically to existing Postgres volumes.
-- The Alembic baseline has been reset to the current schema. If you still have an older local Postgres volume from before this reset, drop it once with `docker compose -f deploy/docker-compose.yml down -v` before bringing the stack back up.
-- The production compose publishes the app on `http://127.0.0.1:8388`.
-- Plugin packages, plugin runtime data, and audit artifacts are persisted through named Docker volumes.
+## Docker
 
-## Deployment Bundle
+### Production-style stack
 
-- Package the minimum Docker deployment files into a zip from the repo root:
-  - PowerShell: `.\scripts\package-deploy.ps1`
-  - Bash: `./scripts/package-deploy.sh`
-- Both scripts output a timestamped archive into `dist/` by default.
-- The bundle includes the current `deploy/.env.example` template but does not include any real `.env` secrets.
+- `docker compose -f deploy/docker-compose.yml up --build`
+- The bundled app is published on `http://127.0.0.1:8388`
+- The `api` container runs `alembic upgrade head` before startup
 
-## Docker Development
+### Development stack
 
-- Dev stack with hot reload backend, worker, and Vite:
-  - `docker compose -f deploy/docker-compose.dev.yml up --build`
-- If you previously started an older dev stack definition, reset old named volumes first:
-  - `docker compose -f deploy/docker-compose.dev.yml down -v`
-- Development URLs:
-  - Frontend: `http://127.0.0.1:5173`
-  - Backend API: `http://127.0.0.1:8000`
-- The dev frontend uses Vite proxying to reach the Compose `api` service at `http://api:8000`, so backend CORS can stay disabled.
+- `docker compose -f deploy/docker-compose.dev.yml up --build`
+- Frontend: `http://127.0.0.1:5173`
+- Backend API: `http://127.0.0.1:8000`
 
-## Contract Sync
+If you previously used older compose definitions, reset stale named volumes with `docker compose ... down -v` before bringing the stack up again.
 
-- Export and regenerate the TypeScript SDK after backend API changes with `pnpm run sdk:sync`.
-- Verify SDK typing and backend regression coverage with `pnpm run sdk:verify`.
-- Backend-side contract notes live in `docs/backend/sdk-contract.md`.
+## SDK Sync
 
-## Embedding And Vector Memory
+- Regenerate the TypeScript SDK after backend API changes: `pnpm run sdk:sync`
+- Verify SDK typing and backend coverage: `pnpm run sdk:verify`
 
-- The admin and web UI can store multiple `EmbeddingProvider` configs, including `local_cpu` and `openai_compatible`.
-- The backend enforces single-active behavior: enabling one embedding provider automatically disables the others.
+Backend-side SDK notes live in `docs/backend/sdk-contract.md`.
+
+## Memory And Vector Retrieval
+
+- Multiple embedding provider configs can exist, but only one can be enabled at a time.
 - If no embedding provider is enabled, normal chat and memory flows still work, but vector retrieval is skipped.
-- Vector retrieval is implemented for Postgres with the `vector` extension. SQLite remains the default development and test database.
-- The `/embedding-providers` page is a "multiple configs, single enabled provider" surface. Multi-active embedding is not supported.
+- Vector retrieval is implemented for Postgres with the `vector` extension.
+- SQLite remains the default local development and test database.
+
+Implementation notes live in `docs/vector-memory.md`.
 
 ## Testing
 
-- Default backend tests run against SQLite and the in-memory queue/backplane adapters.
-- Tests that require Postgres vector retrieval are marked `pgvector` and skip automatically unless `COCOON_PGVECTOR_TEST_DATABASE_URL` is configured.
-- Run the pgvector integration tests explicitly from `backend/` with `.\.venv\Scripts\python.exe -m pytest tests/integration/test_pgvector_memory.py -q`.
-- Vector-memory implementation and test constraints are documented in `docs/vector-memory.md`.
+- Default backend tests run against SQLite and in-memory queue/backplane adapters.
+- pgvector integration tests are opt-in and require `COCOON_PGVECTOR_TEST_DATABASE_URL`.
+- Run pgvector coverage explicitly from `backend/` with `.\.venv\Scripts\python.exe -m pytest tests/integration/test_pgvector_memory.py -q`.
 
-## Current implementation focus
+Useful scripts from the repo root:
 
-This repository already includes:
+- `pnpm run frontend:lint`
+- `pnpm run frontend:test`
+- `pnpm run backend:test`
+- `pnpm run backend:test:api`
+- `pnpm run backend:test:integration`
+- `pnpm run backend:test:unit`
+- `pnpm run frontend:build`
+- `pnpm run lint`
+- `pnpm run check`
 
-- Monorepo workspace layout
-- Running FastAPI application scaffold
-- Chat dispatch ledger + queue abstraction
-- WebSocket realtime backplane abstraction
-- Prompt template management with versioned revisions
-- Audit artifact storage abstraction with filesystem implementation
-- Durable job table/service skeleton
-- Tests for chat flow, prompt templates, provider credential encryption, and durable jobs
+## Current Product Surface
 
-## Invite Management
+The repository already includes:
 
-- The admin invite console now uses real backend-backed actions for creating invite codes, revoking unused codes, granting quota, and reading personal or group quota summaries.
-- Invite-code creation can consume from a user bucket, a group bucket, or `ADMIN_OVERRIDE`.
-- Revoking an unused invite code refunds capacity implicitly by removing that code from summary consumption.
-- Quota grants are stored separately from invite codes and appear in the invite grant ledger shown in the frontend.
+- cocoon and chat-group workspaces
+- unified runtime orchestration through `ChatRuntime`
+- REST + WebSocket realtime flows
+- prompt template management with versioned revisions
+- audit artifacts and insights surfaces
+- invite and quota management
+- plugin installation, runtime management, and workspace/plugin bindings
+- optional vector memory retrieval
 
 ## Notes
 
-- Production should use Postgres + Redis via Docker Compose.
-- Tests run against SQLite and in-memory queue/backplane adapters by default; pgvector coverage is opt-in and uses Postgres.
-- Future schema changes should be added as new Alembic revisions after `0001_initial`; `0001_initial` is now the frozen baseline for fresh environments.
-- Prompt templates are global and immediately effective, but every save creates an immutable revision.
-- The frontend defaults to same-origin API calls; local development uses the Vite proxy to forward `/api` to the backend target.
-- Backend CORS is now off by default and only enabled when `COCOON_CORS_ORIGINS` is explicitly configured.
-- Worker-only files now live under `backend/app/worker/`; API/shared files stay in `backend/app/api/`, `core/`, and `services/`.
-- Artifact cleanup now enqueues durable jobs instead of deleting synchronously from the admin API.
+- Production should use Postgres + Redis through Docker Compose.
+- Prompt templates are global and every save creates an immutable revision.
+- Backend CORS is disabled by default and only enabled when `COCOON_CORS_ORIGINS` is configured.
+- Worker-only files live under `backend/app/worker/`.
+- Maintained implementation notes live under `docs/`; removed repo-root architecture drafts should be considered obsolete.

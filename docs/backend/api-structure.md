@@ -1,6 +1,6 @@
 # Backend API Structure
 
-后端入口位于 `backend/app/api/router.py`，当前按领域拆成 4 组 router。
+后端入口位于 `backend/app/api/router.py`，当前按领域拆成 5 组 router。
 
 ## Access
 
@@ -23,6 +23,7 @@
 - `embedding_providers.py`：embedding provider 目录
 - `tags.py`：标签注册
 - `prompt_templates.py`：prompt 模板管理
+- `settings.py`：系统设置
 
 ## Workspace
 
@@ -30,11 +31,13 @@
 
 - `cocoons.py`：cocoon CRUD、树、session state
 - `chat_groups.py`：chat-group room CRUD、成员、消息、撤回、state、realtime
+- `chat_group_tags.py`：chat-group 标签绑定与查询
 - `messages.py`：cocoon 消息列表与发送
 - `tags.py`：cocoon 标签绑定与查询
 - `rollback.py`：checkpoint 回滚请求
 - `realtime.py`：cocoon websocket
 - `memory.py`：记忆查询与压缩
+- `plugins.py`：工作区插件列表、启停、校验与绑定能力
 - `pulls.py`：pull job
 - `merges.py`：merge job
 - `checkpoints.py`：checkpoint 管理
@@ -50,8 +53,15 @@
 
 - `health.py`：健康检查
 - `audits.py`：审计查询
+- `wakeups.py`：wakeup 查询与筛选
 - `insights.py`：汇总指标
 - `admin_artifacts.py`：artifact 管理
+
+## Admin
+
+目录：`backend/app/api/routes/admin/`
+
+- `plugins.py`：插件安装、升级、全局配置、事件配置、共享依赖仓库
 
 ## Router 和 Service 的边界
 

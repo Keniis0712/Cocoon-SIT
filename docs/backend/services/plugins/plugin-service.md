@@ -1,6 +1,6 @@
 # PluginService
 
-Source: `backend/app/services/plugins/service.py`
+Source: `backend/app/services/plugins/service/service.py`
 
 ## Purpose
 

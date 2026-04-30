@@ -58,7 +58,14 @@ This means the flow is now:
 
 Realtime behavior is no longer page-local glue code. The shared path is now explicit enough to keep cocoon and chat-group behavior aligned.
 
+`useWorkspaceMessagingController.ts` now centralizes:
+
+- message input state
+- typing telemetry
+- optimistic send orchestration
+- dispatch/debounce state patching
+- first-load auto scroll behavior
+
 ## Current Risk
 
-Optimistic message creation is still target-specific and still lives in domain API wrappers plus page mutation handlers. If more chat targets are introduced later, that logic should become a dedicated workspace adapter layer.
-
+Pending message shape is shared, and optimistic send behavior is now shared, but transport-level send functions still remain target-specific. If more chat targets are introduced later, the next likely extraction is a unified workspace transport adapter interface.

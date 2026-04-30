@@ -30,6 +30,7 @@ Both workspace types use the same high-level runtime ideas:
 - `api/adapters/runtimeWs.ts`
 - `features/workspace/utils.ts`
 - `features/workspace/runtimeWsEvents.ts`
+- `features/workspace/useWorkspaceMessagingController.ts`
 
 ## Cocoon Workspace
 
@@ -42,12 +43,13 @@ Current composition:
 - `pages/CocoonWorkspace.tsx`
 - `features/cocoons/components/CocoonConversationPanel.tsx`
 - `features/cocoons/components/CocoonSessionPanel.tsx`
+- `features/cocoons/hooks/useCocoonWorkspaceController.ts`
 
-Still owned by the page:
+Still owned by the controller hook:
 
 - loading cocoon/session/tag/model data
 - retry/compaction/tag binding actions
-- optimistic message send
+- cocoon-specific websocket recovery behavior
 
 ## Chat-Group Workspace
 
@@ -62,18 +64,23 @@ Current composition:
 - `features/chat-groups/components/ChatGroupComposer.tsx`
 - `features/chat-groups/components/ChatGroupSidebar.tsx`
 - `features/chat-groups/components/ChatGroupDialogs.tsx`
+- `features/chat-groups/hooks/useChatGroupWorkspaceController.ts`
 
-Still owned by the page:
+Still owned by the controller hook:
 
 - room/member/message/state loading
 - membership mutations
-- optimistic message send
+- chat-group-specific websocket recovery behavior
 
-## Current Gap
+## Current State
 
-The two pages now share runtime event handling, but still mirror each other in data-loading and mutation orchestration.
-
-The next likely extraction point is feature-local hooks, for example:
+The two pages now delegate orchestration into feature-local controller hooks:
 
 - `useCocoonWorkspaceController`
 - `useChatGroupWorkspaceController`
+
+The pages are mostly view composition, while the shared send/store path lives in `useWorkspaceMessagingController`.
+
+## Remaining Gap
+
+Target-specific resource loading is still separate by design. If another workspace target is introduced later, the next extraction point is a thinner shared data loader contract on top of the current messaging controller.

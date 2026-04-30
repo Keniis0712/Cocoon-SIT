@@ -1,6 +1,6 @@
 # ChatRuntime
 
-源码：`backend/app/services/runtime/chat_runtime.py`
+源码：`backend/app/services/runtime/orchestration/chat_runtime.py`
 
 ## 功能
 

@@ -1,6 +1,6 @@
 # SchedulerNode
 
-源码：`backend/app/services/runtime/scheduler_node.py`
+源码：`backend/app/services/runtime/scheduling/scheduler_node.py`
 
 ## 功能
 

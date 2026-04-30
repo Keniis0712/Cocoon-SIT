@@ -12,7 +12,7 @@ Current coverage:
 - [api-structure.md](./api-structure.md): API wrapper layout, adapters, and type modules
 - [workspaces.md](./workspaces.md): cocoon/chat-group workspace architecture and shared runtime behavior
 - [state-and-realtime.md](./state-and-realtime.md): Zustand session state and websocket flow
-- [plugins-admin.md](./plugins-admin.md): planned plugin management UI and schema-driven forms
+- [plugins-admin.md](./plugins-admin.md): admin plugin management UI and schema-driven forms
 
 ## Current Theme
 
@@ -25,5 +25,5 @@ The frontend is moving from a page-heavy structure toward a clearer split:
 
 ## Notes
 
-- Legacy repo-root docs such as `frontend-api-structure.md` should point readers back to this directory.
+- The maintained frontend notes live in this directory; removed repo-root drafts should be treated as obsolete.
 - The current priority is to keep cocoon and chat-group chat flows structurally aligned without forcing them into one monolithic page.
