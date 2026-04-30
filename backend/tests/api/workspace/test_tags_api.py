@@ -34,3 +34,35 @@ def test_workspace_tag_routes_cover_bind_list_and_unbind(client, auth_headers, d
         state = session.get(SessionState, default_cocoon_id)
         assert state is not None
         assert focus_tag_id not in state.active_tags_json
+
+
+def test_get_cocoon_state_reconciles_bound_tags_when_state_is_stale(client, auth_headers, default_cocoon_id):
+    create_tag = client.post(
+        "/api/v1/tags",
+        headers=auth_headers,
+        json={"tag_id": "focus-state-heal", "brief": "State repair", "meta_json": {}},
+    )
+    assert create_tag.status_code == 200, create_tag.text
+    focus_tag_id = create_tag.json()["id"]
+
+    bind = client.post(
+        f"/api/v1/cocoons/{default_cocoon_id}/tags",
+        headers=auth_headers,
+        json={"tag_id": focus_tag_id},
+    )
+    assert bind.status_code == 200, bind.text
+
+    with client.app.state.container.session_factory() as session:
+        state = session.get(SessionState, default_cocoon_id)
+        assert state is not None
+        state.active_tags_json = []
+        session.commit()
+
+    state_response = client.get(f"/api/v1/cocoons/{default_cocoon_id}/state", headers=auth_headers)
+    assert state_response.status_code == 200, state_response.text
+    assert focus_tag_id in state_response.json()["active_tags_json"]
+
+    with client.app.state.container.session_factory() as session:
+        state = session.get(SessionState, default_cocoon_id)
+        assert state is not None
+        assert focus_tag_id in state.active_tags_json

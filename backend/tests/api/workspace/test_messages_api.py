@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 from sqlalchemy import select
 
-from app.models import ActionDispatch, Message
+from app.models import ActionDispatch, Cocoon, Message
 
 
 def test_send_edit_and_retry_message_routes_enqueue_actions(client, auth_headers, default_cocoon_id):
@@ -112,6 +112,27 @@ def test_list_messages_returns_serialized_messages(client, auth_headers, default
     response = client.get(f"/api/v1/cocoons/{default_cocoon_id}/messages", headers=auth_headers)
     assert response.status_code == 200, response.text
     assert [item["content"] for item in response.json()][-2:] == ["First listed message", "Second listed message"]
+
+
+def test_child_cocoon_messages_include_parent_chain_history(client, auth_headers, create_branch_cocoon):
+    container = client.app.state.container
+    child_id = create_branch_cocoon("History Child")["id"]
+
+    with container.session_factory() as session:
+        child = session.get(Cocoon, child_id)
+        assert child is not None
+        assert child.parent_id is not None
+        session.add_all(
+            [
+                Message(cocoon_id=child.parent_id, role="user", content="Parent history"),
+                Message(cocoon_id=child_id, role="assistant", content="Child reply"),
+            ]
+        )
+        session.commit()
+
+    response = client.get(f"/api/v1/cocoons/{child_id}/messages", headers=auth_headers)
+    assert response.status_code == 200, response.text
+    assert [item["content"] for item in response.json()][-2:] == ["Parent history", "Child reply"]
 
 
 def test_list_messages_supports_reverse_window_loading(client, auth_headers, default_cocoon_id):

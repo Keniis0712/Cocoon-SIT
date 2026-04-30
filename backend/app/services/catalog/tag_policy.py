@@ -213,8 +213,8 @@ def canonicalize_tag_refs(
             resolved.append(tag.id)
     if include_default and owner_user_id:
         default_tag = ensure_user_system_tag(session, owner_user_id)
-        if default_tag.id not in resolved:
-            resolved.insert(0, default_tag.id)
+        resolved = [item for item in resolved if item != default_tag.id]
+        resolved.insert(0, default_tag.id)
     return resolved
 
 
@@ -262,6 +262,30 @@ def ensure_state_default_tag(
     active_tags = canonicalize_tag_refs(
         session,
         state.active_tags_json,
+        include_default=True,
+        owner_user_id=owner_user_id,
+    )
+    if state.active_tags_json != active_tags:
+        state.active_tags_json = active_tags
+        session.flush()
+    return state
+
+
+def ensure_state_bound_tags(
+    session: Session,
+    state: SessionState,
+) -> SessionState:
+    if not hasattr(session, "scalars"):
+        return ensure_state_default_tag(session, state)
+    owner_user_id = resolve_tag_owner_user_id_for_state(session, state)
+    bound_tag_ids = list_target_bound_tag_ids(
+        session,
+        cocoon_id=state.cocoon_id,
+        chat_group_id=state.chat_group_id,
+    )
+    active_tags = canonicalize_tag_refs(
+        session,
+        bound_tag_ids,
         include_default=True,
         owner_user_id=owner_user_id,
     )
@@ -410,13 +434,7 @@ def reconcile_tag_storage(session: Session) -> None:
         ensure_target_default_binding(session, chat_group_id=room.id)
 
     for state in session.scalars(select(SessionState)).all():
-        owner_user_id = resolve_tag_owner_user_id_for_state(session, state)
-        state.active_tags_json = canonicalize_tag_refs(
-            session,
-            state.active_tags_json,
-            include_default=True,
-            owner_user_id=owner_user_id,
-        )
+        ensure_state_bound_tags(session, state)
     for message in session.scalars(select(Message)).all():
         owner_user_id = resolve_tag_owner_user_id_for_target(
             session,

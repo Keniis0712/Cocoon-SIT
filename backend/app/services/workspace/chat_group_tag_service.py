@@ -24,6 +24,7 @@ class ChatGroupTagService:
         owner_user_id = resolve_tag_owner_user_id_for_target(session, chat_group_id=chat_group_id)
         tag = require_canonical_tag(session, tag_id, owner_user_id=owner_user_id)
         ensure_target_default_binding(session, chat_group_id=chat_group_id)
+        state = get_session_state(session, chat_group_id=chat_group_id)
         existing = session.scalar(
             select(ChatGroupTagBinding).where(
                 ChatGroupTagBinding.chat_group_id == chat_group_id,
@@ -34,7 +35,6 @@ class ChatGroupTagService:
             return existing
         binding = ChatGroupTagBinding(chat_group_id=chat_group_id, tag_id=tag.id)
         session.add(binding)
-        state = get_session_state(session, chat_group_id=chat_group_id)
         if state and tag.id not in state.active_tags_json:
             state.active_tags_json = canonicalize_tag_refs(
                 session,

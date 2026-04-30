@@ -5,9 +5,9 @@ from __future__ import annotations
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
-from app.models import SessionState
+from app.models import Cocoon, SessionState
 from app.models.workspace import DEFAULT_RELATION_SCORE
-from app.services.catalog.tag_policy import ensure_state_default_tag, ensure_target_default_binding
+from app.services.catalog.tag_policy import ensure_state_bound_tags, ensure_target_default_binding
 
 
 def resolve_target_type(*, cocoon_id: str | None = None, chat_group_id: str | None = None) -> tuple[str, str]:
@@ -30,6 +30,31 @@ def build_target_filter(model, *, cocoon_id: str | None = None, chat_group_id: s
     return and_(model.chat_group_id == target_id, model.cocoon_id.is_(None))
 
 
+def list_cocoon_lineage(session: Session, cocoon_id: str) -> list[Cocoon]:
+    lineage: list[Cocoon] = []
+    seen_ids: set[str] = set()
+    current_id: str | None = cocoon_id
+    guard = 0
+
+    while current_id and guard < 128:
+        guard += 1
+        if current_id in seen_ids:
+            break
+        cocoon = session.get(Cocoon, current_id)
+        if not cocoon:
+            break
+        lineage.append(cocoon)
+        seen_ids.add(cocoon.id)
+        current_id = cocoon.parent_id
+
+    lineage.reverse()
+    return lineage
+
+
+def list_cocoon_lineage_ids(session: Session, cocoon_id: str) -> list[str]:
+    return [item.id for item in list_cocoon_lineage(session, cocoon_id)]
+
+
 def get_session_state(
     session: Session,
     *,
@@ -42,7 +67,7 @@ def get_session_state(
         )
     )
     if state:
-        ensure_state_default_tag(session, state)
+        ensure_state_bound_tags(session, state)
     return state
 
 
@@ -65,4 +90,4 @@ def ensure_session_state(
     )
     session.add(state)
     session.flush()
-    return ensure_state_default_tag(session, state)
+    return ensure_state_bound_tags(session, state)

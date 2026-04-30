@@ -12,6 +12,7 @@ from app.models import EmbeddingProvider, MemoryChunk, MemoryEmbedding, MemoryTa
 from app.models.vector import PGVector
 from app.services.catalog.tag_policy import is_tag_visible_in_target
 from app.services.providers.registry import ProviderRegistry
+from app.services.workspace.targets import list_cocoon_lineage_ids
 
 
 @dataclass
@@ -64,7 +65,8 @@ class MemoryService:
                 MemoryChunk.character_id == character_id,
             )
         elif cocoon_id:
-            query = query.where(MemoryChunk.cocoon_id == cocoon_id)
+            cocoon_ids = list_cocoon_lineage_ids(session, cocoon_id) or [cocoon_id]
+            query = query.where(MemoryChunk.cocoon_id.in_(cocoon_ids))
         if scopes:
             query = query.where(MemoryChunk.scope.in_(scopes))
         memories = list(

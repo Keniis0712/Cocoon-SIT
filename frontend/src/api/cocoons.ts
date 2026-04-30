@@ -307,8 +307,8 @@ export function createCocoon(data: CocoonPayload): Promise<CocoonRead> {
   return apiCall(async (client) => {
     const created = await client.createCocoon({
       name: data.name.trim(),
-      character_id: resolveActualId("character", data.character_id || 0),
-      selected_model_id: resolveActualId("model", data.selected_model_id || 0),
+      ...(data.character_id ? { character_id: resolveActualId("character", data.character_id) } : {}),
+      ...(data.selected_model_id ? { selected_model_id: resolveActualId("model", data.selected_model_id) } : {}),
       parent_id: data.parent_id ? resolveActualId("cocoon", data.parent_id) : null,
       default_temperature: data.default_temperature ?? 0.7,
       max_context_messages: data.max_context_messages ?? data.max_context_tokens ?? 12,

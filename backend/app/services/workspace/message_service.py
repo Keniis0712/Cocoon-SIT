@@ -11,12 +11,56 @@ from sqlalchemy.orm import Session
 from app.models import Message
 from app.schemas.workspace.cocoons import ChatMessageOut
 from app.services.workspace.targets import build_target_filter
+from app.services.workspace.targets import list_cocoon_lineage
 
 
 class MessageService:
     """Lists and mutates stored conversation messages."""
 
     RETRACTED_PLACEHOLDER = "[message retracted]"
+
+    def _trim_to_context_start(
+        self,
+        messages: list[Message],
+        context_start_message_id: str | None,
+    ) -> list[Message]:
+        if not context_start_message_id:
+            return messages
+        for index, message in enumerate(messages):
+            if message.id == context_start_message_id:
+                return messages[index:]
+        return messages
+
+    def _list_cocoon_lineage_messages(self, session: Session, cocoon_id: str) -> list[Message]:
+        lineage = list_cocoon_lineage(session, cocoon_id)
+        if not lineage:
+            return list(
+                session.scalars(
+                    select(Message)
+                    .where(Message.cocoon_id == cocoon_id)
+                    .order_by(Message.created_at.asc(), Message.id.asc())
+                ).all()
+            )
+
+        cocoon_ids = [item.id for item in lineage]
+        all_messages = list(
+            session.scalars(
+                select(Message)
+                .where(Message.cocoon_id.in_(cocoon_ids))
+                .order_by(Message.created_at.asc(), Message.id.asc())
+            ).all()
+        )
+        messages_by_cocoon: dict[str, list[Message]] = {item.id: [] for item in lineage}
+        for message in all_messages:
+            if message.cocoon_id in messages_by_cocoon:
+                messages_by_cocoon[message.cocoon_id].append(message)
+
+        visible_messages: list[Message] = []
+        for cocoon in lineage:
+            visible_messages.extend(
+                self._trim_to_context_start(messages_by_cocoon.get(cocoon.id, []), cocoon.context_start_message_id)
+            )
+        return visible_messages
 
     def list_messages(
         self,
@@ -27,6 +71,21 @@ class MessageService:
         before_message_id: str | None = None,
         limit: int | None = None,
     ) -> list[Message]:
+        if cocoon_id:
+            messages = self._list_cocoon_lineage_messages(session, cocoon_id)
+            if before_message_id:
+                anchor = session.get(Message, before_message_id)
+                if not anchor or anchor.cocoon_id not in {item.cocoon_id for item in messages}:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+                messages = [
+                    message
+                    for message in messages
+                    if (message.created_at, message.id) < (anchor.created_at, anchor.id)
+                ]
+            if limit is not None:
+                return messages[-limit:]
+            return messages
+
         target_filter = build_target_filter(Message, cocoon_id=cocoon_id, chat_group_id=chat_group_id)
         query = select(Message).where(target_filter)
 

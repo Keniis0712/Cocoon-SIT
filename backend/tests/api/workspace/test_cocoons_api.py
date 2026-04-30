@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from sqlalchemy import select
 
@@ -20,16 +21,53 @@ from app.models import (
     PluginDispatchRecord,
     PluginImDeliveryOutbox,
     PluginVersion,
+    Role,
     SessionState,
+    User,
     WakeupTask,
 )
 from app.api.routes.workspace.cocoons import _delete_cocoon_subtree
+from app.services.security.encryption import hash_secret
 
 
 def _default_character_and_model_ids(client, auth_headers):
     characters = client.get("/api/v1/characters", headers=auth_headers).json()
     models = client.get("/api/v1/providers/models", headers=auth_headers).json()
     return characters[0]["id"], models[0]["id"]
+
+
+def _create_user_and_login(
+    client,
+    *,
+    username: str,
+    password: str,
+    permissions: list[str] | None = None,
+) -> dict[str, str]:
+    with client.app.state.container.session_factory() as session:
+        role_id = None
+        if permissions is not None:
+            role_name = f"{username}-{uuid4().hex[:8]}"
+            role = Role(name=role_name, permissions_json={name: True for name in permissions})
+            session.add(role)
+            session.flush()
+            role_id = role.id
+        user = session.scalar(select(User).where(User.username == username))
+        if not user:
+            user = User(
+                username=username,
+                email=f"{username}@example.com",
+                password_hash=hash_secret(password),
+                role_id=role_id,
+                is_active=True,
+                timezone="UTC",
+            )
+            session.add(user)
+        elif role_id is not None:
+            user.role_id = role_id
+        session.commit()
+    response = client.post("/api/v1/auth/login", json={"username": username, "password": password})
+    assert response.status_code == 200, response.text
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 def test_cocoon_routes_support_create_update_tree_and_state(client, auth_headers, default_cocoon_id):
@@ -116,6 +154,68 @@ def test_cocoon_create_rejects_duplicate_root_and_state_returns_404_when_missing
     assert state_payload["code"] == "SESSION_STATE_NOT_FOUND"
     assert state_payload["msg"] == "Session state not found"
     assert state_payload["data"] is None
+
+
+def test_child_cocoon_inherits_missing_character_and_model_from_parent(client, auth_headers, default_cocoon_id):
+    with client.app.state.container.session_factory() as session:
+        parent = session.get(Cocoon, default_cocoon_id)
+        assert parent is not None
+        expected_character_id = parent.character_id
+        expected_model_id = parent.selected_model_id
+
+    create_response = client.post(
+        "/api/v1/cocoons",
+        headers=auth_headers,
+        json={
+            "name": "Inherited Child Cocoon",
+            "parent_id": default_cocoon_id,
+        },
+    )
+
+    assert create_response.status_code == 200, create_response.text
+    assert create_response.json()["character_id"] == expected_character_id
+    assert create_response.json()["selected_model_id"] == expected_model_id
+    assert create_response.json()["parent_id"] == default_cocoon_id
+
+
+def test_root_cocoon_create_requires_character_and_model(client, auth_headers):
+    create_response = client.post(
+        "/api/v1/cocoons",
+        headers=auth_headers,
+        json={
+            "name": "Broken Root Cocoon",
+        },
+    )
+
+    assert create_response.status_code == 400, create_response.text
+    payload = create_response.json()
+    assert payload["code"] == "CHARACTER_ID_AND_SELECTED_MODEL_ID_ARE_REQUIRED_FOR_ROOT_COCOON"
+    assert payload["msg"] == "character_id and selected_model_id are required for root cocoon"
+    assert payload["data"] is None
+
+
+def test_child_cocoon_create_requires_parent_access(client, default_cocoon_id):
+    stranger_headers = _create_user_and_login(
+        client,
+        username="cocoon-stranger",
+        password="secret123",
+        permissions=["cocoons:write"],
+    )
+
+    create_response = client.post(
+        "/api/v1/cocoons",
+        headers=stranger_headers,
+        json={
+            "name": "Unauthorized Child Cocoon",
+            "parent_id": default_cocoon_id,
+        },
+    )
+
+    assert create_response.status_code == 403, create_response.text
+    payload = create_response.json()
+    assert payload["code"] == "COCOON_ACCESS_DENIED"
+    assert payload["msg"] == "Cocoon access denied"
+    assert payload["data"] is None
 
 
 def test_delete_cocoon_cleans_subtree_and_related_records(

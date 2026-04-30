@@ -27,6 +27,7 @@ class _FakeSession:
 def test_bind_tag_returns_existing_or_updates_session_state(monkeypatch):
     existing = object()
     session = _FakeSession(binding=existing)
+    monkeypatch.setattr("app.services.workspace.cocoon_tag_service.get_session_state", lambda *args, **kwargs: None)
 
     assert CocoonTagService().bind_tag(session, "c1", "focus") is existing
 
@@ -57,4 +58,3 @@ def test_unbind_tag_updates_state_and_raises_when_missing(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         CocoonTagService().unbind_tag(_FakeSession(binding=None), "c1", "focus")
     assert exc.value.status_code == 404
-

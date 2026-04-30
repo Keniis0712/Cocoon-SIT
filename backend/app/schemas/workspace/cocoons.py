@@ -7,8 +7,8 @@ from app.schemas.common import ORMModel
 
 class CocoonCreate(BaseModel):
     name: str
-    character_id: str
-    selected_model_id: str
+    character_id: str | None = None
+    selected_model_id: str | None = None
     parent_id: str | None = None
     default_temperature: float | None = None
     max_context_messages: int | None = Field(default=None, ge=1)

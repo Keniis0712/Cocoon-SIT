@@ -53,6 +53,36 @@ def test_memory_routes_support_listing_compaction_and_delete(client, auth_header
     assert missing_delete.status_code == 404, missing_delete.text
 
 
+def test_child_cocoon_memory_listing_includes_parent_chain_memories(client, auth_headers, create_branch_cocoon):
+    container = client.app.state.container
+    child_id = create_branch_cocoon("Memory Child")["id"]
+
+    with container.session_factory() as session:
+        child = session.get(Cocoon, child_id)
+        assert child is not None
+        assert child.parent_id is not None
+        parent_memory = MemoryChunk(
+            cocoon_id=child.parent_id,
+            scope="dialogue",
+            summary="Parent memory",
+            content="Parent memory",
+        )
+        child_memory = MemoryChunk(
+            cocoon_id=child_id,
+            scope="dialogue",
+            summary="Child memory",
+            content="Child memory",
+        )
+        session.add_all([parent_memory, child_memory])
+        session.commit()
+
+    list_response = client.get(f"/api/v1/memory/{child_id}", headers=auth_headers)
+    assert list_response.status_code == 200, list_response.text
+    summaries = [item["summary"] for item in list_response.json()]
+    assert "Parent memory" in summaries
+    assert "Child memory" in summaries
+
+
 def test_checkpoint_and_rollback_routes_validate_anchor_and_enqueue_job(client, auth_headers, default_cocoon_id):
     container = client.app.state.container
 

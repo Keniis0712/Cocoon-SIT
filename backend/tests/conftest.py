@@ -38,7 +38,7 @@ httpx.Response.envelope_json = _response_envelope_json
 
 @pytest.fixture
 def tmp_path() -> Path:
-    base = Path.cwd() / ".tmp_pytest"
+    base = Path(__file__).resolve().parents[1] / ".tmp_pytest"
     path = base / uuid4().hex
     path.mkdir(parents=True, exist_ok=True)
     try:

@@ -224,7 +224,7 @@ def test_memory_summary_template_drives_compaction(
         assert any((chunk.meta_json or {}).get("source_kind") == "compaction" for chunk in chunks)
 
 
-def test_runtime_prompt_exposes_readable_tag_metadata(
+def test_runtime_prompt_exposes_readable_tag_metadata_when_state_is_stale(
     client,
     auth_headers,
     worker_runtime,
@@ -254,7 +254,7 @@ def test_runtime_prompt_exposes_readable_tag_metadata(
         session.add(CocoonTagBinding(cocoon_id=default_cocoon_id, tag_id=focus_tag.id))
         state = session.scalar(select(SessionState).where(SessionState.cocoon_id == default_cocoon_id))
         assert state is not None
-        state.active_tags_json = [default_tag.id, focus_tag.id]
+        state.active_tags_json = [default_tag.id]
         session.commit()
 
     response = client.put(

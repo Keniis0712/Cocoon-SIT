@@ -8,6 +8,7 @@ from app.api.deps import get_current_user, get_db, require_permission
 from app.api.wakeup_serialization import serialize_wakeup_task
 from app.models import (
     ActionDispatch,
+    AvailableModel,
     AuditArtifact,
     AuditLink,
     AuditRun,
@@ -151,13 +152,44 @@ def create_cocoon(
     user: User = Depends(get_current_user),
     _=Depends(require_permission("cocoons:write")),
 ) -> Cocoon:
+    authorization_service = db.info["container"].authorization_service
+    system_settings_service = db.info["container"].system_settings_service
     settings = db.info["container"].system_settings_service.get_settings(db)
-    db.info["container"].system_settings_service.require_model_allowed(db, payload.selected_model_id)
-    if payload.parent_id is None:
+    parent: Cocoon | None = None
+    final_character_id = payload.character_id
+    final_selected_model_id = payload.selected_model_id
+
+    if payload.parent_id is not None:
+        parent = authorization_service.require_cocoon_access(
+            db,
+            user,
+            payload.parent_id,
+            write=False,
+        )
+        final_character_id = final_character_id or parent.character_id
+        final_selected_model_id = final_selected_model_id or parent.selected_model_id
+    elif not final_character_id or not final_selected_model_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="character_id and selected_model_id are required for root cocoon",
+        )
+
+    if not final_character_id or not final_selected_model_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Child cocoon could not resolve character_id or selected_model_id",
+        )
+
+    authorization_service.require_character_use(db, user, final_character_id)
+    if not db.get(AvailableModel, final_selected_model_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Model not found")
+    system_settings_service.require_model_allowed(db, final_selected_model_id)
+
+    if parent is None:
         existing_root = db.scalar(
             select(Cocoon).where(
                 Cocoon.owner_user_id == user.id,
-                Cocoon.character_id == payload.character_id,
+                Cocoon.character_id == final_character_id,
                 Cocoon.parent_id.is_(None),
             )
         )
@@ -168,9 +200,9 @@ def create_cocoon(
             )
     cocoon = Cocoon(
         name=payload.name,
-        character_id=payload.character_id,
-        selected_model_id=payload.selected_model_id,
-        parent_id=payload.parent_id,
+        character_id=final_character_id,
+        selected_model_id=final_selected_model_id,
+        parent_id=parent.id if parent else payload.parent_id,
         owner_user_id=user.id,
         default_temperature=(
             payload.default_temperature

@@ -25,6 +25,7 @@ class CocoonTagService:
         owner_user_id = resolve_tag_owner_user_id_for_target(session, cocoon_id=cocoon_id)
         tag = require_canonical_tag(session, tag_id, owner_user_id=owner_user_id)
         ensure_target_default_binding(session, cocoon_id=cocoon_id)
+        state = get_session_state(session, cocoon_id=cocoon_id)
         existing = session.scalar(
             select(CocoonTagBinding).where(
                 CocoonTagBinding.cocoon_id == cocoon_id,
@@ -35,7 +36,6 @@ class CocoonTagService:
             return existing
         binding = CocoonTagBinding(cocoon_id=cocoon_id, tag_id=tag.id)
         session.add(binding)
-        state = get_session_state(session, cocoon_id=cocoon_id)
         if state and tag.id not in state.active_tags_json:
             state.active_tags_json = canonicalize_tag_refs(
                 session,

@@ -8,6 +8,7 @@ from app.models import MemoryChunk, MemoryEmbedding, MemoryTag
 from app.models.entities import DurableJobType
 from app.schemas.workspace.memory import MemoryChunkOut, MemoryCompactionRequest
 from app.schemas.workspace.jobs import DurableJobOut
+from app.services.workspace.targets import list_cocoon_lineage_ids
 
 
 router = APIRouter()
@@ -20,10 +21,11 @@ def list_memory(
     _=Depends(require_permission("memory:read")),
 ) -> list[MemoryChunk]:
     db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=False)
+    cocoon_ids = list_cocoon_lineage_ids(db, cocoon_id) or [cocoon_id]
     memories = list(
         db.scalars(
             select(MemoryChunk)
-            .where(MemoryChunk.cocoon_id == cocoon_id)
+            .where(MemoryChunk.cocoon_id.in_(cocoon_ids))
             .order_by(MemoryChunk.created_at.desc())
         ).all()
     )

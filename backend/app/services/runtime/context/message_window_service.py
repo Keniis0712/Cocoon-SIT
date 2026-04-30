@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Message, MessageTag, TagRegistry
 from app.services.catalog.tag_policy import is_tag_visible_in_target
-from app.services.workspace.targets import build_target_filter
+from app.services.workspace.targets import build_target_filter, list_cocoon_lineage
 
 
 class MessageWindowService:
@@ -25,6 +25,50 @@ class MessageWindowService:
                 return messages[index:]
         return messages
 
+    def _list_cocoon_lineage_messages(
+        self,
+        session: Session,
+        cocoon_id: str,
+        context_start_message_id: str | None,
+    ) -> list[Message]:
+        lineage = list_cocoon_lineage(session, cocoon_id)
+        if not lineage:
+            return self._trim_to_context_start(
+                list(
+                    session.scalars(
+                        select(Message)
+                        .where(Message.cocoon_id == cocoon_id)
+                        .order_by(Message.created_at.asc(), Message.id.asc())
+                    ).all()
+                ),
+                context_start_message_id,
+            )
+
+        cocoon_ids = [item.id for item in lineage]
+        all_messages = list(
+            session.scalars(
+                select(Message)
+                .where(Message.cocoon_id.in_(cocoon_ids))
+                .order_by(Message.created_at.asc(), Message.id.asc())
+            ).all()
+        )
+        messages_by_cocoon: dict[str, list[Message]] = {item.id: [] for item in lineage}
+        for message in all_messages:
+            if message.cocoon_id in messages_by_cocoon:
+                messages_by_cocoon[message.cocoon_id].append(message)
+
+        visible_messages: list[Message] = []
+        for cocoon in lineage:
+            anchor_message_id = (
+                context_start_message_id
+                if cocoon.id == cocoon_id and context_start_message_id is not None
+                else cocoon.context_start_message_id
+            )
+            visible_messages.extend(
+                self._trim_to_context_start(messages_by_cocoon.get(cocoon.id, []), anchor_message_id)
+            )
+        return visible_messages
+
     def list_visible_messages(
         self,
         session: Session,
@@ -36,15 +80,8 @@ class MessageWindowService:
         context_start_message_id: str | None = None,
     ) -> list[Message]:
         """Return the recent message window, filtered by active tags when present."""
-        if cocoon_id and context_start_message_id:
-            all_messages = list(
-                session.scalars(
-                    select(Message)
-                    .where(build_target_filter(Message, cocoon_id=cocoon_id, chat_group_id=chat_group_id))
-                    .order_by(Message.created_at.asc())
-                ).all()
-            )
-            visible_messages = self._trim_to_context_start(all_messages, context_start_message_id)[
+        if cocoon_id:
+            visible_messages = self._list_cocoon_lineage_messages(session, cocoon_id, context_start_message_id)[
                 -max_context_messages:
             ]
         else:

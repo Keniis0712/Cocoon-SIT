@@ -1,7 +1,9 @@
 from types import SimpleNamespace
 
+from app.models import Cocoon
 from app.models import EmbeddingProvider, MemoryChunk, MemoryEmbedding
 from app.services.memory.service import MemoryRetrievalHit, MemoryService
+from tests.sqlite_helpers import make_sqlite_session_factory
 
 
 def test_memory_retrieval_hit_to_artifact_payload_truncates_content():
@@ -215,6 +217,58 @@ def test_memory_service_index_memory_chunk_creates_and_updates_embedding_records
     assert existing.model_name == "embed-model"
     assert existing.dimensions == 2
     assert existing.meta_json == {"origin": "updated"}
+
+
+def test_memory_service_retrieve_visible_memories_for_child_cocoon_uses_parent_chain():
+    session_factory = make_sqlite_session_factory()
+    service = MemoryService()
+    service._supports_vector_search = lambda session: False  # type: ignore[method-assign]
+
+    with session_factory() as session:
+        session.add_all(
+            [
+                Cocoon(
+                    id="root-cocoon",
+                    name="Root",
+                    owner_user_id="owner-1",
+                    character_id="character-1",
+                    selected_model_id="model-1",
+                ),
+                Cocoon(
+                    id="child-cocoon",
+                    name="Child",
+                    owner_user_id="owner-1",
+                    character_id="character-1",
+                    selected_model_id="model-1",
+                    parent_id="root-cocoon",
+                ),
+                MemoryChunk(
+                    id="parent-memory",
+                    cocoon_id="root-cocoon",
+                    scope="dialogue",
+                    content="from parent",
+                    tags_json=["focus"],
+                ),
+                MemoryChunk(
+                    id="child-memory",
+                    cocoon_id="child-cocoon",
+                    scope="dialogue",
+                    content="from child",
+                    tags_json=[],
+                ),
+            ]
+        )
+        session.commit()
+
+        hits = service.retrieve_visible_memories(
+            session=session,
+            active_tags=["focus"],
+            cocoon_id="child-cocoon",
+            query_text="hello",
+            limit=5,
+        )
+
+    assert [item.memory.id for item in hits] == ["child-memory", "parent-memory"]
 
 
 def test_memory_service_get_active_embedding_provider_returns_provider_record():
