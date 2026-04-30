@@ -22,6 +22,7 @@
   "insights": "Insights",
   "settings": "Settings",
   "me": "My Account",
+  "brandName": "Cocoon-SIT",
   "subtitle": "Characters, users, and memory workspace",
   "intro": "Keep the core workflow usable first: manage users and models, organize nested cocoons, then continue the story in a dedicated chat page.",
   "accountCenter": "Profile",
@@ -29,6 +30,7 @@
   "removeFromFavorites": "Remove from Favorites",
   "copyLink": "Copy Link",
   "openInNewTab": "Open in New Tab",
+  "userMeta": "{{role}} · uid: {{uid}}",
   "switchLanguage": "Switch Language",
   "logout": "Log Out",
   "logoutSuccess": "Signed out"

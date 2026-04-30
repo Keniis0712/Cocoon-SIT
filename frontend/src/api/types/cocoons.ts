@@ -11,6 +11,7 @@ export interface CocoonRead {
   default_temperature?: number | null;
   max_context_messages?: number | null;
   auto_compaction_enabled?: boolean | null;
+  memory_profile?: string | null;
   kind: "private" | "group" | string;
   chat_group_id: number | null;
   parent_id: number | null;
@@ -50,6 +51,7 @@ export interface CocoonPayload {
   default_temperature?: number | null;
   max_context_messages?: number | null;
   auto_compaction_enabled?: boolean | null;
+  memory_profile?: string | null;
   kind?: "private" | "group" | string;
   chat_group_id?: number | null;
   parent_id?: number | null;
@@ -109,7 +111,17 @@ export interface CocoonTreeResponse extends PageResp<CocoonTreeNode> {
 
 export interface MemoryChunkRead {
   id: number;
-  cocoon_id: number;
+  cocoon_id: number | null;
+  chat_group_id?: number | null;
+  owner_user_id?: string | null;
+  memory_pool: string;
+  memory_type: string;
+  status: string;
+  summary: string | null;
+  valid_until: string | null;
+  last_accessed_at: string | null;
+  access_count: number;
+  meta_json?: Record<string, unknown>;
   origin_cocoon_id: number | null;
   source_message_id: number | null;
   chroma_document_id: string;
@@ -118,12 +130,28 @@ export interface MemoryChunkRead {
   content: string;
   visibility: number;
   importance: number;
+  confidence?: number;
   timestamp: number;
   is_thought: boolean;
   is_summary: boolean;
   created_at: string;
   source_message?: MessageRead | null;
   tags?: string[];
+}
+
+export interface MemoryOverviewRead {
+  total: number;
+  by_pool: Record<string, number>;
+  by_type: Record<string, number>;
+  by_status: Record<string, number>;
+  tag_cloud: Array<{ tag: string; count: number }>;
+  importance_average: number;
+  confidence_average: number;
+}
+
+export interface MemoryListRead {
+  items: MemoryChunkRead[];
+  overview: MemoryOverviewRead;
 }
 
 export interface CocoonCompactionPayload {

@@ -6,7 +6,18 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import ChatGroupMember, ChatGroupRoom, User
+from app.models import (
+    ChatGroupMember,
+    ChatGroupRoom,
+    FactCacheEntry,
+    MemoryCandidate,
+    MemoryChunk,
+    MemoryEmbedding,
+    MemoryTag,
+    SessionState,
+    TargetTaskState,
+    User,
+)
 from app.schemas.workspace.chat_groups import (
     ChatGroupMemberCreate,
     ChatGroupMemberUpdate,
@@ -49,6 +60,11 @@ class ChatGroupService:
                 if payload.auto_compaction_enabled is not None
                 else settings.default_auto_compaction_enabled
             ),
+            memory_profile=(
+                payload.memory_profile
+                if payload.memory_profile is not None
+                else settings.default_memory_profile
+            ),
             external_platform=payload.external_platform,
             external_group_id=payload.external_group_id,
             external_account_id=payload.external_account_id,
@@ -84,6 +100,7 @@ class ChatGroupService:
             "default_temperature",
             "max_context_messages",
             "auto_compaction_enabled",
+            "memory_profile",
             "external_platform",
             "external_group_id",
             "external_account_id",
@@ -95,6 +112,17 @@ class ChatGroupService:
         return room
 
     def delete_room(self, session: Session, room: ChatGroupRoom) -> ChatGroupRoom:
+        memory_ids = list(
+            session.scalars(select(MemoryChunk.id).where(MemoryChunk.chat_group_id == room.id)).all()
+        )
+        if memory_ids:
+            session.query(MemoryTag).filter(MemoryTag.memory_chunk_id.in_(memory_ids)).delete(synchronize_session=False)
+            session.query(MemoryEmbedding).filter(MemoryEmbedding.memory_chunk_id.in_(memory_ids)).delete(synchronize_session=False)
+            session.query(MemoryChunk).filter(MemoryChunk.id.in_(memory_ids)).delete(synchronize_session=False)
+        session.query(MemoryCandidate).filter(MemoryCandidate.chat_group_id == room.id).delete(synchronize_session=False)
+        session.query(FactCacheEntry).filter(FactCacheEntry.chat_group_id == room.id).delete(synchronize_session=False)
+        session.query(SessionState).filter(SessionState.chat_group_id == room.id).delete(synchronize_session=False)
+        session.query(TargetTaskState).filter(TargetTaskState.chat_group_id == room.id).delete(synchronize_session=False)
         session.query(ChatGroupMember).filter(ChatGroupMember.room_id == room.id).delete()
         session.delete(room)
         session.flush()

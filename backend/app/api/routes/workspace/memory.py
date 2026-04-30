@@ -6,30 +6,38 @@ from app.api.deps import get_container, get_current_user, get_db, require_permis
 from app.core.container import AppContainer
 from app.models import MemoryChunk, MemoryEmbedding, MemoryTag
 from app.models.entities import DurableJobType
-from app.schemas.workspace.memory import MemoryChunkOut, MemoryCompactionRequest
+from app.schemas.workspace.memory import (
+    MemoryChunkOut,
+    MemoryCompactionRequest,
+    MemoryListOut,
+    MemoryReorganizeRequest,
+    MemoryUpdateRequest,
+)
 from app.schemas.workspace.jobs import DurableJobOut
 from app.services.workspace.targets import list_cocoon_lineage_ids
 
 
 router = APIRouter()
 
-@router.get("/{cocoon_id}", response_model=list[MemoryChunkOut])
+@router.get("/{cocoon_id}", response_model=MemoryListOut)
 def list_memory(
     cocoon_id: str,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
     _=Depends(require_permission("memory:read")),
-) -> list[MemoryChunk]:
-    db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=False)
-    cocoon_ids = list_cocoon_lineage_ids(db, cocoon_id) or [cocoon_id]
-    memories = list(
-        db.scalars(
-            select(MemoryChunk)
-            .where(MemoryChunk.cocoon_id.in_(cocoon_ids))
-            .order_by(MemoryChunk.created_at.desc())
-        ).all()
+) -> MemoryListOut:
+    cocoon = db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=False)
+    memory_service = db.info["container"].memory_service
+    memories = memory_service.list_target_memories(
+        db,
+        cocoon_id=cocoon_id,
+        owner_user_id=cocoon.owner_user_id,
+        include_inactive=True,
     )
-    return memories
+    return MemoryListOut(
+        items=[MemoryChunkOut.model_validate(item) for item in memories],
+        overview=memory_service.summarize_memories(memories),
+    )
 
 
 @router.post("/{cocoon_id}/compact", response_model=DurableJobOut)
@@ -52,6 +60,63 @@ def compact_memory(
     return job
 
 
+@router.patch("/{cocoon_id}/{memory_id}", response_model=MemoryChunkOut)
+def update_memory(
+    cocoon_id: str,
+    memory_id: str,
+    payload: MemoryUpdateRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+    _=Depends(require_permission("memory:write")),
+) -> MemoryChunk:
+    cocoon = db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=True)
+    memory = db.get(MemoryChunk, memory_id)
+    cocoon_ids = set(list_cocoon_lineage_ids(db, cocoon_id) or [cocoon_id])
+    allowed = memory and (
+        memory.cocoon_id in cocoon_ids
+        or (memory.owner_user_id == cocoon.owner_user_id and memory.memory_pool == "user_global")
+    )
+    if not allowed:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found")
+    updates = payload.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(memory, field, value)
+    if payload.tags_json is not None:
+        db.query(MemoryTag).filter(MemoryTag.memory_chunk_id == memory.id).delete()
+        for tag_id in payload.tags_json:
+            db.add(MemoryTag(memory_chunk_id=memory.id, tag_id=tag_id))
+    db.flush()
+    db.info["container"].memory_service.index_memory_chunk(
+        db,
+        memory,
+        source_text=memory.summary or memory.content,
+        meta_json=memory.meta_json,
+    )
+    return memory
+
+
+@router.post("/{cocoon_id}/reorganize", response_model=DurableJobOut)
+def reorganize_memory(
+    cocoon_id: str,
+    payload: MemoryReorganizeRequest,
+    db: Session = Depends(get_db),
+    container: AppContainer = Depends(get_container),
+    user=Depends(get_current_user),
+    _=Depends(require_permission("memory:write")),
+):
+    container.authorization_service.require_cocoon_access(db, user, cocoon_id, write=True)
+    job = container.durable_jobs.enqueue(
+        session=db,
+        job_type=DurableJobType.memory_reorganize,
+        lock_key=f"cocoon:{cocoon_id}:memory_reorganize",
+        payload_json=payload.model_dump(),
+        cocoon_id=cocoon_id,
+    )
+    return job
+
+
 @router.delete("/{cocoon_id}/{memory_id}", response_model=MemoryChunkOut)
 def delete_memory(
     cocoon_id: str,
@@ -60,9 +125,13 @@ def delete_memory(
     user=Depends(get_current_user),
     _=Depends(require_permission("memory:write")),
 ) -> MemoryChunk:
-    db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=True)
+    cocoon = db.info["container"].authorization_service.require_cocoon_access(db, user, cocoon_id, write=True)
     memory = db.get(MemoryChunk, memory_id)
-    if not memory or memory.cocoon_id != cocoon_id:
+    cocoon_ids = set(list_cocoon_lineage_ids(db, cocoon_id) or [cocoon_id])
+    if not memory or not (
+        memory.cocoon_id in cocoon_ids
+        or (memory.owner_user_id == cocoon.owner_user_id and memory.memory_pool == "user_global")
+    ):
         from fastapi import HTTPException, status
 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found")

@@ -67,7 +67,7 @@ export function NavUser() {
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{userInfo.username}</span>
                 <span className="truncate text-xs">
-                  {userInfo.role} · uid: {userInfo.uid}
+                  {t("nav.userMeta", { role: userInfo.role, uid: userInfo.uid, defaultValue: "{{role}} · uid: {{uid}}" })}
                 </span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
@@ -84,7 +84,7 @@ export function NavUser() {
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{userInfo.username}</span>
                   <span className="truncate text-xs">
-                    {userInfo.role} · uid: {userInfo.uid}
+                    {t("nav.userMeta", { role: userInfo.role, uid: userInfo.uid, defaultValue: "{{role}} · uid: {{uid}}" })}
                   </span>
                 </div>
               </div>

@@ -54,18 +54,21 @@ from app.models.plugins import (
 )
 from app.models.system import SystemSettings
 from app.models.workspace import (
+    FactCacheEntry,
     ChatGroupTagBinding,
     ChatGroupMember,
     ChatGroupRoom,
     Cocoon,
     CocoonTagBinding,
     FailedRound,
+    MemoryCandidate,
     MemoryChunk,
     MemoryEmbedding,
     MemoryTag,
     Message,
     MessageTag,
     SessionState,
+    TargetTaskState,
 )
 
 __all__ = [
@@ -92,10 +95,12 @@ __all__ = [
     "DurableJobStatus",
     "DurableJobType",
     "EmbeddingProvider",
+    "FactCacheEntry",
     "FailedRound",
     "InviteCode",
     "InviteQuotaAccount",
     "InviteQuotaGrant",
+    "MemoryCandidate",
     "MemoryChunk",
     "MemoryEmbedding",
     "MemoryTag",
@@ -125,6 +130,7 @@ __all__ = [
     "SessionState",
     "SystemSettings",
     "TagRegistry",
+    "TargetTaskState",
     "User",
     "UserImBindToken",
     "UserGroup",

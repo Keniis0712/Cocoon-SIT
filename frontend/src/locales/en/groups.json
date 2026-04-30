@@ -20,6 +20,7 @@
   "empty": "No matching groups found.",
   "rootGroup": "Root Group",
   "ownerUid": "Owner UID",
+  "ownerUidMissing": "Owner UID: -",
   "inviteQuota": "Group invite quota",
   "unlimitedQuota": "Unlimited",
   "noSelectionTitle": "No Group Selected",

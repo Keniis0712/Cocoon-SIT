@@ -45,6 +45,8 @@
   "allowedVariables": "Allowed Variables",
   "activeRevision": "Active Revision",
   "version": "Version",
+  "versionTag": "v{{version}}",
+  "versionValue": "Version: v{{version}}",
   "checksum": "Checksum",
   "noActiveRevision": "No active revision yet.",
   "noContent": "No prompt content available.",

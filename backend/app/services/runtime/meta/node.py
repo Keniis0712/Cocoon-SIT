@@ -15,7 +15,14 @@ from app.services.runtime.prompting.prompting import (
     record_prompt_render_artifacts,
 )
 from app.services.runtime.structured_models import MetaStructuredOutputModel, ScheduledWakeupModel
-from app.services.runtime.types import ContextPackage, MetaDecision, TagOperation
+from app.services.runtime.types import (
+    ContextPackage,
+    FactCacheOperation,
+    MemoryOperation,
+    MetaDecision,
+    TagOperation,
+    TagReference,
+)
 from app.services.providers.registry import ProviderRegistry
 
 
@@ -111,18 +118,21 @@ class MetaNode:
         )
         return MetaDecision(
             decision=parsed.decision,
-            relation_delta=relation_delta_int,
-            persona_patch=parsed.persona_patch or {"last_seen_intent": latest_content[:120]},
-            tag_ops=[
-                TagOperation(action=item.action, tag_index=int(item.tag_index))
-                for item in parsed.tag_ops
-                if int(item.tag_index) > 0
-            ],
+            relation_delta=relation_delta_int + int(parsed.session_update.relation_delta or 0),
+            persona_patch=(parsed.persona_patch or {"last_seen_intent": latest_content[:120]})
+            | dict(parsed.session_update.persona_patch or {}),
+            tag_ops=self._normalize_tag_ops(parsed.tag_ops, parsed.session_update.tag_ops),
             internal_thought=internal_thought,
             event_summary=event_summary,
             next_wakeup_hints=self._normalize_wakeup_hints(parsed.schedule_wakeups),
             cancel_wakeup_task_ids=[str(item) for item in parsed.cancel_wakeup_task_ids if str(item).strip()],
             generation_brief=parsed.generation_brief,
+            used_memory_ids=[str(item) for item in parsed.used_memory_ids if str(item).strip()],
+            session_update=parsed.session_update.model_dump(exclude_none=True),
+            task_state_update=parsed.task_state_update.model_dump(exclude_none=True),
+            fact_cache_ops=self._normalize_fact_cache_ops(parsed.fact_cache_ops),
+            memory_ops=self._normalize_memory_ops(parsed.memory_ops),
+            request_mode="meta_reply",
         )
 
     def _normalize_wakeup_hints(
@@ -164,6 +174,8 @@ class MetaNode:
             "If the current event is a plugin or other wakeup, distill the useful wakeup details into event_summary for continuity.\n"
             "Do not assume future rounds will still receive the raw wakeup payload.\n"
             "If the current event is a wakeup and you choose silence, you must still provide a concise event_summary so future rounds do not lose the wakeup context.\n"
+            "Use memory_ops to manage long-term memory carefully. importance below 3 should remain candidate-level rather than durable memory.\n"
+            "Use fact_cache_ops for time-sensitive facts with TTL rather than durable user preferences.\n"
             f"{context_summary}\n"
             "CONTEXT_JSON_START\n"
             f"{context_json}\n"
@@ -201,17 +213,23 @@ class MetaNode:
         event_type = context.runtime_event.event_type
         if event_type == "wakeup":
             reason = str(context.runtime_event.payload.get("reason") or "scheduled wakeup")
-            return MetaDecision(
-                decision="reply",
-                relation_delta=0,
-                persona_patch={"last_wakeup_reason": reason[:120]},
-                tag_ops=[],
-                internal_thought="Fallback wakeup meta decision.",
-                event_summary=None,
-                next_wakeup_hints=[],
-                cancel_wakeup_task_ids=[],
-                generation_brief=None,
-            )
+        return MetaDecision(
+            decision="reply",
+            relation_delta=0,
+            persona_patch={"last_wakeup_reason": reason[:120]},
+            tag_ops=[],
+            internal_thought="Fallback wakeup meta decision.",
+            event_summary=None,
+            next_wakeup_hints=[],
+            cancel_wakeup_task_ids=[],
+            generation_brief=None,
+            used_memory_ids=[],
+            session_update={},
+            task_state_update={},
+            fact_cache_ops=[],
+            memory_ops=[],
+            request_mode="meta_reply",
+        )
         if event_type == "pull":
             return MetaDecision(
                 decision="reply",
@@ -223,6 +241,12 @@ class MetaNode:
                 next_wakeup_hints=[],
                 cancel_wakeup_task_ids=[],
                 generation_brief=None,
+                used_memory_ids=[],
+                session_update={},
+                task_state_update={},
+                fact_cache_ops=[],
+                memory_ops=[],
+                request_mode="meta_reply",
             )
         if event_type == "merge":
             return MetaDecision(
@@ -235,6 +259,12 @@ class MetaNode:
                 next_wakeup_hints=[],
                 cancel_wakeup_task_ids=[],
                 generation_brief=None,
+                used_memory_ids=[],
+                session_update={},
+                task_state_update={},
+                fact_cache_ops=[],
+                memory_ops=[],
+                request_mode="meta_reply",
             )
         return MetaDecision(
             decision="silence" if latest_content.strip().startswith("/silent") else "reply",
@@ -246,4 +276,72 @@ class MetaNode:
             next_wakeup_hints=[],
             cancel_wakeup_task_ids=[],
             generation_brief=None,
+            used_memory_ids=[],
+            session_update={},
+            task_state_update={},
+            fact_cache_ops=[],
+            memory_ops=[],
+            request_mode="meta_reply",
         )
+
+    def _normalize_tag_ops(self, *collections) -> list[TagOperation]:
+        items: list[TagOperation] = []
+        for collection in collections:
+            for item in collection or []:
+                if int(item.tag_index) <= 0:
+                    continue
+                items.append(TagOperation(action=item.action, tag_index=int(item.tag_index)))
+        return items
+
+    def _normalize_fact_cache_ops(self, items) -> list[FactCacheOperation]:
+        normalized: list[FactCacheOperation] = []
+        for item in items or []:
+            cache_key = str(item.cache_key or "").strip()
+            if not cache_key:
+                continue
+            normalized.append(
+                FactCacheOperation(
+                    op=item.op,
+                    cache_key=cache_key,
+                    content=str(item.content or ""),
+                    summary=str(item.summary or "").strip() or None,
+                    valid_until=str(item.valid_until or "").strip() or None,
+                    meta_json=item.meta_json or {},
+                )
+            )
+        return normalized
+
+    def _normalize_memory_ops(self, items) -> list[MemoryOperation]:
+        normalized: list[MemoryOperation] = []
+        for item in items or []:
+            if item.op == "none":
+                continue
+            tags: list[TagReference] = []
+            for tag in item.tags or []:
+                if isinstance(tag, str):
+                    tag_value = tag.strip()
+                else:
+                    tag_value = str(getattr(tag, "tag", "")).strip()
+                if tag_value:
+                    tags.append(TagReference(tag=tag_value))
+            normalized.append(
+                MemoryOperation(
+                    op=item.op,
+                    content=str(item.content or "").strip(),
+                    summary=str(item.summary or "").strip() or None,
+                    memory_type=str(item.memory_type or "preference"),
+                    memory_pool=str(item.memory_pool).strip() if item.memory_pool else None,
+                    tags=tags,
+                    importance=int(item.importance or 3),
+                    confidence=int(item.confidence or 3),
+                    reason=str(item.reason or "").strip() or None,
+                    valid_until=str(item.valid_until or "").strip() or None,
+                    target_memory_id=str(item.target_memory_id or "").strip() or None,
+                    supersedes_memory_ids=[
+                        str(value).strip()
+                        for value in item.supersedes_memory_ids
+                        if str(value).strip()
+                    ],
+                )
+            )
+        return normalized

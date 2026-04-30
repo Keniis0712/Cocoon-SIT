@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/hooks/use-theme";
 import { changeAppLanguage } from "@/i18n";
 import { useUserStore } from "@/store/useUserStore";
@@ -33,6 +34,7 @@ export default function SettingsPage() {
   const [providers, setProviders] = useState<ModelProviderRead[]>([]);
   const [promptTemplateCount, setPromptTemplateCount] = useState<number | null>(null);
   const [form, setForm] = useState<SystemSettingsRead | null>(null);
+  const [memoryProfilesText, setMemoryProfilesText] = useState("{}");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
@@ -70,6 +72,7 @@ export default function SettingsPage() {
         setProviders(providerResponse.items);
         setPromptTemplateCount(promptTemplates.length);
         setForm(settings);
+        setMemoryProfilesText(JSON.stringify(settings.memory_profiles_json || {}, null, 2));
       } finally {
         setIsLoading(false);
       }
@@ -95,6 +98,14 @@ export default function SettingsPage() {
       return;
     }
     setIsSaving(true);
+    let parsedProfiles: Record<string, Record<string, unknown>>;
+    try {
+      parsedProfiles = JSON.parse(memoryProfilesText) as Record<string, Record<string, unknown>>;
+    } catch {
+      toast.error(t("settings.invalidMemoryProfiles", { defaultValue: "Memory profiles JSON is invalid." }));
+      setIsSaving(false);
+      return;
+    }
     try {
       const payload: SystemSettingsUpdate = {
         allow_registration: form.allow_registration,
@@ -106,9 +117,12 @@ export default function SettingsPage() {
         group_chat_debounce_seconds: form.group_chat_debounce_seconds,
         rollback_retention_days: form.rollback_retention_days,
         rollback_cleanup_interval_hours: form.rollback_cleanup_interval_hours,
+        default_memory_profile: form.default_memory_profile,
+        memory_profiles_json: parsedProfiles,
       };
       const updated = await updateSystemSettings(payload);
       setForm(updated);
+      setMemoryProfilesText(JSON.stringify(updated.memory_profiles_json || {}, null, 2));
       toast.success(t("settings.saved"));
     } catch (error) {
       showErrorToast(error, t("settings.saveFailed"));
@@ -276,6 +290,35 @@ export default function SettingsPage() {
                       {t("settings.noModelsAvailable")}
                     </div>
                   )}
+                </div>
+
+                <div className="grid gap-4">
+                  <div className="grid gap-2 md:max-w-sm">
+                    <Label>{t("settings.defaultMemoryProfile", { defaultValue: "Default memory profile" })}</Label>
+                    <Select
+                      value={form.default_memory_profile}
+                      onValueChange={(value) =>
+                        setForm((prev) => (prev ? { ...prev, default_memory_profile: value } : prev))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="reply_only">{t("settings.memoryProfileReplyOnly", { defaultValue: "Reply only" })}</SelectItem>
+                        <SelectItem value="single_pass">{t("settings.memoryProfileSinglePass", { defaultValue: "Single pass" })}</SelectItem>
+                        <SelectItem value="meta_reply">{t("settings.memoryProfileMetaReply", { defaultValue: "Meta + reply" })}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{t("settings.memoryProfilesJson", { defaultValue: "Memory profiles JSON" })}</Label>
+                    <Textarea
+                      rows={14}
+                      value={memoryProfilesText}
+                      onChange={(event) => setMemoryProfilesText(event.target.value)}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">

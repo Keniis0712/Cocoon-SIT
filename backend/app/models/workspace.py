@@ -27,6 +27,7 @@ class Cocoon(Base, TimestampMixin):
     default_temperature: Mapped[float] = mapped_column(Float, default=0.7)
     max_context_messages: Mapped[int] = mapped_column(Integer, default=12)
     auto_compaction_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    memory_profile: Mapped[str] = mapped_column(String(32), default="meta_reply")
     context_start_message_id: Mapped[str | None] = mapped_column(ForeignKey("messages.id"), nullable=True)
     rollback_anchor_msg_id: Mapped[str | None] = mapped_column(ForeignKey("messages.id"), nullable=True)
 
@@ -42,6 +43,7 @@ class ChatGroupRoom(Base, TimestampMixin):
     default_temperature: Mapped[float] = mapped_column(Float, default=0.7)
     max_context_messages: Mapped[int] = mapped_column(Integer, default=12)
     auto_compaction_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    memory_profile: Mapped[str] = mapped_column(String(32), default="meta_reply")
     external_platform: Mapped[str | None] = mapped_column(String(64), nullable=True)
     external_group_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     external_account_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -145,10 +147,19 @@ class MemoryChunk(Base, TimestampMixin, JsonDefaultMixin):
     owner_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     character_id: Mapped[str | None] = mapped_column(ForeignKey("characters.id"), nullable=True)
     source_message_id: Mapped[str | None] = mapped_column(ForeignKey("messages.id"), nullable=True)
+    memory_pool: Mapped[str] = mapped_column(String(32), default="tree_private")
+    memory_type: Mapped[str] = mapped_column(String(32), default="preference")
     scope: Mapped[str] = mapped_column(String(32), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags_json: Mapped[list] = mapped_column(JSON, default=JsonDefaultMixin.json_list)
+    importance: Mapped[int] = mapped_column(Integer, default=3)
+    confidence: Mapped[int] = mapped_column(Integer, default=3)
+    status: Mapped[str] = mapped_column(String(32), default="active")
+    valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    last_accessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    access_count: Mapped[int] = mapped_column(Integer, default=0)
+    source_kind: Mapped[str] = mapped_column(String(32), default="runtime_analysis")
     meta_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
     embedding_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
@@ -172,6 +183,79 @@ class MemoryTag(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
     memory_chunk_id: Mapped[str] = mapped_column(ForeignKey("memory_chunks.id"), nullable=False)
     tag_id: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class MemoryCandidate(Base, TimestampMixin, JsonDefaultMixin):
+    __tablename__ = "memory_candidates"
+    __table_args__ = (
+        CheckConstraint(
+            "NOT (cocoon_id IS NOT NULL AND chat_group_id IS NOT NULL)",
+            name="ck_memory_candidates_single_target",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    cocoon_id: Mapped[str | None] = mapped_column(ForeignKey("cocoons.id"), nullable=True)
+    chat_group_id: Mapped[str | None] = mapped_column(ForeignKey("chat_group_rooms.id"), nullable=True)
+    owner_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    character_id: Mapped[str | None] = mapped_column(ForeignKey("characters.id"), nullable=True)
+    memory_pool: Mapped[str] = mapped_column(String(32), default="tree_private")
+    memory_type: Mapped[str] = mapped_column(String(32), default="preference")
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    tags_json: Mapped[list] = mapped_column(JSON, default=JsonDefaultMixin.json_list)
+    importance: Mapped[int] = mapped_column(Integer, default=2)
+    confidence: Mapped[int] = mapped_column(Integer, default=2)
+    hit_count: Mapped[int] = mapped_column(Integer, default=1)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=False))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=False))
+    valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    meta_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+
+
+class FactCacheEntry(Base, TimestampMixin, JsonDefaultMixin):
+    __tablename__ = "fact_cache_entries"
+    __table_args__ = (
+        CheckConstraint(
+            "(cocoon_id IS NOT NULL AND chat_group_id IS NULL) OR (cocoon_id IS NULL AND chat_group_id IS NOT NULL)",
+            name="ck_fact_cache_entries_target",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    cocoon_id: Mapped[str | None] = mapped_column(ForeignKey("cocoons.id"), nullable=True)
+    chat_group_id: Mapped[str | None] = mapped_column(ForeignKey("chat_group_rooms.id"), nullable=True)
+    cache_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    meta_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+    valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    last_accessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+
+
+class TargetTaskState(Base, TimestampMixin, JsonDefaultMixin):
+    __tablename__ = "target_task_states"
+    __table_args__ = (
+        CheckConstraint(
+            "(cocoon_id IS NOT NULL AND chat_group_id IS NULL) OR (cocoon_id IS NULL AND chat_group_id IS NOT NULL)",
+            name="ck_target_task_states_target",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    cocoon_id: Mapped[str | None] = mapped_column(ForeignKey("cocoons.id"), nullable=True, unique=True)
+    chat_group_id: Mapped[str | None] = mapped_column(
+        ForeignKey("chat_group_rooms.id"),
+        nullable=True,
+        unique=True,
+    )
+    task_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    goal: Mapped[str | None] = mapped_column(Text, nullable=True)
+    progress: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="active")
+    meta_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
 
 
 class FailedRound(Base, TimestampMixin):

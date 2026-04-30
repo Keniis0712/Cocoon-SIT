@@ -4,14 +4,30 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import ActionDispatch, AuditRun, MemoryChunk, MemoryTag, Message, MessageTag, SessionState, User
+from app.models import (
+    ActionDispatch,
+    AuditRun,
+    MemoryChunk,
+    MemoryTag,
+    Message,
+    MessageTag,
+    SessionState,
+    User,
+)
 from app.models.entities import ActionStatus
 from app.models.workspace import DEFAULT_RELATION_SCORE, MAX_RELATION_SCORE, MIN_RELATION_SCORE
 from app.services.audit.service import AuditService
 from app.services.catalog.tag_policy import canonicalize_tag_refs, ensure_state_default_tag
 from app.services.memory.service import MemoryService
 from app.services.runtime.errors import RuntimeActionAbortedError
-from app.services.runtime.types import ContextPackage, GenerationOutput, MemoryCandidate, MetaDecision
+from app.services.runtime.types import (
+    ContextPackage,
+    GenerationOutput,
+    MemoryCandidate,
+    MemoryOperation,
+    MetaDecision,
+)
+from app.services.workspace.targets import ensure_target_task_state
 
 
 class SideEffects:
@@ -58,6 +74,9 @@ class SideEffects:
                         [*state.active_tags_json, tag],
                         include_default=True,
                     )
+        session_update = meta.session_update or {}
+        if isinstance(session_update.get("persona_patch"), dict):
+            state.persona_json = state.persona_json | dict(session_update["persona_patch"])
         session.flush()
         return state
 
@@ -120,54 +139,226 @@ class SideEffects:
         *,
         source_message: Message | None = None,
     ) -> list[MemoryChunk]:
-        memories: list[MemoryChunk] = []
-        for candidate in candidates:
-            summary = candidate.summary.strip()
-            content = candidate.content.strip()
-            if not summary or not content:
+        return self.persist_memory_ops(
+            session,
+            context,
+            action,
+            [
+                MemoryOperation(
+                    op="candidate" if int(candidate.importance or 0) < 3 else "upsert",
+                    content=candidate.content,
+                    summary=candidate.summary,
+                    memory_type=candidate.memory_type,
+                    memory_pool=candidate.memory_pool,
+                    tags=candidate.tags,
+                    importance=candidate.importance,
+                    confidence=candidate.confidence,
+                    valid_until=candidate.valid_until,
+                    reason=candidate.reason,
+                )
+                for candidate in candidates
+            ],
+            source_message=source_message,
+        )
+
+    def apply_task_state_patch(
+        self,
+        session: Session,
+        context: ContextPackage,
+        meta: MetaDecision,
+    ):
+        payload = meta.task_state_update or {}
+        if not payload:
+            return context.task_state
+        state = context.task_state or ensure_target_task_state(
+            session,
+            cocoon_id=context.runtime_event.cocoon_id,
+            chat_group_id=context.runtime_event.chat_group_id,
+        )
+        for field, value in (
+            ("task_name", payload.get("task_name")),
+            ("goal", payload.get("goal")),
+            ("progress", payload.get("progress")),
+            ("status", payload.get("status")),
+        ):
+            if value is not None:
+                setattr(state, field, value)
+        if isinstance(payload.get("meta_json"), dict):
+            state.meta_json = dict(state.meta_json or {}) | dict(payload["meta_json"])
+        if payload.get("completed"):
+            state.completed_at = datetime.now(UTC).replace(tzinfo=None)
+            state.status = "completed"
+        expires_at = self._parse_timestamp(payload.get("expires_at"))
+        if expires_at is not None:
+            state.expires_at = expires_at
+        session.flush()
+        context.task_state = state
+        return state
+
+    def apply_fact_cache_ops(
+        self,
+        session: Session,
+        context: ContextPackage,
+        meta: MetaDecision,
+    ) -> list[str]:
+        applied: list[str] = []
+        for op in meta.fact_cache_ops:
+            if op.op == "delete":
+                self.memory_service.delete_fact_cache_entry(
+                    session,
+                    cache_key=op.cache_key,
+                    cocoon_id=context.runtime_event.cocoon_id,
+                    chat_group_id=context.runtime_event.chat_group_id,
+                )
+                applied.append(op.cache_key)
                 continue
-            tag_ids = self._resolve_candidate_tags(context, candidate) or list(context.session_state.active_tags_json)
-            owner_user_id = self._resolve_memory_owner_user_id(session, context, candidate)
-            memory = MemoryChunk(
+            self.memory_service.upsert_fact_cache_entry(
+                session,
+                cache_key=op.cache_key,
+                content=op.content,
+                summary=op.summary,
+                valid_until=self._parse_timestamp(op.valid_until),
+                meta_json=op.meta_json,
                 cocoon_id=context.runtime_event.cocoon_id,
                 chat_group_id=context.runtime_event.chat_group_id,
-                owner_user_id=owner_user_id,
-                character_id=context.character.id,
-                source_message_id=source_message.id if source_message else None,
-                scope=candidate.scope,
-                content=content,
-                summary=summary,
-                tags_json=tag_ids,
-                meta_json={
-                    "action_id": action.id,
-                    "event_type": context.runtime_event.event_type,
-                    "target_type": context.target_type,
-                    "target_id": context.target_id,
-                    "source_kind": "runtime_analysis",
-                    "importance": candidate.importance,
-                },
             )
-            session.add(memory)
+            applied.append(op.cache_key)
+        return applied
+
+    def persist_memory_ops(
+        self,
+        session: Session,
+        context: ContextPackage,
+        action: ActionDispatch,
+        ops: list[MemoryOperation],
+        *,
+        source_message: Message | None = None,
+    ) -> list[MemoryChunk]:
+        created_or_updated: list[MemoryChunk] = []
+        profile = context.memory_profile or {}
+        candidate_promote_hits = int(profile.get("candidate_promote_hits") or 2)
+        candidate_ttl_hours = int(profile.get("candidate_ttl_hours") or 72)
+        for op in ops:
+            if op.op == "archive":
+                if op.target_memory_id:
+                    memory = session.get(MemoryChunk, op.target_memory_id)
+                    if memory:
+                        memory.status = "archived"
+                        created_or_updated.append(memory)
+                for memory_id in op.supersedes_memory_ids:
+                    memory = session.get(MemoryChunk, memory_id)
+                    if memory:
+                        memory.status = "archived"
+                continue
+            content = str(op.content or "").strip()
+            summary = str(op.summary or "").strip() or None
+            if op.op != "archive" and not content:
+                continue
+            tag_ids = self._resolve_memory_op_tags(context, op) or list(context.session_state.active_tags_json)
+            owner_user_id = self._resolve_memory_owner_user_id(session, context, None)
+            memory_pool = self._normalize_memory_pool(context, op.memory_pool)
+            if op.op == "candidate" or int(op.importance or 0) < 3:
+                candidate = self.memory_service.upsert_candidate(
+                    session,
+                    cocoon_id=context.runtime_event.cocoon_id,
+                    chat_group_id=context.runtime_event.chat_group_id,
+                    owner_user_id=owner_user_id,
+                    character_id=context.character.id,
+                    memory_pool=memory_pool,
+                    memory_type=op.memory_type,
+                    summary=summary,
+                    content=content,
+                    tags_json=tag_ids,
+                    importance=max(0, min(2, int(op.importance or 2))),
+                    confidence=max(1, min(5, int(op.confidence or 2))),
+                    ttl_hours=candidate_ttl_hours,
+                    meta_json={
+                        "action_id": action.id,
+                        "reason": op.reason,
+                        "source_kind": "runtime_analysis",
+                    },
+                )
+                if int(candidate.hit_count or 0) >= candidate_promote_hits:
+                    created_or_updated.append(
+                        self.memory_service.promote_candidate_to_memory(
+                            session,
+                            candidate,
+                            source_kind="candidate_promotion",
+                        )
+                    )
+                continue
+            memory = None
+            if op.op == "update" and op.target_memory_id:
+                memory = session.get(MemoryChunk, op.target_memory_id)
+            if memory is None:
+                memory = MemoryChunk(
+                    cocoon_id=context.runtime_event.cocoon_id,
+                    chat_group_id=context.runtime_event.chat_group_id,
+                    owner_user_id=owner_user_id,
+                    character_id=context.character.id,
+                    source_message_id=source_message.id if source_message else None,
+                    memory_pool=memory_pool,
+                    memory_type=op.memory_type,
+                    scope="memory",
+                    content=content,
+                    summary=summary,
+                    tags_json=tag_ids,
+                    importance=max(3, min(5, int(op.importance or 3))),
+                    confidence=max(1, min(5, int(op.confidence or 3))),
+                    status="active",
+                    valid_until=self._parse_timestamp(op.valid_until),
+                    last_accessed_at=None,
+                    access_count=0,
+                    source_kind="runtime_analysis",
+                    meta_json={},
+                )
+                session.add(memory)
+                session.flush()
+            else:
+                memory.content = content
+                memory.summary = summary
+                memory.tags_json = tag_ids
+                memory.importance = max(3, min(5, int(op.importance or memory.importance or 3)))
+                memory.confidence = max(1, min(5, int(op.confidence or memory.confidence or 3)))
+                memory.memory_type = op.memory_type
+                memory.memory_pool = memory_pool
+                memory.status = "active"
+                memory.valid_until = self._parse_timestamp(op.valid_until)
+                session.query(MemoryTag).filter(MemoryTag.memory_chunk_id == memory.id).delete()
+            memory.meta_json = {
+                **dict(memory.meta_json or {}),
+                "action_id": action.id,
+                "event_type": context.runtime_event.event_type,
+                "target_type": context.target_type,
+                "target_id": context.target_id,
+                "source_kind": memory.source_kind,
+                "reason": op.reason,
+            }
             session.flush()
             for tag in tag_ids:
                 session.add(MemoryTag(memory_chunk_id=memory.id, tag_id=tag))
             self.memory_service.index_memory_chunk(
                 session,
                 memory,
-                source_text=summary,
+                source_text=summary or content,
                 meta_json=memory.meta_json,
             )
-            memories.append(memory)
+            for memory_id in op.supersedes_memory_ids:
+                superseded = session.get(MemoryChunk, memory_id)
+                if superseded:
+                    superseded.status = "contradicted"
+            created_or_updated.append(memory)
         session.flush()
-        return memories
+        return created_or_updated
 
     def _resolve_memory_owner_user_id(
         self,
         session: Session,
         context: ContextPackage,
-        candidate: MemoryCandidate,
+        candidate: MemoryCandidate | None,
     ) -> str | None:
-        for raw_value in (context.memory_owner_user_id, candidate.owner_user_id):
+        candidate_owner = candidate.owner_user_id if candidate is not None else None
+        for raw_value in (context.memory_owner_user_id, candidate_owner):
             normalized = str(raw_value or "").strip()
             if not normalized:
                 continue
@@ -182,6 +373,33 @@ class SideEffects:
             if tag and tag not in resolved:
                 resolved.append(tag)
         return resolved
+
+    def _resolve_memory_op_tags(self, context: ContextPackage, op: MemoryOperation) -> list[str]:
+        resolved: list[str] = []
+        for tag_ref in op.tags:
+            tag = self._resolve_tag_reference(context, tag_ref.tag)
+            if tag and tag not in resolved:
+                resolved.append(tag)
+        return resolved
+
+    def _normalize_memory_pool(self, context: ContextPackage, raw_pool: str | None) -> str:
+        value = str(raw_pool or "").strip()
+        if value in {"tree_private", "user_global", "room_local"}:
+            return value
+        if value == "public":
+            return "user_global"
+        if context.target_type == "chat_group":
+            return "room_local"
+        return "tree_private"
+
+    def _parse_timestamp(self, raw_value) -> datetime | None:
+        value = str(raw_value or "").strip()
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+        except ValueError:
+            return None
 
     def _resolve_tag_reference(self, context: ContextPackage, raw_tag: str) -> str:
         tag = raw_tag.strip()
@@ -239,6 +457,9 @@ class SideEffects:
             "final_message_id": message.id if message else None,
             "thought_message_id": thought_message.id if thought_message else None,
             "memory_chunk_ids": [memory.id for memory in memories or []],
+            "used_memory_ids": list(action.payload_json.get("used_memory_ids", []))
+            if isinstance(action.payload_json, dict)
+            else [],
             "scheduler_result": scheduler_result or {},
         }
         self.audit_service.record_json_artifact(

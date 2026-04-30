@@ -13,6 +13,7 @@ class ChatGroupRoomCreate(BaseModel):
     default_temperature: float | None = None
     max_context_messages: int | None = Field(default=None, ge=1)
     auto_compaction_enabled: bool | None = None
+    memory_profile: str | None = None
     external_platform: str | None = None
     external_group_id: str | None = None
     external_account_id: str | None = None
@@ -26,6 +27,7 @@ class ChatGroupRoomUpdate(BaseModel):
     default_temperature: float | None = None
     max_context_messages: int | None = Field(default=None, ge=1)
     auto_compaction_enabled: bool | None = None
+    memory_profile: str | None = None
     external_platform: str | None = None
     external_group_id: str | None = None
     external_account_id: str | None = None
@@ -40,6 +42,7 @@ class ChatGroupRoomOut(ORMModel):
     default_temperature: float
     max_context_messages: int
     auto_compaction_enabled: bool
+    memory_profile: str
     external_platform: str | None
     external_group_id: str | None
     external_account_id: str | None

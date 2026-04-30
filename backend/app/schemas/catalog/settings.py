@@ -15,6 +15,8 @@ class SystemSettingsUpdate(BaseModel):
     group_chat_debounce_seconds: int | None = Field(default=None, ge=0)
     rollback_retention_days: int | None = Field(default=None, ge=0)
     rollback_cleanup_interval_hours: int | None = Field(default=None, ge=1)
+    default_memory_profile: str | None = None
+    memory_profiles_json: dict | None = None
 
 
 class SystemSettingsOut(ORMModel):
@@ -28,5 +30,7 @@ class SystemSettingsOut(ORMModel):
     group_chat_debounce_seconds: int
     rollback_retention_days: int
     rollback_cleanup_interval_hours: int
+    default_memory_profile: str
+    memory_profiles_json: dict
     created_at: datetime
     updated_at: datetime

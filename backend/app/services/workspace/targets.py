@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
-from app.models import Cocoon, SessionState
+from app.models import Cocoon, SessionState, TargetTaskState
 from app.models.workspace import DEFAULT_RELATION_SCORE
 from app.services.catalog.tag_policy import ensure_state_bound_tags, ensure_target_default_binding
 
@@ -91,3 +91,36 @@ def ensure_session_state(
     session.add(state)
     session.flush()
     return ensure_state_bound_tags(session, state)
+
+
+def get_target_task_state(
+    session: Session,
+    *,
+    cocoon_id: str | None = None,
+    chat_group_id: str | None = None,
+) -> TargetTaskState | None:
+    return session.scalar(
+        select(TargetTaskState).where(
+            build_target_filter(TargetTaskState, cocoon_id=cocoon_id, chat_group_id=chat_group_id)
+        )
+    )
+
+
+def ensure_target_task_state(
+    session: Session,
+    *,
+    cocoon_id: str | None = None,
+    chat_group_id: str | None = None,
+) -> TargetTaskState:
+    state = get_target_task_state(session, cocoon_id=cocoon_id, chat_group_id=chat_group_id)
+    if state:
+        return state
+    state = TargetTaskState(
+        cocoon_id=cocoon_id,
+        chat_group_id=chat_group_id,
+        status="active",
+        meta_json={},
+    )
+    session.add(state)
+    session.flush()
+    return state

@@ -198,9 +198,14 @@ function MemoryRetrievalView({ artifact }: { artifact: AuditArtifactRead }) {
             : t("audits.arrayItem", { index: index + 1 });
           const scope = typeof hit?.scope === "string" ? hit.scope : null;
           const score = typeof hit?.similarity_score === "number" ? hit.similarity_score : null;
+          const finalScore = typeof hit?.final_score === "number" ? hit.final_score : null;
+          const memoryPool = typeof hit?.memory_pool === "string" ? hit.memory_pool : null;
+          const memoryType = typeof hit?.memory_type === "string" ? hit.memory_type : null;
+          const status = typeof hit?.status === "string" ? hit.status : null;
           const matchedTags = Array.isArray(hit?.matched_tags)
             ? hit.matched_tags.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
             : [];
+          const scoreBreakdown = isRecord(hit?.score_breakdown) ? hit.score_breakdown : null;
           const preview = typeof hit?.content_preview === "string" ? hit.content_preview : "";
           const chunkId = typeof hit?.memory_chunk_id === "string" ? hit.memory_chunk_id : null;
 
@@ -213,12 +218,25 @@ function MemoryRetrievalView({ artifact }: { artifact: AuditArtifactRead }) {
                 </div>
                 <div className="flex flex-wrap justify-end gap-2">
                   {scope ? <Badge variant="secondary">{humanizeKey(scope)}</Badge> : null}
+                  {memoryPool ? <Badge variant="outline">{memoryPool}</Badge> : null}
+                  {memoryType ? <Badge variant="outline">{memoryType}</Badge> : null}
+                  {status ? <Badge variant="outline">{status}</Badge> : null}
                   {score !== null ? <Badge variant="outline">{score.toFixed(3)}</Badge> : null}
+                  {finalScore !== null ? <Badge variant="default">{finalScore.toFixed(3)}</Badge> : null}
                 </div>
               </div>
               <div className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
                 {preview || "-"}
               </div>
+              {scoreBreakdown ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {Object.entries(scoreBreakdown).map(([key, value]) => (
+                    <Badge key={key} variant="secondary">
+                      {humanizeKey(key)}: {typeof value === "number" ? value.toFixed(2) : String(value)}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
               {matchedTags.length ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {matchedTags.map((tag) => (
@@ -230,6 +248,69 @@ function MemoryRetrievalView({ artifact }: { artifact: AuditArtifactRead }) {
           );
         })}
         {!hits.length ? <div className="text-sm text-muted-foreground">{t("audits.traceEmpty")}</div> : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MemoryDecisionView({ selectedRun }: { selectedRun: AuditRunDetail }) {
+  const { t } = useTranslation();
+  const metaArtifact = selectedRun.artifacts.find((artifact) => artifact.artifact_type === "meta_output");
+  const sideEffectsArtifact = selectedRun.artifacts.find((artifact) => artifact.artifact_type === "side_effects_result");
+  const metaPayload = isRecord(metaArtifact?.payload) ? metaArtifact.payload : null;
+  const sideEffectsPayload = isRecord(sideEffectsArtifact?.payload) ? sideEffectsArtifact.payload : null;
+  const memoryOps = Array.isArray(metaPayload?.memory_ops) ? metaPayload.memory_ops : [];
+  const factCacheOps = Array.isArray(metaPayload?.fact_cache_ops) ? metaPayload.fact_cache_ops : [];
+  const usedMemoryIds = Array.isArray(metaPayload?.used_memory_ids) ? metaPayload.used_memory_ids : [];
+  const persistedMemoryIds = Array.isArray(sideEffectsPayload?.memory_chunk_ids) ? sideEffectsPayload.memory_chunk_ids : [];
+  const requestMode = typeof metaPayload?.request_mode === "string" ? metaPayload.request_mode : null;
+
+  if (!metaPayload && !sideEffectsPayload) {
+    return null;
+  }
+
+  return (
+    <Card className="border-border/70 bg-background/30">
+      <CardHeader>
+        <CardTitle className="text-base">{t("audits.memoryPlanTitle", { defaultValue: "Memory Plan" })}</CardTitle>
+        <CardDescription>{t("audits.memoryPlanDescription", { defaultValue: "Requested retrieval, memory ops, fact cache ops, and persisted outputs." })}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {requestMode ? <Badge variant="default">{requestMode}</Badge> : null}
+          <Badge variant="outline">{t("audits.memoryPlanUsed", { count: usedMemoryIds.length, defaultValue: "used: {{count}}" })}</Badge>
+          <Badge variant="outline">{t("audits.memoryPlanMemoryOps", { count: memoryOps.length, defaultValue: "memory ops: {{count}}" })}</Badge>
+          <Badge variant="outline">{t("audits.memoryPlanFactCacheOps", { count: factCacheOps.length, defaultValue: "fact cache ops: {{count}}" })}</Badge>
+          <Badge variant="outline">{t("audits.memoryPlanPersisted", { count: persistedMemoryIds.length, defaultValue: "persisted: {{count}}" })}</Badge>
+        </div>
+        {usedMemoryIds.length ? (
+          <div className="rounded-xl border border-border/60 bg-background/40 p-4">
+            <div className="mb-2 text-sm font-medium">{t("audits.usedMemoryIds", { defaultValue: "Used memory ids" })}</div>
+            <div className="flex flex-wrap gap-2">
+              {usedMemoryIds.map((value, index) => <Badge key={`${value}-${index}`} variant="secondary">{String(value)}</Badge>)}
+            </div>
+          </div>
+        ) : null}
+        {memoryOps.length ? (
+          <div className="rounded-xl border border-border/60 bg-background/40 p-4">
+            <div className="mb-2 text-sm font-medium">{t("audits.memoryOpsTitle", { defaultValue: "Memory ops" })}</div>
+            <StructuredValue value={memoryOps} label={t("audits.memoryOpsTitle", { defaultValue: "Memory ops" })} />
+          </div>
+        ) : null}
+        {factCacheOps.length ? (
+          <div className="rounded-xl border border-border/60 bg-background/40 p-4">
+            <div className="mb-2 text-sm font-medium">{t("audits.factCacheOpsTitle", { defaultValue: "Fact cache ops" })}</div>
+            <StructuredValue value={factCacheOps} label={t("audits.factCacheOpsTitle", { defaultValue: "Fact cache ops" })} />
+          </div>
+        ) : null}
+        {persistedMemoryIds.length ? (
+          <div className="rounded-xl border border-border/60 bg-background/40 p-4">
+            <div className="mb-2 text-sm font-medium">{t("audits.persistedMemoryIds", { defaultValue: "Persisted memory ids" })}</div>
+            <div className="flex flex-wrap gap-2">
+              {persistedMemoryIds.map((value, index) => <Badge key={`${value}-${index}`} variant="secondary">{String(value)}</Badge>)}
+            </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -688,6 +769,8 @@ export default function AuditsWorkbenchPage() {
                     ))}
                   </div>
                 ) : null}
+
+                <MemoryDecisionView selectedRun={selectedRun} />
 
                 <div className="grid gap-3">
                   {genericArtifacts.map((artifact) => (

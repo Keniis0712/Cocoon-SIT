@@ -77,6 +77,24 @@ def build_structured_prompt_context(
     else:
         lines.append("Pending wakeups: none")
 
+    fact_cache = snapshot.get("fact_cache")
+    if isinstance(fact_cache, list):
+        compact_payload["fact_cache"] = _sanitize_prompt_value(fact_cache)
+        lines.append(f"Fact cache entries: {len(fact_cache)}")
+
+    task_state = snapshot.get("task_state") if isinstance(snapshot.get("task_state"), dict) else {}
+    if task_state:
+        compact_payload["task_state"] = _sanitize_prompt_value(task_state)
+        task_name = task_state.get("task_name") or "active_task"
+        progress = task_state.get("progress") or task_state.get("status") or "active"
+        lines.append(f"Task state: {task_name} -> {progress}")
+
+    memory_profile = snapshot.get("memory_profile") if isinstance(snapshot.get("memory_profile"), dict) else {}
+    if memory_profile:
+        compact_payload["memory_profile"] = _sanitize_prompt_value(memory_profile)
+        if memory_profile.get("request_mode"):
+            lines.append(f"Memory mode: {memory_profile['request_mode']}")
+
     if include_session_state:
         session_state = (
             snapshot.get("session_state") if isinstance(snapshot.get("session_state"), dict) else {}
@@ -262,9 +280,15 @@ def _runtime_memory_payload(
 ) -> dict[str, Any]:
     tag_refs = list(memory.tags_json or [])
     return {
+        "id": memory.id,
+        "memory_pool": memory.memory_pool,
+        "memory_type": memory.memory_type,
         "scope": memory.scope,
         "summary": memory.summary,
         "content": memory.content,
+        "importance": memory.importance,
+        "confidence": memory.confidence,
+        "status": memory.status,
         "tags": _serialize_tag_names(tag_refs, context, catalog),
         "mentionable_in_current_target": _mentionable_for_target(tag_refs, context, catalog),
         "source": "chat_group" if memory.chat_group_id else "cocoon",
@@ -396,6 +420,27 @@ def build_runtime_prompt_variables(
         "memory_context": [
             _runtime_memory_payload(memory, context, catalog) for memory in context.memory_context
         ],
+        "fact_cache": [
+            {
+                "cache_key": item.cache_key,
+                "summary": item.summary,
+                "content": item.content,
+                "valid_until": item.valid_until.isoformat() if item.valid_until else None,
+            }
+            for item in context.fact_cache_entries
+        ],
+        "task_state": (
+            {
+                "task_name": context.task_state.task_name,
+                "goal": context.task_state.goal,
+                "progress": context.task_state.progress,
+                "status": context.task_state.status,
+                "meta_json": _sanitize_prompt_value(context.task_state.meta_json),
+            }
+            if context.task_state
+            else None
+        ),
+        "memory_profile": _sanitize_prompt_value(context.memory_profile),
         "runtime_event": _runtime_event_payload(context),
         "current_time": build_runtime_clock_payload(context),
         "wakeup_context": wakeup_context,

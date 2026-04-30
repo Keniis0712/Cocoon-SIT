@@ -1,4 +1,4 @@
-import { apiCall, makeCocoonWsUrl } from "./client";
+import { apiCall, apiJson, makeCocoonWsUrl } from "./client";
 import { createPendingUserMessage, mapWorkspaceMessage } from "./adapters/messages";
 import { mapRuntimeWsEvent } from "./adapters/runtimeWs";
 import {
@@ -135,6 +135,7 @@ async function mapCocoon(item: {
   default_temperature?: number;
   max_context_messages?: number;
   auto_compaction_enabled?: boolean;
+  memory_profile?: string;
   parent_id: string | null;
   created_at: string;
 }, boundTagIds: string[] = []): Promise<CocoonRead> {
@@ -150,6 +151,7 @@ async function mapCocoon(item: {
     default_temperature: item.default_temperature ?? null,
     max_context_messages: item.max_context_messages ?? null,
     auto_compaction_enabled: item.auto_compaction_enabled ?? null,
+    memory_profile: item.memory_profile ?? "meta_reply",
     kind: "private",
     chat_group_id: null,
     parent_id: item.parent_id ? rememberLegacyId("cocoon", item.parent_id) : null,
@@ -222,25 +224,48 @@ function mapTreeNode(item: { id: string; name: string; parent_id: string | null;
 
 function mapMemory(item: {
   id: string;
-  cocoon_id?: string;
+  cocoon_id?: string | null;
+  chat_group_id?: string | null;
+  owner_user_id?: string | null;
+  memory_pool?: string;
+  memory_type?: string;
+  importance?: number;
+  confidence?: number;
+  status?: string;
+  valid_until?: string | null;
+  last_accessed_at?: string | null;
+  access_count?: number;
+  meta_json?: Record<string, unknown>;
   source_message_id?: string | null;
   scope: string;
   content: string;
   summary: string | null;
   tags_json: string[];
+  source_kind?: string;
   created_at: string;
 }): MemoryChunkRead {
   return {
     id: rememberLegacyId("memory", item.id),
-    cocoon_id: item.cocoon_id ? rememberLegacyId("cocoon", item.cocoon_id) : 0,
+    cocoon_id: item.cocoon_id ? rememberLegacyId("cocoon", item.cocoon_id) : null,
+    chat_group_id: item.chat_group_id ? rememberLegacyId("group", item.chat_group_id) : null,
+    owner_user_id: item.owner_user_id ?? null,
+    memory_pool: item.memory_pool ?? "tree_private",
+    memory_type: item.memory_type ?? "summary",
+    status: item.status ?? "active",
+    summary: item.summary,
+    valid_until: item.valid_until ?? null,
+    last_accessed_at: item.last_accessed_at ?? null,
+    access_count: item.access_count ?? 0,
+    meta_json: item.meta_json ?? {},
     origin_cocoon_id: null,
     source_message_id: item.source_message_id ? rememberLegacyId("message", item.source_message_id) : null,
     chroma_document_id: item.id,
     role_key: item.scope,
-    source_kind: item.scope,
-    content: item.summary || item.content,
+    source_kind: item.source_kind ?? item.scope,
+    content: item.content,
     visibility: 0,
-    importance: 0,
+    importance: item.importance ?? 0,
+    confidence: item.confidence ?? 3,
     timestamp: new Date(item.created_at).getTime(),
     is_thought: false,
     is_summary: Boolean(item.summary),
@@ -305,11 +330,12 @@ export function getCocoonSessionState(cocoonId: number) {
 
 export function createCocoon(data: CocoonPayload): Promise<CocoonRead> {
   return apiCall(async (client) => {
-    const payload: Parameters<typeof client.createCocoon>[0] = {
+    const payload: any = {
       name: data.name.trim(),
       parent_id: data.parent_id ? resolveActualId("cocoon", data.parent_id) : null,
       default_temperature: data.default_temperature ?? 0.7,
       max_context_messages: data.max_context_messages ?? data.max_context_tokens ?? 12,
+      memory_profile: data.memory_profile ?? undefined,
     };
     if (data.character_id) {
       payload.character_id = resolveActualId("character", data.character_id);
@@ -331,7 +357,8 @@ export function updateCocoon(id: number, data: Partial<CocoonPayload>): Promise<
       max_context_messages: data.max_context_messages ?? data.max_context_tokens ?? undefined,
       auto_compaction_enabled: data.auto_compaction_enabled ?? undefined,
       default_temperature: data.default_temperature ?? undefined,
-    });
+      memory_profile: data.memory_profile ?? undefined,
+    } as any);
     return getCocoon(rememberLegacyId("cocoon", updated.id));
   });
 }
@@ -368,12 +395,52 @@ export function getCocoonMessages(
   });
 }
 
-export function getCocoonMemories(cocoon_id: number, page: number, page_size: number): Promise<PageResp<MemoryChunkRead>> {
-  return apiCall(async (client) => {
-    const items = (await client.listMemory(resolveActualId("cocoon", cocoon_id))).map((item) =>
-      mapMemory({ ...item, cocoon_id: resolveActualId("cocoon", cocoon_id), source_message_id: null }),
-    );
-    return makePage(items, page, page_size);
+export function getCocoonMemories(cocoon_id: number): Promise<{ items: MemoryChunkRead[]; overview: any }> {
+  return apiJson(`/memory/${resolveActualId("cocoon", cocoon_id)}`).then((payload: any) => ({
+    items: Array.isArray(payload.items) ? payload.items.map((item: any) => mapMemory(item)) : [],
+    overview: payload.overview ?? {
+      total: 0,
+      by_pool: {},
+      by_type: {},
+      by_status: {},
+      tag_cloud: [],
+      importance_average: 0,
+      confidence_average: 0,
+    },
+  }));
+}
+
+export function updateCocoonMemory(
+  cocoon_id: number,
+  memory_id: number,
+  data: {
+    content?: string;
+    summary?: string | null;
+    tags_json?: string[];
+    importance?: number;
+    confidence?: number;
+    status?: string;
+  },
+) {
+  return apiJson(
+    `/memory/${resolveActualId("cocoon", cocoon_id)}/${resolveActualId("memory", memory_id)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+  ).then((item: any) => mapMemory(item));
+}
+
+export function reorganizeCocoonMemories(
+  cocoon_id: number,
+  data: { memory_ids: number[]; instructions?: string },
+) {
+  return apiJson(`/memory/${resolveActualId("cocoon", cocoon_id)}/reorganize`, {
+    method: "POST",
+    body: JSON.stringify({
+      memory_ids: data.memory_ids.map((id) => resolveActualId("memory", id)),
+      instructions: data.instructions ?? null,
+    }),
   });
 }
 

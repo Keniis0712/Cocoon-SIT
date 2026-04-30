@@ -71,6 +71,8 @@
   "modelLabel": "Model: {{value}}",
   "dispatchLabel": "Dispatch: {{value}}",
   "relationLabel": "Relation: {{value}}",
+  "tagsTitle": "Tags",
+  "noVisibleTags": "No visible tags",
   "wakeupPanelTitle": "Wakeup",
   "currentWakeupTask": "Current task #{{id}}",
   "noActiveWakeupTask": "No active wakeup task",

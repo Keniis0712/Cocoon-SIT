@@ -5,6 +5,7 @@
   "overviewDescription": "This shows the currently signed-in account and its capabilities.",
   "username": "Username",
   "role": "Role",
+  "roleLevel": "{{role}} / L{{level}}",
   "timezone": "Timezone",
   "timezoneHint": "Use an IANA timezone like {{timezone}} so AI prompts and schedules stay aligned.",
   "userUid": "User UID",

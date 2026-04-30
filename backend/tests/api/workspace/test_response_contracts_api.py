@@ -31,8 +31,23 @@ def test_access_and_workspace_routes_return_typed_contracts(client, auth_headers
 
     memory = client.get(f"/api/v1/memory/{default_cocoon_id}", headers=auth_headers)
     assert memory.status_code == 200, memory.text
-    if memory.json():
-        assert {"id", "scope", "summary", "content", "tags_json", "created_at"} <= set(memory.json()[0].keys())
+    memory_payload = memory.json()
+    assert {"items", "overview"} <= set(memory_payload.keys())
+    if memory_payload["items"]:
+        assert {
+            "id",
+            "scope",
+            "summary",
+            "content",
+            "tags_json",
+            "created_at",
+            "memory_pool",
+            "memory_type",
+            "status",
+            "importance",
+            "confidence",
+            "access_count",
+        } <= set(memory_payload["items"][0].keys())
 
 
 def test_cocoon_state_route_returns_session_state(client, auth_headers, default_cocoon_id):

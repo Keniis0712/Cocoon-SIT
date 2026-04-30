@@ -25,6 +25,8 @@ class DurableJobType(StrEnum):
     plugin_im_delivery = "plugin_im_delivery"
     rollback = "rollback"
     compaction = "compaction"
+    memory_reorganize = "memory_reorganize"
+    memory_maintenance = "memory_maintenance"
     artifact_cleanup = "artifact_cleanup"
 
 

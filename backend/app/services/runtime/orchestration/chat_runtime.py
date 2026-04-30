@@ -30,6 +30,7 @@ class RuntimeGraphState(TypedDict, total=False):
     meta: MetaDecision
     scheduler_result: dict[str, Any]
     generation: GenerationOutput
+    inline_mode: str | None
     thought_message: Message | None
     message: Message | None
 
@@ -90,12 +91,21 @@ class ChatRuntime:
     def _build_graph(self):
         graph = StateGraph(RuntimeGraphState)
         graph.add_node("context_builder", self._run_context_builder)
+        graph.add_node("inline_node", self._run_inline_node)
         graph.add_node("meta_node", self._run_meta_node)
         graph.add_node("scheduler_node", self._run_scheduler_node)
         graph.add_node("generator_node", self._run_generator_node)
         graph.add_node("side_effects", self._run_side_effects_node)
         graph.add_edge(START, "context_builder")
-        graph.add_edge("context_builder", "meta_node")
+        graph.add_conditional_edges(
+            "context_builder",
+            self._route_after_context,
+            {
+                "inline_node": "inline_node",
+                "meta_node": "meta_node",
+            },
+        )
+        graph.add_edge("inline_node", "scheduler_node")
         graph.add_edge("meta_node", "scheduler_node")
         graph.add_conditional_edges(
             "scheduler_node",
@@ -140,6 +150,55 @@ class ChatRuntime:
         self.audit_service.finish_step(session, context_step, ActionStatus.completed)
         return {"context": context}
 
+    def _run_inline_node(self, state: RuntimeGraphState) -> RuntimeGraphState:
+        session = state["session"]
+        audit_run = state["audit_run"]
+        context = state["context"]
+        inline_mode = str(context.memory_profile.get("request_mode") or "reply_only")
+        inline_step = self.audit_service.start_step(session, audit_run, "inline_node")
+        meta, generation = self.generator_node.generate_inline(
+            session,
+            context,
+            audit_run,
+            inline_step,
+            mode=inline_mode,
+        )
+        self.audit_service.record_json_artifact(
+            session,
+            audit_run,
+            inline_step,
+            "meta_output",
+            {
+                "decision": meta.decision,
+                "relation_delta": meta.relation_delta,
+                "persona_patch": meta.persona_patch,
+                "tag_ops": [{"action": op.action, "tag_index": op.tag_index} for op in meta.tag_ops],
+                "internal_thought": meta.internal_thought,
+                "event_summary": meta.event_summary,
+                "next_wakeup_hints": meta.next_wakeup_hints,
+                "cancel_wakeup_task_ids": meta.cancel_wakeup_task_ids,
+                "generation_brief": meta.generation_brief,
+                "used_memory_ids": meta.used_memory_ids,
+                "session_update": meta.session_update,
+                "task_state_update": meta.task_state_update,
+                "fact_cache_ops": [op.__dict__ for op in meta.fact_cache_ops],
+                "memory_ops": [
+                    {
+                        **op.__dict__,
+                        "tags": [tag.tag for tag in op.tags],
+                    }
+                    for op in meta.memory_ops
+                ],
+                "request_mode": meta.request_mode,
+            },
+            metadata_json={
+                "decision": meta.decision,
+                "request_mode": inline_mode,
+            },
+        )
+        self.audit_service.finish_step(session, inline_step, ActionStatus.completed)
+        return {"meta": meta, "generation": generation, "inline_mode": inline_mode}
+
     def _run_meta_node(self, state: RuntimeGraphState) -> RuntimeGraphState:
         session = state["session"]
         audit_run = state["audit_run"]
@@ -170,6 +229,18 @@ class ChatRuntime:
                 "next_wakeup_hints": meta.next_wakeup_hints,
                 "cancel_wakeup_task_ids": meta.cancel_wakeup_task_ids,
                 "generation_brief": meta.generation_brief,
+                "used_memory_ids": meta.used_memory_ids,
+                "session_update": meta.session_update,
+                "task_state_update": meta.task_state_update,
+                "fact_cache_ops": [op.__dict__ for op in meta.fact_cache_ops],
+                "memory_ops": [
+                    {
+                        **op.__dict__,
+                        "tags": [tag.tag for tag in op.tags],
+                    }
+                    for op in meta.memory_ops
+                ],
+                "request_mode": meta.request_mode,
             },
             metadata_json={
                 "decision": meta.decision,
@@ -193,6 +264,11 @@ class ChatRuntime:
             meta,
             action_id=action.id,
         )
+        self.side_effects.apply_task_state_patch(session, context, meta)
+        self.side_effects.apply_fact_cache_ops(session, context, meta)
+        action_payload = dict(action.payload_json or {})
+        action_payload["used_memory_ids"] = list(meta.used_memory_ids or [])
+        action.payload_json = action_payload
         scheduler_step = self.audit_service.start_step(session, audit_run, "scheduler_node")
         scheduler_result = self.scheduler_node.schedule(session, context, meta)
         thought_message = self.side_effects.persist_thought_message(session, context, action, meta)
@@ -221,7 +297,9 @@ class ChatRuntime:
         context = state["context"]
         meta = state["meta"]
         generator_step = self.audit_service.start_step(session, audit_run, "generator_node")
-        generation = self.generator_node.generate(session, context, meta, audit_run, generator_step)
+        generation = state.get("generation")
+        if generation is None:
+            generation = self.generator_node.generate(session, context, meta, audit_run, generator_step)
         self.logger.info(
             "Generator produced reply action_id=%s reply_length=%s provider_kind=%s model_name=%s",
             action.id,
@@ -254,8 +332,24 @@ class ChatRuntime:
             action=action,
             message=state.get("message"),
             thought_message=state.get("thought_message"),
+            memories=self.side_effects.persist_memory_ops(
+                session,
+                context,
+                action,
+                state["meta"].memory_ops,
+                source_message=state.get("message"),
+            )
+            if state.get("meta")
+            else [],
             scheduler_result=state.get("scheduler_result"),
         )
+        if state.get("meta"):
+            boost = float(context.memory_profile.get("access_importance_boost") or 0.0)
+            self.side_effects.memory_service.touch_memories(
+                session,
+                list(state["meta"].used_memory_ids or []),
+                importance_boost=boost,
+            )
         self.state_patch_service.publish_snapshot(
             action_id=action.id,
             state=context.session_state,
@@ -284,3 +378,7 @@ class ChatRuntime:
 
     def _route_after_generator(self, state: RuntimeGraphState) -> str:
         return "side_effects"
+
+    def _route_after_context(self, state: RuntimeGraphState) -> str:
+        profile_mode = str(state["context"].memory_profile.get("request_mode") or "meta_reply")
+        return "inline_node" if profile_mode in {"reply_only", "single_pass"} else "meta_node"

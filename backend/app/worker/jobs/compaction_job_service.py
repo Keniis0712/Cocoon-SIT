@@ -66,10 +66,17 @@ class CompactionJobService:
             return
 
         state = ensure_session_state(session, cocoon_id=cocoon_id)
+        profile = session.info["container"].system_settings_service.get_memory_profile(
+            session,
+            cocoon.memory_profile,
+        )
         memory_context = list(
             session.scalars(
                 select(MemoryChunk)
-                .where(MemoryChunk.cocoon_id == cocoon_id)
+                .where(
+                    MemoryChunk.cocoon_id == cocoon_id,
+                    MemoryChunk.status == "active",
+                )
                 .order_by(MemoryChunk.created_at.desc())
                 .limit(5)
             ).all()
@@ -176,18 +183,54 @@ class CompactionJobService:
                 include_default=True,
                 owner_user_id=cocoon.owner_user_id,
             )
+            if int(item.importance or 0) < 3:
+                candidate = self.memory_service.upsert_candidate(
+                    session,
+                    cocoon_id=cocoon_id,
+                    owner_user_id=cocoon.owner_user_id,
+                    character_id=cocoon.character_id,
+                    memory_pool=str(item.memory_pool or "tree_private"),
+                    memory_type=str(item.memory_type or "summary"),
+                    summary=summary,
+                    content=content,
+                    tags_json=tag_ids,
+                    importance=max(0, min(2, int(item.importance or 2))),
+                    confidence=max(1, min(5, int(item.confidence or 3))),
+                    ttl_hours=int(profile.get("candidate_ttl_hours") or 72),
+                    meta_json={
+                        "compressed_message_ids": [message.id for message in selected],
+                        "source_kind": "compaction",
+                        "compaction_summary": str(parsed.summary or "").strip(),
+                    },
+                )
+                if int(candidate.hit_count or 0) >= int(profile.get("candidate_promote_hits") or 2):
+                    created_chunks.append(
+                        self.memory_service.promote_candidate_to_memory(
+                            session,
+                            candidate,
+                            source_kind="compaction_candidate_promotion",
+                        )
+                    )
+                continue
             chunk = MemoryChunk(
                 cocoon_id=cocoon_id,
                 owner_user_id=cocoon.owner_user_id,
                 character_id=cocoon.character_id,
+                memory_pool=str(item.memory_pool or "tree_private"),
+                memory_type=str(item.memory_type or "summary"),
                 scope=str(item.scope or "summary"),
                 content=content,
                 summary=summary,
                 tags_json=tag_ids,
+                importance=max(3, min(5, int(item.importance or 3))),
+                confidence=max(1, min(5, int(item.confidence or 4))),
+                status="active",
+                source_kind="compaction",
                 meta_json={
                     "compressed_message_ids": [message.id for message in selected],
                     "source_kind": "compaction",
                     "importance": int(item.importance),
+                    "confidence": int(item.confidence),
                     "compaction_summary": str(parsed.summary or "").strip(),
                 },
             )
@@ -227,6 +270,7 @@ class CompactionJobService:
         return (
             "You are producing structured long-term memories for compaction.\n"
             "Only output memories that are worth retrieving in future rounds.\n"
+            "Use importance 2 for candidate memory and importance 3-5 for durable long-term memory.\n"
             "Every tag reference must use tag_indexes from the provided numbered tag catalog.\n"
             "Do not invent new tag names or output free-text tags.\n"
             "If nothing durable should be stored, return an empty long_term_memories list.\n"

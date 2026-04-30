@@ -782,7 +782,12 @@ export default function AdminPluginsPage() {
                         <div>
                           <div className="font-medium">{event.title || event.name}</div>
                           <div className="mt-1 text-xs text-muted-foreground">
-                            {event.name} · {event.mode} · {event.function_name}
+                            {t("plugins:eventMeta", {
+                              name: event.name,
+                              mode: event.mode,
+                              functionName: event.function_name,
+                              defaultValue: "{{name}} · {{mode}} · {{functionName}}",
+                            })}
                           </div>
                         </div>
                         <div

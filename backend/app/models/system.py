@@ -20,3 +20,5 @@ class SystemSettings(Base, TimestampMixin, JsonDefaultMixin):
     group_chat_debounce_seconds: Mapped[int] = mapped_column(Integer, default=2)
     rollback_retention_days: Mapped[int] = mapped_column(Integer, default=30)
     rollback_cleanup_interval_hours: Mapped[int] = mapped_column(Integer, default=24)
+    default_memory_profile: Mapped[str] = mapped_column(String(32), default="meta_reply")
+    memory_profiles_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)

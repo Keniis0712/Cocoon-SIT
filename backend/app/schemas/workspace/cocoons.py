@@ -13,6 +13,7 @@ class CocoonCreate(BaseModel):
     default_temperature: float | None = None
     max_context_messages: int | None = Field(default=None, ge=1)
     auto_compaction_enabled: bool | None = None
+    memory_profile: str | None = None
 
 
 class CocoonUpdate(BaseModel):
@@ -22,6 +23,7 @@ class CocoonUpdate(BaseModel):
     default_temperature: float | None = None
     max_context_messages: int | None = None
     auto_compaction_enabled: bool | None = None
+    memory_profile: str | None = None
 
 
 class CocoonOut(ORMModel):
@@ -33,6 +35,7 @@ class CocoonOut(ORMModel):
     default_temperature: float
     max_context_messages: int
     auto_compaction_enabled: bool
+    memory_profile: str
     parent_id: str | None
     created_at: datetime
 

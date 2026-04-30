@@ -79,6 +79,7 @@
   "userSchemaJson": "User Schema JSON",
   "eventConfigTitle": "Event Settings",
   "eventConfigDescription": "Manage event-level runtime switches and settings.",
+  "eventMeta": "{{name}} · {{mode}} · {{functionName}}",
   "noEvents": "This plugin does not expose events.",
   "saveEventConfig": "Save Event Config",
   "saveEventConfigSuccess": "Event config saved.",

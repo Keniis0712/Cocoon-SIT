@@ -230,7 +230,7 @@ export default function PromptTemplatesPage() {
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <Badge variant="outline">{item.template_type}</Badge>
-                        {item.active_revision ? <Badge>v{item.active_revision.version}</Badge> : null}
+                        {item.active_revision ? <Badge>{t("prompts.versionTag", { version: item.active_revision.version, defaultValue: "v{{version}}" })}</Badge> : null}
                       </div>
                     </div>
                   </CardHeader>
@@ -249,7 +249,7 @@ export default function PromptTemplatesPage() {
                       <div className="mb-2 text-muted-foreground">{t("prompts.activeRevision")}</div>
                       {item.active_revision ? (
                         <div className="space-y-2 text-xs text-muted-foreground">
-                          <div>{t("prompts.version")}: v{item.active_revision.version}</div>
+                          <div>{t("prompts.versionValue", { version: item.active_revision.version, defaultValue: "Version: v{{version}}" })}</div>
                           <div>{t("prompts.checksum")}: {checksumLabel(item.active_revision.checksum)}</div>
                           <div>{t("common.createdAt")}: {new Date(item.active_revision.created_at).toLocaleString()}</div>
                         </div>

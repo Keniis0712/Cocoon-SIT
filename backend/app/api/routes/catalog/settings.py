@@ -21,6 +21,8 @@ def _serialize(settings: SystemSettings) -> SystemSettingsOut:
         group_chat_debounce_seconds=settings.group_chat_debounce_seconds,
         rollback_retention_days=settings.rollback_retention_days,
         rollback_cleanup_interval_hours=settings.rollback_cleanup_interval_hours,
+        default_memory_profile=settings.default_memory_profile,
+        memory_profiles_json=settings.memory_profiles_json or {},
         created_at=settings.created_at,
         updated_at=settings.updated_at,
     )

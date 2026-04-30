@@ -35,7 +35,9 @@ def test_memory_routes_support_listing_compaction_and_delete(client, auth_header
 
     list_response = client.get(f"/api/v1/memory/{default_cocoon_id}", headers=auth_headers)
     assert list_response.status_code == 200, list_response.text
-    assert any(item["id"] == memory_id for item in list_response.json())
+    payload = list_response.json()
+    assert {"items", "overview"} <= set(payload.keys())
+    assert any(item["id"] == memory_id for item in payload["items"])
 
     compact_response = client.post(
         f"/api/v1/memory/{default_cocoon_id}/compact",
@@ -78,7 +80,7 @@ def test_child_cocoon_memory_listing_includes_parent_chain_memories(client, auth
 
     list_response = client.get(f"/api/v1/memory/{child_id}", headers=auth_headers)
     assert list_response.status_code == 200, list_response.text
-    summaries = [item["summary"] for item in list_response.json()]
+    summaries = [item["summary"] for item in list_response.json()["items"]]
     assert "Parent memory" in summaries
     assert "Child memory" in summaries
 

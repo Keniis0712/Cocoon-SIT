@@ -16,6 +16,65 @@ class SystemSettingsService:
     """Loads, creates, updates, and interprets global runtime settings."""
 
     DEFAULT_ROW_ID = "default"
+    DEFAULT_MEMORY_PROFILES = {
+        "reply_only": {
+            "request_mode": "reply_only",
+            "read_long_term_memory": True,
+            "read_fact_cache": True,
+            "vector_recall_limit": 20,
+            "prompt_memory_limit": 5,
+            "tag_match_weight": 0.05,
+            "vector_weight": 0.45,
+            "importance_weight": 0.25,
+            "recency_weight": 0.15,
+            "confidence_weight": 0.10,
+            "candidate_promote_hits": 2,
+            "candidate_ttl_hours": 72,
+            "fact_cache_ttl_minutes": 120,
+            "maintenance_decay_days": 90,
+            "maintenance_decay_factor": 0.95,
+            "archive_after_days": 180,
+            "access_importance_boost": 0.02,
+        },
+        "single_pass": {
+            "request_mode": "single_pass",
+            "read_long_term_memory": True,
+            "read_fact_cache": True,
+            "vector_recall_limit": 20,
+            "prompt_memory_limit": 5,
+            "tag_match_weight": 0.05,
+            "vector_weight": 0.45,
+            "importance_weight": 0.25,
+            "recency_weight": 0.15,
+            "confidence_weight": 0.10,
+            "candidate_promote_hits": 2,
+            "candidate_ttl_hours": 72,
+            "fact_cache_ttl_minutes": 120,
+            "maintenance_decay_days": 90,
+            "maintenance_decay_factor": 0.95,
+            "archive_after_days": 180,
+            "access_importance_boost": 0.02,
+        },
+        "meta_reply": {
+            "request_mode": "meta_reply",
+            "read_long_term_memory": True,
+            "read_fact_cache": True,
+            "vector_recall_limit": 20,
+            "prompt_memory_limit": 5,
+            "tag_match_weight": 0.05,
+            "vector_weight": 0.45,
+            "importance_weight": 0.25,
+            "recency_weight": 0.15,
+            "confidence_weight": 0.10,
+            "candidate_promote_hits": 2,
+            "candidate_ttl_hours": 72,
+            "fact_cache_ttl_minutes": 120,
+            "maintenance_decay_days": 90,
+            "maintenance_decay_factor": 0.95,
+            "archive_after_days": 180,
+            "access_importance_boost": 0.02,
+        },
+    }
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -38,6 +97,8 @@ class SystemSettingsService:
             group_chat_debounce_seconds=2,
             rollback_retention_days=30,
             rollback_cleanup_interval_hours=24,
+            default_memory_profile="meta_reply",
+            memory_profiles_json=self.DEFAULT_MEMORY_PROFILES,
         )
         session.add(current)
         session.flush()
@@ -68,8 +129,29 @@ class SystemSettingsService:
         for field, value in updates.items():
             setattr(current, field, value)
 
+        if not current.memory_profiles_json:
+            current.memory_profiles_json = self.DEFAULT_MEMORY_PROFILES
+        if not current.default_memory_profile:
+            current.default_memory_profile = "meta_reply"
+
         session.flush()
         return current
+
+    def get_memory_profiles(self, session: Session) -> dict[str, dict]:
+        current = self.get_settings(session)
+        configured = current.memory_profiles_json or {}
+        merged = {name: dict(values) for name, values in self.DEFAULT_MEMORY_PROFILES.items()}
+        for name, values in configured.items():
+            if not isinstance(values, dict):
+                continue
+            merged[name] = {**merged.get(name, {}), **values}
+        return merged
+
+    def get_memory_profile(self, session: Session, profile_name: str | None) -> dict:
+        current = self.get_settings(session)
+        profiles = self.get_memory_profiles(session)
+        candidate = str(profile_name or current.default_memory_profile or "meta_reply").strip()
+        return profiles.get(candidate, profiles["meta_reply"]) | {"name": candidate if candidate in profiles else "meta_reply"}
 
     def require_model_allowed(self, session: Session, model_id: str) -> None:
         """Raise when a model is not part of the configured whitelist."""

@@ -3,7 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.models import ActionDispatch, Character, ChatGroupRoom, Cocoon, MemoryChunk, Message, SessionState
+from app.models import (
+    ActionDispatch,
+    Character,
+    ChatGroupRoom,
+    Cocoon,
+    FactCacheEntry,
+    MemoryChunk,
+    Message,
+    SessionState,
+    TargetTaskState,
+)
 from app.services.memory.service import MemoryRetrievalHit
 
 
@@ -34,8 +44,11 @@ class ContextPackage:
     conversation: Cocoon | ChatGroupRoom
     character: Character
     session_state: SessionState
+    task_state: TargetTaskState | None
     visible_messages: list[Message]
     memory_context: list[MemoryChunk]
+    fact_cache_entries: list[FactCacheEntry] = field(default_factory=list)
+    memory_profile: dict[str, Any] = field(default_factory=dict)
     memory_owner_user_id: str | None = None
     memory_hits: list[MemoryRetrievalHit] = field(default_factory=list)
     external_context: dict[str, Any] = field(default_factory=dict)
@@ -68,6 +81,12 @@ class MetaDecision:
     next_wakeup_hints: list[dict[str, Any]] = field(default_factory=list)
     cancel_wakeup_task_ids: list[str] = field(default_factory=list)
     generation_brief: str | None = None
+    used_memory_ids: list[str] = field(default_factory=list)
+    session_update: dict[str, Any] = field(default_factory=dict)
+    task_state_update: dict[str, Any] = field(default_factory=dict)
+    fact_cache_ops: list["FactCacheOperation"] = field(default_factory=list)
+    memory_ops: list["MemoryOperation"] = field(default_factory=list)
+    request_mode: str = "meta_reply"
 
 
 @dataclass
@@ -78,6 +97,37 @@ class MemoryCandidate:
     tags: list["TagReference"] = field(default_factory=list)
     owner_user_id: str | None = None
     importance: int = 5
+    confidence: int = 3
+    memory_type: str = "preference"
+    memory_pool: str | None = None
+    valid_until: str | None = None
+    reason: str | None = None
+
+
+@dataclass
+class FactCacheOperation:
+    op: str
+    cache_key: str
+    content: str = ""
+    summary: str | None = None
+    valid_until: str | None = None
+    meta_json: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class MemoryOperation:
+    op: str
+    content: str = ""
+    summary: str | None = None
+    memory_type: str = "preference"
+    memory_pool: str | None = None
+    tags: list["TagReference"] = field(default_factory=list)
+    importance: int = 3
+    confidence: int = 3
+    reason: str | None = None
+    valid_until: str | None = None
+    target_memory_id: str | None = None
+    supersedes_memory_ids: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -101,6 +151,7 @@ class GenerationOutput:
     usage: dict[str, int]
     provider_kind: str
     model_name: str
+    internal_thought: str | None = None
 
 
 @dataclass

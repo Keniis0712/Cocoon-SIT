@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { TagRead } from "@/api/types/catalog";
@@ -89,7 +89,12 @@ export function CocoonSessionPanel({
                     onClick={() => onRemoveTag(tag.id)}
                     disabled={isUpdatingTags}
                   >
-                    <Badge variant="secondary">{tag.label} x</Badge>
+                    <Badge variant="secondary">
+                      <span className="inline-flex items-center gap-1">
+                        {tag.label}
+                        <X className="size-3" />
+                      </span>
+                    </Badge>
                   </button>
                 ) : (
                   <Badge key={tag.key} variant="secondary">

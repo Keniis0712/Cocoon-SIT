@@ -1,4 +1,4 @@
-import { Plus, Shield, ShieldPlus, UserPlus, UsersRound } from "lucide-react";
+import { Plus, Shield, ShieldPlus, UserPlus, UsersRound, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { TagRead } from "@/api/types/catalog";
@@ -91,7 +91,7 @@ export function ChatGroupSidebar({
             <Badge variant="outline">{t("relationLabel", { value: relationScore ?? DEFAULT_RELATION_SCORE })}</Badge>
           </div>
           <div className="rounded-[22px] border border-border/70 bg-background/60 p-4 text-sm">
-            <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Tags</div>
+            <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">{t("tagsTitle", { defaultValue: "Tags" })}</div>
             <div className="flex flex-wrap gap-2">
               {displayTags.length ? displayTags.map((tag) => (
                 canManage && tag.id !== null ? (
@@ -102,26 +102,31 @@ export function ChatGroupSidebar({
                     disabled={isUpdatingTags}
                     onClick={() => onRemoveTag(tag.id)}
                   >
-                    <Badge variant="secondary">{tag.label} x</Badge>
+                    <Badge variant="secondary">
+                      <span className="inline-flex items-center gap-1">
+                        {tag.label}
+                        <X className="size-3" />
+                      </span>
+                    </Badge>
                   </button>
                 ) : (
                   <Badge key={tag.key} variant="secondary">
                     {tag.label}
                   </Badge>
                 )
-              )) : <span className="text-muted-foreground">No visible tags</span>}
+              )) : <span className="text-muted-foreground">{t("noVisibleTags", { defaultValue: "No visible tags" })}</span>}
             </div>
             {canManage ? (
               <div className="mt-3">
                 <Select value={addTagValue} onValueChange={onAddTag} disabled={isUpdatingTags || !availableAddableTags.length}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Add tag" />
+                    <SelectValue placeholder={t("addTag", { defaultValue: "Add tag" })} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__add">
                       <span className="inline-flex items-center gap-2">
                         <Plus className="size-4" />
-                        Add tag
+                        {t("addTag", { defaultValue: "Add tag" })}
                       </span>
                     </SelectItem>
                     {availableAddableTags.map((tag) => (

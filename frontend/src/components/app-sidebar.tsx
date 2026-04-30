@@ -114,7 +114,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <BrainCircuit className="size-5" />
             </div>
             <div>
-              <div className="font-heading text-sm font-semibold">Cocoon-SIT</div>
+              <div className="font-heading text-sm font-semibold">{t("brandName", { defaultValue: "Cocoon-SIT" })}</div>
               <div className="text-xs text-sidebar-foreground/70">{t("subtitle")}</div>
             </div>
           </div>

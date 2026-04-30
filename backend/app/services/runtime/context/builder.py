@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Character, ChatGroupRoom, Cocoon, TagRegistry, User
+from app.services.catalog.system_settings_service import SystemSettingsService
 from app.services.catalog.tag_policy import (
     is_tag_visible_in_target,
     resolve_tag_owner_user_id_for_target,
@@ -14,7 +15,7 @@ from app.services.runtime.context.external_context_service import ExternalContex
 from app.services.runtime.context.message_window_service import MessageWindowService
 from app.services.runtime.types import ContextPackage, RuntimeEvent
 from app.services.runtime.scheduling.wakeup_tasks import list_pending_wakeup_tasks
-from app.services.workspace.targets import ensure_session_state
+from app.services.workspace.targets import ensure_session_state, get_target_task_state
 
 
 class ContextBuilder:
@@ -43,6 +44,12 @@ class ContextBuilder:
             cocoon_id=event.cocoon_id,
             chat_group_id=event.chat_group_id,
         )
+        task_state = get_target_task_state(
+            session,
+            cocoon_id=event.cocoon_id,
+            chat_group_id=event.chat_group_id,
+        )
+        profile = self._resolve_memory_profile(session, conversation)
 
         visible_messages = self.message_window_service.list_visible_messages(
             session,
@@ -59,6 +66,16 @@ class ContextBuilder:
             owner_user_id=memory_owner_user_id,
             character_id=character.id,
         )
+        fact_cache_entries = (
+            getattr(self.memory_service, "list_fact_cache_entries", lambda *args, **kwargs: [])(
+                session,
+                cocoon_id=event.cocoon_id,
+                chat_group_id=event.chat_group_id,
+                limit=5,
+            )
+            if profile.get("read_fact_cache", True)
+            else []
+        )
         memory_hits = self.memory_service.retrieve_visible_memories(
             session=session,
             active_tags=state.active_tags_json,
@@ -68,8 +85,30 @@ class ContextBuilder:
             character_id=memory_lookup["character_id"],
             query_text=query_text,
             limit=5,
+            profile=profile,
         )
         external_context = self.external_context_service.build(session, event)
+        external_context["fact_cache_entries"] = [
+            {
+                "id": item.id,
+                "cache_key": item.cache_key,
+                "summary": item.summary,
+                "content": item.content,
+                "valid_until": item.valid_until.isoformat() if item.valid_until else None,
+                "meta_json": item.meta_json,
+            }
+            for item in fact_cache_entries
+        ]
+        if task_state:
+            external_context["task_state"] = {
+                "task_name": task_state.task_name,
+                "goal": task_state.goal,
+                "progress": task_state.progress,
+                "status": task_state.status,
+                "meta_json": task_state.meta_json,
+                "expires_at": task_state.expires_at.isoformat() if task_state.expires_at else None,
+                "completed_at": task_state.completed_at.isoformat() if task_state.completed_at else None,
+            }
         if runtime_timezone := self._resolve_runtime_timezone_fallback(
             session,
             conversation=conversation,
@@ -157,8 +196,11 @@ class ContextBuilder:
             conversation=conversation,
             character=character,
             session_state=state,
+            task_state=task_state,
             visible_messages=visible_messages,
             memory_context=[hit.memory for hit in memory_hits],
+            fact_cache_entries=fact_cache_entries,
+            memory_profile=profile,
             memory_owner_user_id=memory_owner_user_id,
             memory_hits=memory_hits,
             external_context=external_context,
@@ -206,6 +248,20 @@ class ContextBuilder:
         if event.event_type == "wakeup":
             return str(event.payload.get("reason") or "scheduled wakeup")
         return None
+
+    def _resolve_memory_profile(self, session: Session, conversation: Cocoon | ChatGroupRoom) -> dict:
+        container = session.info.get("container")
+        if container and getattr(container, "system_settings_service", None):
+            return container.system_settings_service.get_memory_profile(
+                session,
+                getattr(conversation, "memory_profile", None),
+            )
+        profile_name = str(getattr(conversation, "memory_profile", None) or "meta_reply")
+        default_profile = SystemSettingsService.DEFAULT_MEMORY_PROFILES.get(
+            profile_name,
+            SystemSettingsService.DEFAULT_MEMORY_PROFILES["meta_reply"],
+        )
+        return dict(default_profile) | {"name": profile_name}
 
     def _memory_lookup_scope(
         self,

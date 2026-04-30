@@ -8,6 +8,8 @@ export interface SystemSettingsRead {
   group_chat_debounce_seconds: number;
   rollback_retention_days: number;
   rollback_cleanup_interval_hours: number;
+  default_memory_profile: string;
+  memory_profiles_json: Record<string, Record<string, unknown>>;
   created_at: string;
   updated_at: string;
 }
@@ -22,4 +24,6 @@ export interface SystemSettingsUpdate {
   group_chat_debounce_seconds?: number;
   rollback_retention_days?: number;
   rollback_cleanup_interval_hours?: number;
+  default_memory_profile?: string;
+  memory_profiles_json?: Record<string, Record<string, unknown>>;
 }

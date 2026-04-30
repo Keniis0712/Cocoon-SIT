@@ -285,7 +285,7 @@ def ensure_state_bound_tags(
     )
     active_tags = canonicalize_tag_refs(
         session,
-        bound_tag_ids,
+        [*(state.active_tags_json or []), *bound_tag_ids],
         include_default=True,
         owner_user_id=owner_user_id,
     )

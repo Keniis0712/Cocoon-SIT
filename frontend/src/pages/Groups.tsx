@@ -327,7 +327,7 @@ export default function GroupsPage() {
                       {group.owner_uid ? (
                         <Badge variant="secondary">{t("groups.ownerUid")}: {userLabelMap.get(group.owner_uid) || group.owner_uid}</Badge>
                       ) : (
-                        <Badge variant="secondary">{t("groups.ownerUid")}: -</Badge>
+                        <Badge variant="secondary">{t("groups.ownerUidMissing", { defaultValue: "Owner UID: -" })}</Badge>
                       )}
                       {group.description ? <Badge variant="outline">{group.description}</Badge> : null}
                     </div>

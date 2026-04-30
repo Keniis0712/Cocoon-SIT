@@ -183,7 +183,7 @@ export default function MePage() {
               <div>
                 <div className="text-muted-foreground">{t("me.role")}</div>
                 <div className="mt-1 font-medium">
-                  {userInfo?.role || "-"} / L{userInfo?.role_level ?? "-"}
+                  {t("me.roleLevel", { role: userInfo?.role || "-", level: userInfo?.role_level ?? "-", defaultValue: "{{role}} / L{{level}}" })}
                 </div>
               </div>
               <div>

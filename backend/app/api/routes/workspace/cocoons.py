@@ -20,7 +20,9 @@ from app.models import (
     CocoonTagBinding,
     DurableJob,
     FailedRound,
+    FactCacheEntry,
     MemoryChunk,
+    MemoryCandidate,
     MemoryEmbedding,
     MemoryTag,
     Message,
@@ -28,6 +30,7 @@ from app.models import (
     PluginDispatchRecord,
     PluginImDeliveryOutbox,
     SessionState,
+    TargetTaskState,
     User,
     WakeupTask,
 )
@@ -74,6 +77,9 @@ def _delete_cocoon_subtree(db: Session, cocoon_ids: list[str]) -> None:
     wakeup_task_ids = list(db.scalars(select(WakeupTask.id).where(WakeupTask.cocoon_id.in_(cocoon_ids))).all())
 
     db.query(SessionState).filter(SessionState.cocoon_id.in_(cocoon_ids)).delete(synchronize_session=False)
+    db.query(TargetTaskState).filter(TargetTaskState.cocoon_id.in_(cocoon_ids)).delete(synchronize_session=False)
+    db.query(FactCacheEntry).filter(FactCacheEntry.cocoon_id.in_(cocoon_ids)).delete(synchronize_session=False)
+    db.query(MemoryCandidate).filter(MemoryCandidate.cocoon_id.in_(cocoon_ids)).delete(synchronize_session=False)
     db.query(CocoonTagBinding).filter(CocoonTagBinding.cocoon_id.in_(cocoon_ids)).delete(synchronize_session=False)
     db.query(Checkpoint).filter(Checkpoint.cocoon_id.in_(cocoon_ids)).delete(synchronize_session=False)
     if wakeup_task_ids:
@@ -219,6 +225,11 @@ def create_cocoon(
             if payload.auto_compaction_enabled is not None
             else settings.default_auto_compaction_enabled
         ),
+        memory_profile=(
+            payload.memory_profile
+            if payload.memory_profile is not None
+            else settings.default_memory_profile
+        ),
     )
     db.add(cocoon)
     db.flush()
@@ -247,6 +258,7 @@ def update_cocoon(
         "default_temperature",
         "max_context_messages",
         "auto_compaction_enabled",
+        "memory_profile",
     ):
         value = getattr(payload, field)
         if value is not None:
