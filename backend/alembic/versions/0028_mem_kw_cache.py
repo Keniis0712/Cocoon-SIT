@@ -7,6 +7,7 @@ Create Date: 2026-05-01 20:50:00
 
 from __future__ import annotations
 
+import json
 import re
 
 import jieba.analyse
@@ -143,7 +144,7 @@ def upgrade() -> None:
                 sa.text(
                     "UPDATE memory_embeddings SET keywords_json = :keywords_json WHERE id = :id"
                 ),
-                {"id": existing_id, "keywords_json": keywords_json},
+                {"id": existing_id, "keywords_json": json.dumps(keywords_json, ensure_ascii=False)},
             )
             continue
         connection.execute(
@@ -179,9 +180,9 @@ def upgrade() -> None:
             {
                 "id": new_id(),
                 "memory_chunk_id": memory["id"],
-                "keywords_json": keywords_json,
-                "usage_json": {},
-                "meta_json": {},
+                "keywords_json": json.dumps(keywords_json, ensure_ascii=False),
+                "usage_json": json.dumps({}, ensure_ascii=False),
+                "meta_json": json.dumps({}, ensure_ascii=False),
             },
         )
 
