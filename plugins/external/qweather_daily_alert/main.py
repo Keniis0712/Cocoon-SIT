@@ -120,9 +120,14 @@ def _qweather_get(
         )
 
     code = data.get("code")
-    zero_result = bool((data.get("metadata") or {}).get("zeroResult"))
-    if allow_zero_result and zero_result:
-        return data
+    metadata = data.get("metadata") or {}
+    zero_result = bool(metadata.get("zeroResult"))
+    alerts = data.get("alerts")
+    if allow_zero_result:
+        if zero_result:
+            return data
+        if isinstance(alerts, list):
+            return data
     if code != "200":
         raise RuntimeError(
             f"和风天气 API 返回非成功 code={code}, body={json.dumps(data, ensure_ascii=False)}"

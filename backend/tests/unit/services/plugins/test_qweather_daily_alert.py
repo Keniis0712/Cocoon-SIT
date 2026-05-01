@@ -75,6 +75,42 @@ def test_weather_alerts_skips_wakeup_for_empty_alert_list(monkeypatch):
     assert result is None
 
 
+def test_weather_alerts_accepts_alert_payload_without_code(monkeypatch):
+    module = _load_plugin_module()
+    ctx = SimpleNamespace(user_id="user-1")
+    cfg = {
+        "api_host": "api.example.com",
+        "alert_latitude": "31.23",
+        "alert_longitude": "121.47",
+        "lang": "zh",
+        "local_time": True,
+    }
+
+    monkeypatch.setattr(module, "_token_and_config", lambda _ctx: ("token-1", cfg))
+    monkeypatch.setattr(
+        module.requests,
+        "get",
+        lambda *args, **kwargs: _FakeResponse(
+            {
+                "metadata": {"zeroResult": False},
+                "alerts": [
+                    {
+                        "id": "alert-1",
+                        "headline": "Heavy rain warning",
+                        "description": "Stay safe",
+                        "severity": "minor",
+                    }
+                ],
+            }
+        ),
+    )
+
+    result = module.weather_alerts(ctx)
+
+    assert result is not None
+    assert result["payload"]["weather_alerts"]["alerts"][0]["id"] == "alert-1"
+
+
 def test_qweather_get_keeps_non_alert_calls_strict(monkeypatch):
     module = _load_plugin_module()
     monkeypatch.setattr(
