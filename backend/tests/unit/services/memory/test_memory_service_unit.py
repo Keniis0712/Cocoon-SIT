@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from app.models import Cocoon
-from app.models import EmbeddingProvider, MemoryChunk, MemoryEmbedding
+from app.models import EmbeddingProvider, MemoryChunk, MemoryEmbedding, TagRegistry
 from app.services.memory.service import MemoryRetrievalHit, MemoryService
 from tests.sqlite_helpers import make_sqlite_session_factory
 
@@ -362,3 +362,38 @@ def test_memory_service_get_active_embedding_provider_returns_provider_record():
     service = MemoryService(provider_registry=provider_registry)
 
     assert service.get_active_embedding_provider(object()) is provider_record
+
+
+def test_memory_service_resolve_memory_tag_labels_keeps_default_system_tag_visible():
+    session_factory = make_sqlite_session_factory()
+    service = MemoryService()
+
+    with session_factory() as session:
+        session.add(
+            TagRegistry(
+                id="tag-default-id",
+                owner_user_id="owner-1",
+                tag_id="default",
+                brief="Default memory boundary",
+                visibility="private",
+                is_isolated=True,
+                is_system=True,
+                is_hidden=True,
+                meta_json={"system": True},
+            )
+        )
+        memory = MemoryChunk(
+            id="memory-1",
+            owner_user_id="owner-1",
+            scope="summary",
+            content="content",
+            tags_json=["tag-default-id"],
+        )
+        session.add(memory)
+        session.commit()
+        stored = session.get(MemoryChunk, "memory-1")
+        assert stored is not None
+
+        labels = service.resolve_memory_tag_labels(session, stored)
+
+    assert labels == ["default"]

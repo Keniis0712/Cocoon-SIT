@@ -25,6 +25,7 @@ from app.models import (
 from app.models.identity import new_id
 from app.models.vector import PGVector
 from app.services.catalog.tag_policy import (
+    SYSTEM_TAG_SLUG,
     get_tag_by_any_ref,
     is_tag_visible_in_target,
     resolve_tag_owner_user_id_for_target,
@@ -143,6 +144,15 @@ class MemoryService:
             return str(tag.tag_id).strip()
         return fallback.strip()
 
+    def _should_expose_tag_label(self, tag: TagRegistry | None) -> bool:
+        if tag is None:
+            return True
+        # Keep the per-user default boundary visible in memory UI, even though it is
+        # stored as a hidden system tag internally.
+        if bool(tag.is_system) and str(tag.tag_id or "").strip() == SYSTEM_TAG_SLUG:
+            return True
+        return not bool(tag.is_hidden)
+
     def _normalize_keyword(self, raw_keyword: str) -> str | None:
         keyword = str(raw_keyword or "").strip()
         if not keyword:
@@ -208,7 +218,7 @@ class MemoryService:
             if not tag_ref:
                 continue
             tag = get_tag_by_any_ref(session, tag_ref, owner_user_id=owner_user_id)
-            if tag is not None and tag.is_hidden:
+            if not self._should_expose_tag_label(tag):
                 continue
             label = self._tag_display_name(tag, tag_ref)
             if not label or self._looks_like_internal_tag_ref(label) or label in seen:

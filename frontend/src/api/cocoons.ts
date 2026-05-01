@@ -272,7 +272,7 @@ function mapMemory(item: {
     is_summary: Boolean(item.summary),
     created_at: item.created_at,
     source_message: null,
-    tags: Array.isArray(item.tag_labels) && item.tag_labels.length ? item.tag_labels : item.tags_json,
+    tags: Array.isArray(item.tag_labels) ? item.tag_labels : [],
     tag_refs: item.tags_json,
   };
 }
