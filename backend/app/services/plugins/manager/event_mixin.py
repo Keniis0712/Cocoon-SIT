@@ -279,99 +279,102 @@ class PluginEventRuntimeMixin:
                     (item.plugin_id, item.user_id, item.event_name): item
                     for item in user_event_configs
                 }
+                event_by_plugin: dict[str, list[PluginEventDefinition]] = {}
+                for item in event_rows:
+                    event_by_plugin.setdefault(item.plugin_id, []).append(item)
+
+                enabled_plugin_ids = {
+                    item.id for item in plugins if item.status == "enabled" and item.active_version_id
+                }
+                for plugin_id in list(self._daemon_handles):
+                    if plugin_id not in enabled_plugin_ids:
+                        self._stop_daemon_handle(plugin_id)
+
+                for plugin in plugins:
+                    if plugin.status != "enabled" or not plugin.active_version_id:
+                        continue
+                    active_version = versions.get(plugin.active_version_id)
+                    if not active_version:
+                        continue
+                    active_events = [
+                        item
+                        for item in event_by_plugin.get(plugin.id, [])
+                        if item.plugin_version_id == active_version.id
+                    ]
+                    if plugin.plugin_type == "external":
+                        daemon_events: list[dict[str, Any]] = []
+                        for event in active_events:
+                            cfg = event_config_map.get((plugin.id, event.name))
+                            config_json = dict(event.default_config_json or {})
+                            if cfg:
+                                if not cfg.is_enabled:
+                                    continue
+                                config_json.update(cfg.config_json or {})
+                            if event.mode == "daemon":
+                                daemon_events.append(
+                                    {
+                                        "name": event.name,
+                                        "function_name": event.function_name,
+                                        "config_json": config_json,
+                                    }
+                                )
+                            elif event.mode == "short_lived":
+                                scopes = self._list_short_lived_scopes(session, plugin)
+                                scheduled_scope_keys: set[tuple[str, str, str, str]] = set()
+                                for scope in scopes:
+                                    schedule_mode = "manual"
+                                    interval_seconds = None
+                                    cron_expression = None
+                                    if scope.scope_type == "user" and scope.user_id:
+                                        scope_cfg = user_event_config_map.get(
+                                            (plugin.id, scope.user_id, event.name)
+                                        )
+                                        if scope_cfg:
+                                            schedule_mode = scope_cfg.schedule_mode or "manual"
+                                            interval_seconds = scope_cfg.schedule_interval_seconds
+                                            cron_expression = scope_cfg.schedule_cron
+                                    key = (plugin.id, event.name, scope.scope_type, scope.scope_id)
+                                    scheduled_scope_keys.add(key)
+                                    if schedule_mode == "manual":
+                                        self._short_lived_next_run.pop(key, None)
+                                        continue
+                                    next_run = self._short_lived_next_run.get(key)
+                                    if next_run is None:
+                                        next_run = self._next_run_for_schedule(
+                                            schedule_mode,
+                                            interval_seconds=interval_seconds,
+                                            cron_expression=cron_expression,
+                                            after=now,
+                                            timezone=scope.timezone,
+                                        )
+                                        self._short_lived_next_run[key] = next_run
+                                    if next_run <= now:
+                                        self._submit_short_lived_event(
+                                            plugin.id,
+                                            event.name,
+                                            scope_type=scope.scope_type,
+                                            scope_id=scope.scope_id,
+                                        )
+                                        self._short_lived_next_run[key] = self._next_run_for_schedule(
+                                            schedule_mode,
+                                            interval_seconds=interval_seconds,
+                                            cron_expression=cron_expression,
+                                            after=now,
+                                            timezone=scope.timezone,
+                                        )
+                                for key in list(self._short_lived_next_run):
+                                    if (
+                                        key[0] == plugin.id
+                                        and key[1] == event.name
+                                        and key not in scheduled_scope_keys
+                                    ):
+                                        self._short_lived_next_run.pop(key, None)
+                        if daemon_events:
+                            self._ensure_external_daemon(plugin, active_version, daemon_events)
+                    elif plugin.plugin_type == "im":
+                        self._ensure_im_process(plugin, active_version)
         except ProgrammingError:
             return
-
-        event_by_plugin: dict[str, list[PluginEventDefinition]] = {}
-        for item in event_rows:
-            event_by_plugin.setdefault(item.plugin_id, []).append(item)
-
-        enabled_plugin_ids = {
-            item.id for item in plugins if item.status == "enabled" and item.active_version_id
-        }
-        for plugin_id in list(self._daemon_handles):
-            if plugin_id not in enabled_plugin_ids:
-                self._stop_daemon_handle(plugin_id)
-
-        for plugin in plugins:
-            if plugin.status != "enabled" or not plugin.active_version_id:
-                continue
-            active_version = versions.get(plugin.active_version_id)
-            if not active_version:
-                continue
-            active_events = [
-                item
-                for item in event_by_plugin.get(plugin.id, [])
-                if item.plugin_version_id == active_version.id
-            ]
-            if plugin.plugin_type == "external":
-                daemon_events: list[dict[str, Any]] = []
-                for event in active_events:
-                    cfg = event_config_map.get((plugin.id, event.name))
-                    config_json = dict(event.default_config_json or {})
-                    if cfg:
-                        if not cfg.is_enabled:
-                            continue
-                        config_json.update(cfg.config_json or {})
-                    if event.mode == "daemon":
-                        daemon_events.append(
-                            {
-                                "name": event.name,
-                                "function_name": event.function_name,
-                                "config_json": config_json,
-                            }
-                        )
-                    elif event.mode == "short_lived":
-                        scopes = self._list_short_lived_scopes(session, plugin)
-                        scheduled_scope_keys: set[tuple[str, str, str, str]] = set()
-                        for scope in scopes:
-                            schedule_mode = "manual"
-                            interval_seconds = None
-                            cron_expression = None
-                            if scope.scope_type == "user" and scope.user_id:
-                                scope_cfg = user_event_config_map.get(
-                                    (plugin.id, scope.user_id, event.name)
-                                )
-                                if scope_cfg:
-                                    schedule_mode = scope_cfg.schedule_mode or "manual"
-                                    interval_seconds = scope_cfg.schedule_interval_seconds
-                                    cron_expression = scope_cfg.schedule_cron
-                            key = (plugin.id, event.name, scope.scope_type, scope.scope_id)
-                            scheduled_scope_keys.add(key)
-                            if schedule_mode == "manual":
-                                self._short_lived_next_run.pop(key, None)
-                                continue
-                            next_run = self._short_lived_next_run.get(key)
-                            if next_run is None:
-                                next_run = self._next_run_for_schedule(
-                                    schedule_mode,
-                                    interval_seconds=interval_seconds,
-                                    cron_expression=cron_expression,
-                                    after=now,
-                                    timezone=scope.timezone,
-                                )
-                                self._short_lived_next_run[key] = next_run
-                            if next_run <= now:
-                                self._submit_short_lived_event(
-                                    plugin.id,
-                                    event.name,
-                                    scope_type=scope.scope_type,
-                                    scope_id=scope.scope_id,
-                                )
-                                self._short_lived_next_run[key] = self._next_run_for_schedule(
-                                    schedule_mode,
-                                    interval_seconds=interval_seconds,
-                                    cron_expression=cron_expression,
-                                    after=now,
-                                    timezone=scope.timezone,
-                                )
-                        for key in list(self._short_lived_next_run):
-                            if key[0] == plugin.id and key[1] == event.name and key not in scheduled_scope_keys:
-                                self._short_lived_next_run.pop(key, None)
-                if daemon_events:
-                    self._ensure_external_daemon(plugin, active_version, daemon_events)
-            elif plugin.plugin_type == "im":
-                self._ensure_im_process(plugin, active_version)
 
     def _next_run_for_schedule(
         self,
