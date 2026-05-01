@@ -1,3 +1,6 @@
+from app.models import MemoryChunk
+
+
 def test_access_and_workspace_routes_return_typed_contracts(client, auth_headers, default_cocoon_id):
     logout = client.post(
         "/api/v1/auth/logout",
@@ -29,10 +32,24 @@ def test_access_and_workspace_routes_return_typed_contracts(client, auth_headers
     assert tags.status_code == 200, tags.text
     assert {"id", "tag_id", "created_at"} <= set(tags.json()[0].keys())
 
+    container = client.app.state.container
+    with container.session_factory() as session:
+        session.add(
+            MemoryChunk(
+                cocoon_id=default_cocoon_id,
+                scope="preference",
+                summary="Focused contract memory",
+                content="Remember the contract focus tag",
+                tags_json=[focus_tag_id],
+            )
+        )
+        session.commit()
+
     memory = client.get(f"/api/v1/memory/{default_cocoon_id}", headers=auth_headers)
     assert memory.status_code == 200, memory.text
     memory_payload = memory.json()
     assert {"items", "overview"} <= set(memory_payload.keys())
+    assert "word_cloud" in memory_payload["overview"]
     if memory_payload["items"]:
         assert {
             "id",
@@ -40,6 +57,7 @@ def test_access_and_workspace_routes_return_typed_contracts(client, auth_headers
             "summary",
             "content",
             "tags_json",
+            "tag_labels",
             "created_at",
             "memory_pool",
             "memory_type",
@@ -48,6 +66,8 @@ def test_access_and_workspace_routes_return_typed_contracts(client, auth_headers
             "confidence",
             "access_count",
         } <= set(memory_payload["items"][0].keys())
+        assert "focus-contract" in memory_payload["items"][0]["tag_labels"]
+        assert any(item["tag"] == "focus-contract" for item in memory_payload["overview"]["tag_cloud"])
 
 
 def test_cocoon_state_route_returns_session_state(client, auth_headers, default_cocoon_id):

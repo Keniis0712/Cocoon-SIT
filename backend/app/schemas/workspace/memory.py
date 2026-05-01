@@ -16,6 +16,7 @@ class MemoryChunkOut(ORMModel):
     summary: str | None
     content: str
     tags_json: list[str]
+    tag_labels: list[str] = Field(default_factory=list)
     importance: int
     confidence: int
     status: str
@@ -33,6 +34,7 @@ class MemoryOverviewOut(BaseModel):
     by_type: dict[str, int]
     by_status: dict[str, int]
     tag_cloud: list[dict]
+    word_cloud: list[dict]
     importance_average: float
     confidence_average: float
 

@@ -6,8 +6,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 import logging
 import math
+import re
 from typing import Any
 
+import jieba.analyse
 from sqlalchemy import Float, and_, bindparam, cast, delete, or_, select
 from sqlalchemy.orm import Session
 
@@ -22,13 +24,74 @@ from app.models import (
 )
 from app.models.identity import new_id
 from app.models.vector import PGVector
-from app.services.catalog.tag_policy import is_tag_visible_in_target
+from app.services.catalog.tag_policy import (
+    get_tag_by_any_ref,
+    is_tag_visible_in_target,
+    resolve_tag_owner_user_id_for_target,
+)
 from app.services.providers.registry import ProviderRegistry
 from app.services.workspace.targets import list_cocoon_lineage_ids
 
 
 def utcnow() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+_OPAQUE_TAG_RE = re.compile(
+    r"^(?:"
+    r"[0-9a-fA-F]{32}"
+    r"|"
+    r"[0-9a-fA-F]{8}-"
+    r"[0-9a-fA-F]{4}-"
+    r"[0-9a-fA-F]{4}-"
+    r"[0-9a-fA-F]{4}-"
+    r"[0-9a-fA-F]{12}"
+    r")$"
+)
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
+_ASCII_WORD_RE = re.compile(r"^[a-z0-9][a-z0-9_./+-]*$")
+_KEYWORD_STOPWORDS = {
+    "active",
+    "agent",
+    "ai",
+    "archived",
+    "assistant",
+    "candidate",
+    "chat",
+    "content",
+    "conversation",
+    "current",
+    "default",
+    "memory",
+    "meta",
+    "project",
+    "reply",
+    "runtime",
+    "session",
+    "summary",
+    "system",
+    "task",
+    "user",
+    "上下文",
+    "内容",
+    "信息",
+    "任务",
+    "偏好",
+    "关系",
+    "分析",
+    "对话",
+    "当前",
+    "总结",
+    "摘要",
+    "系统",
+    "聊天",
+    "规则",
+    "记忆",
+    "设定",
+    "说明",
+    "项目",
+    "用户",
+}
 
 
 @dataclass
@@ -66,6 +129,156 @@ class MemoryService:
 
     def __init__(self, provider_registry: ProviderRegistry | None = None) -> None:
         self.provider_registry = provider_registry
+
+    def _looks_like_internal_tag_ref(self, value: str) -> bool:
+        return bool(_OPAQUE_TAG_RE.fullmatch(value.strip()))
+
+    def _tag_display_name(self, tag: TagRegistry | None, fallback: str) -> str:
+        if tag is not None and isinstance(tag.meta_json, dict):
+            for key in ("name", "title", "display_name", "label"):
+                value = tag.meta_json.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+        if tag is not None and str(tag.tag_id or "").strip():
+            return str(tag.tag_id).strip()
+        return fallback.strip()
+
+    def _normalize_keyword(self, raw_keyword: str) -> str | None:
+        keyword = str(raw_keyword or "").strip()
+        if not keyword:
+            return None
+        normalized = keyword.lower()
+        if normalized in _KEYWORD_STOPWORDS or normalized.isdigit():
+            return None
+        if self._looks_like_internal_tag_ref(keyword):
+            return None
+        if _CJK_RE.search(keyword):
+            return keyword if len(keyword) >= 2 else None
+        if not _ASCII_WORD_RE.fullmatch(normalized):
+            return None
+        return normalized if len(normalized) >= 3 else None
+
+    def build_memory_keyword_cache(
+        self,
+        *,
+        source_text: str,
+        limit: int = 8,
+    ) -> list[dict[str, float | str]]:
+        counts: dict[str, float] = {}
+        if not source_text.strip():
+            return []
+        for keyword, weight in jieba.analyse.extract_tags(
+            source_text,
+            topK=max(limit * 3, limit),
+            withWeight=True,
+        ):
+            normalized = self._normalize_keyword(keyword)
+            if not normalized:
+                continue
+            counts[normalized] = max(counts.get(normalized, 0.0), float(weight))
+        return [
+            {"word": word, "weight": round(weight, 4)}
+            for word, weight in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:limit]
+        ]
+
+    def _memory_keyword_source(self, memory_chunk: MemoryChunk, source_text: str | None = None) -> str:
+        if source_text and str(source_text).strip():
+            return str(source_text).strip()
+        parts: list[str] = []
+        if memory_chunk.summary:
+            parts.append(memory_chunk.summary.strip())
+        if memory_chunk.content:
+            parts.append(memory_chunk.content.strip())
+        return "\n".join(part for part in parts if part)
+
+    def resolve_memory_tag_labels(
+        self,
+        session: Session,
+        memory: MemoryChunk,
+    ) -> list[str]:
+        owner_user_id = memory.owner_user_id or resolve_tag_owner_user_id_for_target(
+            session,
+            cocoon_id=memory.cocoon_id,
+            chat_group_id=memory.chat_group_id,
+        )
+        labels: list[str] = []
+        seen: set[str] = set()
+        for raw_tag in memory.tags_json or []:
+            tag_ref = str(raw_tag or "").strip()
+            if not tag_ref:
+                continue
+            tag = get_tag_by_any_ref(session, tag_ref, owner_user_id=owner_user_id)
+            if tag is not None and tag.is_hidden:
+                continue
+            label = self._tag_display_name(tag, tag_ref)
+            if not label or self._looks_like_internal_tag_ref(label) or label in seen:
+                continue
+            seen.add(label)
+            labels.append(label)
+        return labels
+
+    def resolve_or_create_memory_tags(
+        self,
+        session: Session,
+        *,
+        owner_user_id: str | None,
+        tag_refs: list[str] | None,
+    ) -> list[str]:
+        if not owner_user_id:
+            return []
+        resolved: list[str] = []
+        seen: set[str] = set()
+        for raw_tag in tag_refs or []:
+            tag_ref = str(raw_tag or "").strip()
+            if not tag_ref or tag_ref == "default":
+                continue
+            tag = get_tag_by_any_ref(session, tag_ref, owner_user_id=owner_user_id)
+            if tag is None and not self._looks_like_internal_tag_ref(tag_ref):
+                tag = TagRegistry(
+                    owner_user_id=owner_user_id,
+                    tag_id=tag_ref,
+                    brief=tag_ref,
+                    visibility="private",
+                    is_isolated=True,
+                    is_system=False,
+                    is_hidden=False,
+                    meta_json={},
+                )
+                session.add(tag)
+                session.flush()
+            if tag is None or tag.is_hidden or tag.id in seen:
+                continue
+            seen.add(tag.id)
+            resolved.append(tag.id)
+        return resolved
+
+    def serialize_memory_chunk(
+        self,
+        session: Session,
+        memory: MemoryChunk,
+    ) -> dict[str, Any]:
+        return {
+            "id": memory.id,
+            "cocoon_id": memory.cocoon_id,
+            "chat_group_id": memory.chat_group_id,
+            "owner_user_id": memory.owner_user_id,
+            "memory_pool": memory.memory_pool,
+            "memory_type": memory.memory_type,
+            "scope": memory.scope,
+            "summary": memory.summary,
+            "content": memory.content,
+            "tags_json": list(memory.tags_json or []),
+            "tag_labels": self.resolve_memory_tag_labels(session, memory),
+            "importance": memory.importance,
+            "confidence": memory.confidence,
+            "status": memory.status,
+            "valid_until": memory.valid_until,
+            "last_accessed_at": memory.last_accessed_at,
+            "access_count": memory.access_count,
+            "source_kind": memory.source_kind,
+            "meta_json": memory.meta_json or {},
+            "created_at": memory.created_at,
+        }
 
     def _supports_vector_search(self, session: Session) -> bool:
         bind = session.get_bind()
@@ -267,7 +480,7 @@ class MemoryService:
         )
 
     def _recency_score(self, memory: MemoryChunk) -> float:
-        timestamp = memory.last_accessed_at or memory.updated_at or memory.created_at
+        timestamp = memory.last_accessed_at or memory.updated_at or memory.created_at or utcnow()
         age_days = max(0.0, (utcnow() - timestamp).total_seconds() / 86400.0)
         return 1.0 / (1.0 + age_days / 30.0)
 
@@ -378,7 +591,10 @@ class MemoryService:
                 MemoryEmbedding.embedding_provider_id,
                 distance_expr,
             )
-            .where(MemoryEmbedding.memory_chunk_id.in_(candidate_ids))
+            .where(
+                MemoryEmbedding.memory_chunk_id.in_(candidate_ids),
+                MemoryEmbedding.embedding.is_not(None),
+            )
             .order_by(distance_expr.asc())
             .limit(max(limit * 4, limit))
         ).all()
@@ -574,6 +790,7 @@ class MemoryService:
 
     def summarize_memories(
         self,
+        session: Session,
         items: list[MemoryChunk],
     ) -> dict[str, Any]:
         if not items:
@@ -583,6 +800,7 @@ class MemoryService:
                 "by_type": {},
                 "by_status": {},
                 "tag_cloud": [],
+                "word_cloud": [],
                 "importance_average": 0,
                 "confidence_average": 0,
             }
@@ -590,19 +808,41 @@ class MemoryService:
         by_type: dict[str, int] = {}
         by_status: dict[str, int] = {}
         tag_counts: dict[str, int] = {}
+        word_scores: dict[str, float] = {}
         importance_total = 0
         confidence_total = 0
+        embedding_by_memory_id = {
+            item.memory_chunk_id: item
+            for item in session.scalars(
+                select(MemoryEmbedding).where(
+                    MemoryEmbedding.memory_chunk_id.in_([item.id for item in items])
+                )
+            ).all()
+        }
         for item in items:
             by_pool[item.memory_pool] = by_pool.get(item.memory_pool, 0) + 1
             by_type[item.memory_type] = by_type.get(item.memory_type, 0) + 1
             by_status[item.status] = by_status.get(item.status, 0) + 1
             importance_total += int(item.importance or 0)
             confidence_total += int(item.confidence or 0)
-            for tag in item.tags_json or []:
+            for tag in self.resolve_memory_tag_labels(session, item):
                 tag_counts[tag] = tag_counts.get(tag, 0) + 1
+            keyword_cache = embedding_by_memory_id.get(item.id)
+            for keyword_item in (keyword_cache.keywords_json if keyword_cache else []) or []:
+                if not isinstance(keyword_item, dict):
+                    continue
+                word = self._normalize_keyword(str(keyword_item.get("word") or ""))
+                if not word:
+                    continue
+                weight = float(keyword_item.get("weight") or 0.0)
+                word_scores[word] = word_scores.get(word, 0.0) + max(weight, 0.0)
         tag_cloud = [
             {"tag": tag, "count": count}
             for tag, count in sorted(tag_counts.items(), key=lambda kv: (-kv[1], kv[0]))[:24]
+        ]
+        word_cloud = [
+            {"word": word, "count": round(score, 2)}
+            for word, score in sorted(word_scores.items(), key=lambda item: (-item[1], item[0]))[:24]
         ]
         return {
             "total": len(items),
@@ -610,6 +850,7 @@ class MemoryService:
             "by_type": by_type,
             "by_status": by_status,
             "tag_cloud": tag_cloud,
+            "word_cloud": word_cloud,
             "importance_average": round(importance_total / len(items), 2),
             "confidence_average": round(confidence_total / len(items), 2),
         }
@@ -647,27 +888,10 @@ class MemoryService:
         source_text: str | None = None,
         meta_json: dict | None = None,
     ) -> MemoryEmbedding | None:
-        if not self._supports_vector_search(session):
+        if not all(hasattr(session, attr) for attr in ("scalar", "add", "flush")):
             return None
-        resolved = self.provider_registry.resolve_embedding_provider(session)
-        if resolved is None:
-            return None
-        provider, embedding_provider, runtime_config = resolved
-        try:
-            response = provider.embed_texts(
-                [source_text or memory_chunk.summary or memory_chunk.content],
-                model_name=embedding_provider.model_name,
-                provider_config=runtime_config,
-            )
-        except Exception:
-            self.logger.warning(
-                "Memory chunk embedding failed; skipping vector index memory_chunk_id=%s",
-                memory_chunk.id,
-                exc_info=True,
-            )
-            return None
-        if not response.vectors:
-            return None
+        keyword_source = self._memory_keyword_source(memory_chunk, source_text)
+        keyword_cache = self.build_memory_keyword_cache(source_text=keyword_source)
 
         item = session.scalar(
             select(MemoryEmbedding).where(MemoryEmbedding.memory_chunk_id == memory_chunk.id)
@@ -675,31 +899,64 @@ class MemoryService:
         if item is None:
             item = MemoryEmbedding(
                 memory_chunk_id=memory_chunk.id,
-                embedding_provider_id=embedding_provider.id,
-                model_name=embedding_provider.model_name,
-                dimensions=len(response.vectors[0]),
-                embedding=response.vectors[0],
-                usage_json={
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens,
-                },
+                embedding_provider_id=None,
+                model_name=None,
+                dimensions=None,
+                embedding=None,
+                keywords_json=keyword_cache,
+                usage_json={},
                 meta_json=meta_json or {},
             )
             session.add(item)
             session.flush()
         else:
-            item.embedding_provider_id = embedding_provider.id
-            item.model_name = embedding_provider.model_name
-            item.dimensions = len(response.vectors[0])
-            item.embedding = response.vectors[0]
-            item.usage_json = {
-                "prompt_tokens": response.usage.prompt_tokens,
-                "completion_tokens": response.usage.completion_tokens,
-                "total_tokens": response.usage.total_tokens,
-            }
+            item.keywords_json = keyword_cache
             item.meta_json = meta_json or {}
             session.flush()
+
+        def clear_vector_cache() -> None:
+            item.embedding_provider_id = None
+            item.model_name = None
+            item.dimensions = None
+            item.embedding = None
+            item.usage_json = {}
+            session.flush()
+
+        if self._supports_vector_search(session):
+            resolved = self.provider_registry.resolve_embedding_provider(session)
+            if resolved is not None:
+                provider, embedding_provider, runtime_config = resolved
+                try:
+                    response = provider.embed_texts(
+                        [keyword_source],
+                        model_name=embedding_provider.model_name,
+                        provider_config=runtime_config,
+                    )
+                except Exception:
+                    self.logger.warning(
+                        "Memory chunk embedding failed; preserving keyword cache memory_chunk_id=%s",
+                        memory_chunk.id,
+                        exc_info=True,
+                    )
+                    clear_vector_cache()
+                else:
+                    if response.vectors:
+                        item.embedding_provider_id = embedding_provider.id
+                        item.model_name = embedding_provider.model_name
+                        item.dimensions = len(response.vectors[0])
+                        item.embedding = response.vectors[0]
+                        item.usage_json = {
+                            "prompt_tokens": response.usage.prompt_tokens,
+                            "completion_tokens": response.usage.completion_tokens,
+                            "total_tokens": response.usage.total_tokens,
+                        }
+                        session.flush()
+                    else:
+                        clear_vector_cache()
+            else:
+                clear_vector_cache()
+        else:
+            clear_vector_cache()
         memory_chunk.embedding_ref = item.id
         session.flush()
         return item

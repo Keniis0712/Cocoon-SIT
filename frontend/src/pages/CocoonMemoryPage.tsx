@@ -35,54 +35,31 @@ function parseTagsInput(value: string) {
     .filter(Boolean);
 }
 
-function buildOverview(items: MemoryChunkRead[]): MemoryOverviewRead {
-  const byPool: Record<string, number> = {};
-  const byType: Record<string, number> = {};
-  const byStatus: Record<string, number> = {};
-  const tagCounts = new Map<string, number>();
-  let importanceTotal = 0;
-  let confidenceTotal = 0;
-
-  for (const item of items) {
-    byPool[item.memory_pool] = (byPool[item.memory_pool] || 0) + 1;
-    byType[item.memory_type] = (byType[item.memory_type] || 0) + 1;
-    byStatus[item.status] = (byStatus[item.status] || 0) + 1;
-    importanceTotal += item.importance || 0;
-    confidenceTotal += item.confidence || 0;
-    for (const tag of item.tags || []) {
-      tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-    }
-  }
-
-  return {
-    total: items.length,
-    by_pool: byPool,
-    by_type: byType,
-    by_status: byStatus,
-    tag_cloud: Array.from(tagCounts.entries())
-      .map(([tag, count]) => ({ tag, count }))
-      .sort((left, right) => right.count - left.count || left.tag.localeCompare(right.tag))
-      .slice(0, 24),
-    importance_average: items.length ? Number((importanceTotal / items.length).toFixed(2)) : 0,
-    confidence_average: items.length ? Number((confidenceTotal / items.length).toFixed(2)) : 0,
-  };
+function humanizeMeta(value: string | null | undefined) {
+  return String(value || "")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function OverviewCloud({ overview, emptyLabel }: { overview: MemoryOverviewRead | null; emptyLabel: string }) {
-  const tags = overview?.tag_cloud || [];
-  const maxCount = tags.length ? Math.max(...tags.map((item) => item.count)) : 1;
+  const words = overview?.word_cloud?.length
+    ? overview.word_cloud
+    : (overview?.tag_cloud || []).map((item) => ({ word: item.tag, count: item.count }));
+  const maxCount = words.length ? Math.max(...words.map((item) => item.count)) : 1;
 
   return (
     <div className="flex flex-wrap gap-3">
-      {tags.length ? tags.map((item) => {
+      {words.length ? words.map((item) => {
         const scale = 0.9 + (item.count / maxCount) * 0.7;
         return (
           <span
-            key={item.tag}
+            key={item.word}
             className="rounded-full border border-border/60 bg-background/70 px-3 py-2 font-medium text-foreground/90"
             style={{ fontSize: `${scale}rem` }}
           >
-            {item.tag}
+            {item.word}
           </span>
         );
       }) : <div className="text-sm text-muted-foreground">{emptyLabel}</div>}
@@ -163,10 +140,7 @@ export default function CocoonMemoryPage() {
     }
     try {
       await deleteCocoonMemory(cocoonId, memory.id);
-      const nextItems = items.filter((item) => item.id !== memory.id);
-      setItems(nextItems);
-      setOverview(buildOverview(nextItems));
-      setSelectedIds((prev) => prev.filter((id) => id !== memory.id));
+      await load();
       toast.success(t("memoryDeleted", { defaultValue: "Memory deleted." }));
     } catch (error) {
       console.error(error);
@@ -265,30 +239,30 @@ export default function CocoonMemoryPage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-              <div className="rounded-2xl border border-border/70 p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-                  <Tags className="size-4 text-primary" />
-                  {t("memoryTagCloud", { defaultValue: "Tag cloud" })}
-                </div>
-                <OverviewCloud overview={overview} emptyLabel={t("memoryNoTagsYet", { defaultValue: "No tags yet." })} />
+                <div className="rounded-2xl border border-border/70 p-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+                    <Tags className="size-4 text-primary" />
+                    {t("memoryWordCloud", { defaultValue: "Word cloud" })}
+                  </div>
+                  <OverviewCloud overview={overview} emptyLabel={t("memoryNoWordsYet", { defaultValue: "No words yet." })} />
               </div>
               <div className="grid gap-4">
                 <div className="rounded-2xl border border-border/70 p-4">
-                  <div className="mb-2 text-sm font-medium">{t("memoryByPool", { defaultValue: "By pool" })}</div>
+                    <div className="mb-2 text-sm font-medium">{t("memoryByPool", { defaultValue: "By pool" })}</div>
                   <div className="flex flex-wrap gap-2">
-                    {byPool.length ? byPool.map(([key, count]) => <Badge key={key} variant="outline">{key}: {count}</Badge>) : <span className="text-sm text-muted-foreground">-</span>}
+                    {byPool.length ? byPool.map(([key, count]) => <Badge key={key} variant="outline">{humanizeMeta(key)}: {count}</Badge>) : <span className="text-sm text-muted-foreground">-</span>}
                   </div>
                 </div>
                 <div className="rounded-2xl border border-border/70 p-4">
                   <div className="mb-2 text-sm font-medium">{t("memoryByType", { defaultValue: "By type" })}</div>
                   <div className="flex flex-wrap gap-2">
-                    {byType.length ? byType.map(([key, count]) => <Badge key={key} variant="outline">{key}: {count}</Badge>) : <span className="text-sm text-muted-foreground">-</span>}
+                    {byType.length ? byType.map(([key, count]) => <Badge key={key} variant="outline">{humanizeMeta(key)}: {count}</Badge>) : <span className="text-sm text-muted-foreground">-</span>}
                   </div>
                 </div>
                 <div className="rounded-2xl border border-border/70 p-4">
                   <div className="mb-2 text-sm font-medium">{t("memoryByStatus", { defaultValue: "By status" })}</div>
                   <div className="flex flex-wrap gap-2">
-                    {byStatus.length ? byStatus.map(([key, count]) => <Badge key={key} variant="outline">{key}: {count}</Badge>) : <span className="text-sm text-muted-foreground">-</span>}
+                    {byStatus.length ? byStatus.map(([key, count]) => <Badge key={key} variant="outline">{humanizeMeta(key)}: {count}</Badge>) : <span className="text-sm text-muted-foreground">-</span>}
                   </div>
                 </div>
               </div>
@@ -330,10 +304,30 @@ export default function CocoonMemoryPage() {
                         <div className="space-y-2">
                           <div className="flex flex-wrap gap-2">
                             <Badge variant="outline">#{memory.id}</Badge>
-                            <Badge variant="secondary">{memory.memory_pool}</Badge>
-                            <Badge variant="secondary">{memory.memory_type}</Badge>
-                            <Badge variant="outline">{memory.status}</Badge>
-                            <Badge variant="outline">{memory.source_kind}</Badge>
+                            <Badge variant="secondary">
+                              {t("memoryPoolLabel", {
+                                value: humanizeMeta(memory.memory_pool),
+                                defaultValue: `Pool: ${humanizeMeta(memory.memory_pool)}`,
+                              })}
+                            </Badge>
+                            <Badge variant="secondary">
+                              {t("memoryTypeLabel", {
+                                value: humanizeMeta(memory.memory_type),
+                                defaultValue: `Type: ${humanizeMeta(memory.memory_type)}`,
+                              })}
+                            </Badge>
+                            <Badge variant="outline">
+                              {t("memoryStatusLabel", {
+                                value: humanizeMeta(memory.status),
+                                defaultValue: `Status: ${humanizeMeta(memory.status)}`,
+                              })}
+                            </Badge>
+                            <Badge variant="outline">
+                              {t("memorySourceLabel", {
+                                value: humanizeMeta(memory.source_kind),
+                                defaultValue: `Source: ${humanizeMeta(memory.source_kind)}`,
+                              })}
+                            </Badge>
                             {(memory.tags || []).map((tag) => (
                               <Badge key={`${memory.id}-${tag}`} variant="outline">
                                 {tag}

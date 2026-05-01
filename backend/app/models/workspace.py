@@ -169,10 +169,11 @@ class MemoryEmbedding(Base, TimestampMixin, JsonDefaultMixin):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
     memory_chunk_id: Mapped[str] = mapped_column(ForeignKey("memory_chunks.id"), nullable=False, unique=True)
-    embedding_provider_id: Mapped[str] = mapped_column(ForeignKey("embedding_providers.id"), nullable=False)
-    model_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
+    embedding_provider_id: Mapped[str | None] = mapped_column(ForeignKey("embedding_providers.id"), nullable=True)
+    model_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    dimensions: Mapped[int | None] = mapped_column(Integer, nullable=True)
     embedding: Mapped[list[float] | None] = mapped_column(EmbeddingVector(), nullable=True)
+    keywords_json: Mapped[list] = mapped_column(JSON, default=JsonDefaultMixin.json_list)
     usage_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
     meta_json: Mapped[dict] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
 

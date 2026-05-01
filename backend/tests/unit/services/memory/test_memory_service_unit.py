@@ -128,13 +128,38 @@ def test_memory_service_retrieve_visible_memories_falls_back_when_embedding_fail
 def test_memory_service_index_memory_chunk_handles_disabled_and_missing_providers():
     memory_chunk = MemoryChunk(id="memory-1", scope="dialogue", content="hello")
     service = MemoryService(provider_registry=None)
-    session = SimpleNamespace(get_bind=lambda: None)
+    
+    class _FakeSession:
+        def __init__(self):
+            self.scalar_result = None
+            self.added = []
+            self.flush_count = 0
 
-    assert service.index_memory_chunk(session=session, memory_chunk=memory_chunk) is None
+        def get_bind(self):
+            return None
+
+        def scalar(self, statement):
+            return self.scalar_result
+
+        def add(self, value):
+            self.added.append(value)
+
+        def flush(self):
+            self.flush_count += 1
+
+    session = _FakeSession()
+
+    item = service.index_memory_chunk(session=session, memory_chunk=memory_chunk)
+
+    assert isinstance(item, MemoryEmbedding)
+    assert item.keywords_json
+    assert item.embedding is None
 
     service = MemoryService(provider_registry=SimpleNamespace(resolve_embedding_provider=lambda session: None))
     service._supports_vector_search = lambda session: True  # type: ignore[method-assign]
-    assert service.index_memory_chunk(session=session, memory_chunk=memory_chunk) is None
+    item = service.index_memory_chunk(session=session, memory_chunk=memory_chunk)
+    assert isinstance(item, MemoryEmbedding)
+    assert item.embedding is None
 
 
 def test_memory_service_index_memory_chunk_skips_vector_when_embedding_fails():
@@ -147,8 +172,31 @@ def test_memory_service_index_memory_chunk_skips_vector_when_embedding_fails():
     service._supports_vector_search = lambda session: True  # type: ignore[method-assign]
     memory_chunk = MemoryChunk(id="memory-1", scope="dialogue", content="hello", summary="summary")
 
-    assert service.index_memory_chunk(session=object(), memory_chunk=memory_chunk) is None
-    assert memory_chunk.embedding_ref is None
+    class _FakeSession:
+        def __init__(self):
+            self.scalar_result = None
+            self.added = []
+            self.flush_count = 0
+
+        def scalar(self, statement):
+            return self.scalar_result
+
+        def add(self, value):
+            self.added.append(value)
+
+        def flush(self):
+            self.flush_count += 1
+
+        def get_bind(self):
+            return SimpleNamespace(dialect=SimpleNamespace(name="postgresql"))
+
+    session = _FakeSession()
+    item = service.index_memory_chunk(session=session, memory_chunk=memory_chunk)
+
+    assert isinstance(item, MemoryEmbedding)
+    assert item.keywords_json
+    assert item.embedding is None
+    assert memory_chunk.embedding_ref == item.id
 
 
 def test_memory_service_index_memory_chunk_creates_and_updates_embedding_records():
@@ -191,6 +239,7 @@ def test_memory_service_index_memory_chunk_creates_and_updates_embedding_records
 
     assert isinstance(item, MemoryEmbedding)
     assert item.embedding == [0.5, 0.6]
+    assert item.keywords_json
     assert memory_chunk.embedding_ref == item.id
     assert create_session.added == [item]
 
@@ -216,7 +265,41 @@ def test_memory_service_index_memory_chunk_creates_and_updates_embedding_records
     assert existing.embedding_provider_id == "embed-1"
     assert existing.model_name == "embed-model"
     assert existing.dimensions == 2
+    assert existing.keywords_json
     assert existing.meta_json == {"origin": "updated"}
+
+
+def test_memory_service_summarize_memories_uses_cached_keywords():
+    session_factory = make_sqlite_session_factory()
+    service = MemoryService()
+
+    with session_factory() as session:
+        session.add(
+            MemoryChunk(
+                id="memory-1",
+                scope="dialogue",
+                content="用户喜欢番茄炒蛋，也在维护 payment service 文档",
+            )
+        )
+        session.add(
+            MemoryEmbedding(
+                memory_chunk_id="memory-1",
+                keywords_json=[
+                    {"word": "番茄炒蛋", "weight": 1.2},
+                    {"word": "payment", "weight": 0.8},
+                ],
+                usage_json={},
+                meta_json={},
+            )
+        )
+        session.commit()
+        memory = session.get(MemoryChunk, "memory-1")
+        assert memory is not None
+
+        overview = service.summarize_memories(session, [memory])
+
+    assert overview["word_cloud"][0]["word"] == "番茄炒蛋"
+    assert {item["word"] for item in overview["word_cloud"]} >= {"番茄炒蛋", "payment"}
 
 
 def test_memory_service_retrieve_visible_memories_for_child_cocoon_uses_parent_chain():

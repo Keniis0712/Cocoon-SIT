@@ -241,6 +241,7 @@ function mapMemory(item: {
   content: string;
   summary: string | null;
   tags_json: string[];
+  tag_labels?: string[];
   source_kind?: string;
   created_at: string;
 }): MemoryChunkRead {
@@ -271,7 +272,8 @@ function mapMemory(item: {
     is_summary: Boolean(item.summary),
     created_at: item.created_at,
     source_message: null,
-    tags: item.tags_json,
+    tags: Array.isArray(item.tag_labels) && item.tag_labels.length ? item.tag_labels : item.tags_json,
+    tag_refs: item.tags_json,
   };
 }
 
@@ -404,6 +406,7 @@ export function getCocoonMemories(cocoon_id: number): Promise<{ items: MemoryChu
       by_type: {},
       by_status: {},
       tag_cloud: [],
+      word_cloud: [],
       importance_average: 0,
       confidence_average: 0,
     },

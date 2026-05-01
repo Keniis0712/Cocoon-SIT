@@ -137,6 +137,7 @@ export interface MemoryChunkRead {
   created_at: string;
   source_message?: MessageRead | null;
   tags?: string[];
+  tag_refs?: string[];
 }
 
 export interface MemoryOverviewRead {
@@ -145,6 +146,7 @@ export interface MemoryOverviewRead {
   by_type: Record<string, number>;
   by_status: Record<string, number>;
   tag_cloud: Array<{ tag: string; count: number }>;
+  word_cloud: Array<{ word: string; count: number }>;
   importance_average: number;
   confidence_average: number;
 }

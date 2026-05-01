@@ -264,6 +264,7 @@ describe("AdminPluginsPage", () => {
 
     expect(await screen.findByText("Ops Admin")).toBeInTheDocument();
     expect(await screen.findByText("plugins:globalConfigTitle")).toBeInTheDocument();
+    expect(screen.queryByText("plugins:eventScheduleTitle")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "plugins:saveGlobalConfig" }));
 

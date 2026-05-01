@@ -104,18 +104,35 @@ describe("CocoonMemoryPage", () => {
       name: "Root Cocoon",
     });
     mocks.getCocoonMemories.mockResolvedValue({
+      overview: {
+        total: 1,
+        by_pool: { tree_private: 1 },
+        by_type: { summary: 1 },
+        by_status: { active: 1 },
+        tag_cloud: [{ tag: "focus", count: 1 }],
+        word_cloud: [{ word: "summary", count: 1 }],
+        importance_average: 3,
+        confidence_average: 3,
+      },
       items: [
         {
           id: 101,
           cocoon_id: 1,
+          memory_pool: "tree_private",
+          memory_type: "summary",
+          status: "active",
           origin_cocoon_id: null,
           source_message_id: null,
           chroma_document_id: "mem-101",
           role_key: "memory",
-          source_kind: "summary",
+          source_kind: "runtime_analysis",
           content: "Conversation summary",
           visibility: 0,
           importance: 3,
+          confidence: 3,
+          access_count: 0,
+          valid_until: null,
+          last_accessed_at: null,
           timestamp: 1,
           is_thought: false,
           is_summary: true,
@@ -147,13 +164,69 @@ describe("CocoonMemoryPage", () => {
     render(<CocoonMemoryPage />);
 
     expect(await screen.findByText("Conversation summary")).toBeInTheDocument();
-    expect(screen.getByText("focus")).toBeInTheDocument();
+    expect(screen.getAllByText("focus").length).toBeGreaterThan(0);
+    expect(screen.queryByText("tree_private")).not.toBeInTheDocument();
+    expect(screen.queryByText("runtime_analysis")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "backToChat" }));
     expect(mocks.navigate).toHaveBeenCalledWith("/cocoons/1");
   });
 
   it("deletes a memory chunk after confirmation and updates the rendered list", async () => {
+    mocks.getCocoonMemories
+      .mockResolvedValueOnce({
+        overview: {
+          total: 1,
+          by_pool: { tree_private: 1 },
+          by_type: { summary: 1 },
+          by_status: { active: 1 },
+          tag_cloud: [{ tag: "focus", count: 1 }],
+          word_cloud: [{ word: "summary", count: 1 }],
+          importance_average: 3,
+          confidence_average: 3,
+        },
+        items: [
+          {
+            id: 101,
+            cocoon_id: 1,
+            memory_pool: "tree_private",
+            memory_type: "summary",
+            status: "active",
+            origin_cocoon_id: null,
+            source_message_id: null,
+            chroma_document_id: "mem-101",
+            role_key: "memory",
+            source_kind: "runtime_analysis",
+            content: "Conversation summary",
+            visibility: 0,
+            importance: 3,
+            confidence: 3,
+            access_count: 0,
+            valid_until: null,
+            last_accessed_at: null,
+            timestamp: 1,
+            is_thought: false,
+            is_summary: true,
+            created_at: "2026-04-26T10:00:00Z",
+            source_message: null,
+            tags: ["focus"],
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        overview: {
+          total: 0,
+          by_pool: {},
+          by_type: {},
+          by_status: {},
+          tag_cloud: [],
+          word_cloud: [],
+          importance_average: 0,
+          confidence_average: 0,
+        },
+        items: [],
+      });
+
     render(<CocoonMemoryPage />);
 
     expect(await screen.findByText("Conversation summary")).toBeInTheDocument();

@@ -809,10 +809,7 @@ export default function AdminPluginsPage() {
                         <div className="mb-4 rounded-lg border border-border/70 bg-muted/20 p-3">
                           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                             <div>
-                              <div className="text-sm font-medium">{t("plugins:eventScheduleTitle")}</div>
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {t("plugins:eventScheduleDescription")}
-                              </div>
+                              <div className="text-sm font-medium">{t("plugins:runEventNow")}</div>
                             </div>
                             <Button
                               size="sm"

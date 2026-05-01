@@ -88,6 +88,7 @@
   "toggleEventFailed": "更新事件状态失败。",
   "eventScheduleTitle": "运行计划",
   "eventScheduleDescription": "选择该事件自动运行，或仅允许手动触发。",
+  "eventScheduleUserOnly": "定时计划现在按用户单独配置，请到“我的插件”里为具体用户设置。",
   "scheduleMode": "计划",
   "scheduleManual": "不自动运行",
   "scheduleInterval": "按间隔运行",
