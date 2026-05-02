@@ -47,20 +47,32 @@ def upgrade() -> None:
     )
 
     connection = op.get_bind()
-    connection.execute(
-        sa.text(
-            """
-            INSERT INTO user_groups (id, name, owner_user_id, parent_group_id, description, created_at, updated_at)
-            SELECT :group_id, :name, NULL, NULL, :description, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-            WHERE NOT EXISTS (SELECT 1 FROM user_groups WHERE id = :group_id)
-            """
-        ),
-        {
-            "group_id": ROOT_GROUP_ID,
-            "name": ROOT_GROUP_NAME,
-            "description": ROOT_GROUP_DESCRIPTION,
-        },
-    )
+    root_group_exists = connection.execute(
+        sa.text("SELECT 1 FROM user_groups WHERE id = :group_id"),
+        {"group_id": ROOT_GROUP_ID},
+    ).scalar_one_or_none()
+    if root_group_exists is None:
+        user_groups_table = sa.table(
+            "user_groups",
+            sa.column("id", sa.String(length=64)),
+            sa.column("name", sa.String(length=255)),
+            sa.column("owner_user_id", sa.String(length=64)),
+            sa.column("parent_group_id", sa.String(length=64)),
+            sa.column("description", sa.Text()),
+            sa.column("created_at", sa.DateTime(timezone=False)),
+            sa.column("updated_at", sa.DateTime(timezone=False)),
+        )
+        connection.execute(
+            user_groups_table.insert().values(
+                id=ROOT_GROUP_ID,
+                name=ROOT_GROUP_NAME,
+                owner_user_id=None,
+                parent_group_id=None,
+                description=ROOT_GROUP_DESCRIPTION,
+                created_at=sa.func.current_timestamp(),
+                updated_at=sa.func.current_timestamp(),
+            )
+        )
     connection.execute(
         sa.text("UPDATE users SET primary_group_id = :group_id WHERE primary_group_id IS NULL"),
         {"group_id": ROOT_GROUP_ID},
