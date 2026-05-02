@@ -117,7 +117,7 @@ export default function ChatGroupsPage() {
     try {
       const [nextRooms, characterResponse, providerResponse] = await Promise.all([
         listChatGroups(),
-        getCharacters(1, 100, "all"),
+        getCharacters(1, 100, "inherited_visible"),
         listModelProviders(1, 100),
       ]);
       setRooms(nextRooms);

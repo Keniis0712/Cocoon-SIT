@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FolderTree, Pencil, Plus, TextSearch, Trash2, UserPlus, Users } from "lucide-react";
+import { FolderTree, Pencil, Plus, ShieldCheck, TextSearch, Trash2, UserPlus, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -7,14 +7,18 @@ import { listAdminUsers } from "@/api/admin-users";
 import { showErrorToast } from "@/api/client";
 import {
   addGroupMember,
+  createGroupManagementGrant,
   createGroup,
+  deleteGroupManagementGrant,
   deleteGroup,
+  listGroupManagementGrants,
   listGroupMembers,
   listGroups,
   removeGroupMember,
   updateGroup,
 } from "@/api/groups";
-import type { AdminUserRead, GroupCreatePayload, GroupMemberRead, GroupRead } from "@/api/types/access";
+import { updateAdminUser } from "@/api/admin-users";
+import type { AdminUserRead, GroupCreatePayload, GroupManagementGrantRead, GroupMemberRead, GroupRead } from "@/api/types/access";
 import { PopupSelect } from "@/components/composes/PopupSelect";
 import { useConfirmDialog } from "@/components/composes/useConfirmDialog";
 import { usePromptDialog } from "@/components/composes/usePromptDialog";
@@ -26,8 +30,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useUserStore } from "@/store/useUserStore";
 
 const ROOT_GROUP = "__root";
+type GroupsTab = "groups" | "registration";
 
 type GroupFormState = {
   name: string;
@@ -65,11 +72,16 @@ function MetricPanel({
 
 export default function GroupsPage() {
   const { t } = useTranslation();
+  const userInfo = useUserStore((state) => state.userInfo);
+  const isBootstrapAdmin = Boolean(userInfo?.is_bootstrap_admin);
   const [groups, setGroups] = useState<GroupRead[]>([]);
   const [users, setUsers] = useState<AdminUserRead[]>([]);
+  const [grants, setGrants] = useState<GroupManagementGrantRead[]>([]);
   const [members, setMembers] = useState<GroupMemberRead[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [selectedMemberUid, setSelectedMemberUid] = useState("");
+  const [selectedGrantUserUid, setSelectedGrantUserUid] = useState("");
+  const [tab, setTab] = useState<GroupsTab>("groups");
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -87,10 +99,18 @@ export default function GroupsPage() {
     () => new Map(users.map((item) => [item.uid, `${item.username} / ${item.uid}`])),
     [users],
   );
+  const selectedGroupUsers = useMemo(
+    () => users.filter((item) => item.primary_group_id === selectedGroupId),
+    [selectedGroupId, users],
+  );
+  const selectedGroupGrants = useMemo(
+    () => grants.filter((item) => item.group_id === selectedGroupId),
+    [grants, selectedGroupId],
+  );
 
   useEffect(() => {
     void bootstrap();
-  }, [query]);
+  }, [query, isBootstrapAdmin]);
 
   useEffect(() => {
     if (!selectedGroupId) {
@@ -109,6 +129,9 @@ export default function GroupsPage() {
       ]);
       setGroups(groupResponse.items);
       setUsers(userResponse.items);
+      if (isBootstrapAdmin) {
+        setGrants(await listGroupManagementGrants());
+      }
       setSelectedGroupId(
         (prev) => prev || groupResponse.items.find((item) => item.parent_group_id)?.gid || groupResponse.items[0]?.gid || "",
       );
@@ -260,16 +283,39 @@ export default function GroupsPage() {
   );
   const rootGroupCount = useMemo(() => groups.filter((group) => !group.parent_group_id).length, [groups]);
   const childGroupCount = Math.max(0, groups.length - rootGroupCount);
+  const grantUserOptions = useMemo(
+    () =>
+      users.map((item) => ({
+        value: item.uid,
+        label: item.username,
+        description: item.primary_group_path || item.primary_group_id || item.uid,
+        keywords: [item.email || "", item.uid],
+      })),
+    [users],
+  );
 
   return (
     <PageFrame
       title={t("groups.title")}
       description={t("groups.description")}
       actions={
-        <Button onClick={openCreateDialog}>
-          <Plus className="mr-2 size-4" />
-          {t("groups.newGroup")}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {isBootstrapAdmin ? (
+            <Select value={tab} onValueChange={(value) => setTab(value as GroupsTab)}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="groups">{t("groups.tabGroups")}</SelectItem>
+                <SelectItem value="registration">{t("groups.tabRegistration")}</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : null}
+          <Button onClick={openCreateDialog}>
+            <Plus className="mr-2 size-4" />
+            {t("groups.newGroup")}
+          </Button>
+        </div>
       }
     >
       <div className="mb-6 grid gap-4 xl:grid-cols-4">
@@ -345,7 +391,7 @@ export default function GroupsPage() {
               <CardDescription>{t("groups.noSelectionDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {selectedGroup ? (
+              {selectedGroup && tab === "groups" ? (
                 <>
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-2xl border border-border/70 p-4 text-sm">
@@ -385,6 +431,119 @@ export default function GroupsPage() {
                     ) : null}
                   </div>
                 </>
+              ) : selectedGroup && tab === "registration" ? (
+                <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-border/70 p-4 text-sm">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("groups.registeredUsers")}</div>
+                      <div className="mt-2 text-2xl font-semibold">{selectedGroupUsers.length}</div>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 p-4 text-sm">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("groups.managementGrants")}</div>
+                      <div className="mt-2 text-2xl font-semibold">{selectedGroupGrants.length}</div>
+                    </div>
+                  </div>
+                  <div className="rounded-[24px] border border-border/70 bg-background/40 p-4">
+                    <div className="mb-3 text-sm font-medium">{t("groups.grantManagerTitle")}</div>
+                    <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                      <div className="grid gap-2">
+                        <Label>{t("groups.selectUser")}</Label>
+                        <PopupSelect
+                          title={t("groups.selectUser")}
+                          description={t("groups.managementGrantsDescription")}
+                          placeholder={t("groups.selectUser")}
+                          searchPlaceholder={t("common.search")}
+                          emptyText={t("groups.noMembers")}
+                          value={selectedGrantUserUid}
+                          onValueChange={setSelectedGrantUserUid}
+                          options={grantUserOptions}
+                        />
+                      </div>
+                      <Button
+                        disabled={!selectedGrantUserUid}
+                        onClick={async () => {
+                          if (!selectedGroup || !selectedGrantUserUid) return;
+                          try {
+                            await createGroupManagementGrant(selectedGrantUserUid, selectedGroup.gid);
+                            toast.success(t("groups.managementGrantAdded"));
+                            setGrants(await listGroupManagementGrants());
+                          } catch (error) {
+                            showErrorToast(error, t("groups.managementGrantAddFailed"));
+                          }
+                        }}
+                      >
+                        <ShieldCheck className="mr-2 size-4" />
+                        {t("groups.addManagementGrant")}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium">{t("groups.registeredUsersTitle")}</div>
+                    {selectedGroupUsers.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">{t("groups.noRegisteredUsers")}</div>
+                    ) : (
+                      selectedGroupUsers.map((item) => (
+                        <div key={item.uid} className="rounded-[24px] border border-border/70 bg-background/30 p-4 text-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <div className="font-medium">{item.username}</div>
+                              <div className="mt-1 text-muted-foreground">{item.email || item.uid}</div>
+                            </div>
+                            <PopupSelect
+                              title={t("groups.parentGroup")}
+                              description={t("groups.registrationTreeDescription")}
+                              placeholder={t("groups.parentGroup")}
+                              searchPlaceholder={t("common.search")}
+                              emptyText={t("groups.empty")}
+                              value={item.primary_group_id || ROOT_GROUP}
+                              onValueChange={async (value) => {
+                                try {
+                                  await updateAdminUser(item.uid, { primary_group_id: value });
+                                  toast.success(t("groups.primaryGroupUpdated"));
+                                  await bootstrap();
+                                } catch (error) {
+                                  showErrorToast(error, t("groups.primaryGroupUpdateFailed"));
+                                }
+                              }}
+                              options={parentGroupOptions}
+                            />
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium">{t("groups.managementGrants")}</div>
+                    {selectedGroupGrants.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">{t("groups.noManagementGrants")}</div>
+                    ) : (
+                      selectedGroupGrants.map((grant) => (
+                        <div key={grant.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-border/70 bg-background/30 p-4 text-sm">
+                          <div>
+                            <div className="font-medium">{userLabelMap.get(grant.user_uid) || grant.user_uid}</div>
+                            <div className="mt-1 text-muted-foreground">{formatTime(grant.created_at)}</div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                await deleteGroupManagementGrant(grant.id);
+                                toast.success(t("groups.managementGrantRemoved"));
+                                setGrants(await listGroupManagementGrants());
+                              } catch (error) {
+                                showErrorToast(error, t("groups.managementGrantRemoveFailed"));
+                              }
+                            }}
+                          >
+                            <Trash2 className="mr-2 size-4" />
+                            {t("groups.removeMember")}
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               ) : (
                 <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">{t("groups.noSelection")}</div>
               )}
@@ -395,12 +554,14 @@ export default function GroupsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Users className="size-4 text-primary" />
-                {t("groups.membersTitle")}
+                {tab === "registration" ? t("groups.registrationTreeTitle") : t("groups.membersTitle")}
               </CardTitle>
-              <CardDescription>{t("groups.membersDescription")}</CardDescription>
+              <CardDescription>
+                {tab === "registration" ? t("groups.registrationTreeDescription") : t("groups.membersDescription")}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {selectedGroup ? (
+              {selectedGroup && tab === "groups" ? (
                 <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                   <div className="grid gap-2">
                     <Label>{t("groups.addMember")}</Label>
@@ -422,7 +583,7 @@ export default function GroupsPage() {
                 </div>
               ) : null}
 
-              {selectedGroup ? (
+              {selectedGroup && tab === "groups" ? (
                 members.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">{t("groups.noMembers")}</div>
                 ) : (
@@ -439,6 +600,10 @@ export default function GroupsPage() {
                     </div>
                   ))
                 )
+              ) : selectedGroup && tab === "registration" ? (
+                <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+                  {t("groups.registrationTreeHint")}
+                </div>
               ) : (
                 <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">{t("groups.noSelection")}</div>
               )}

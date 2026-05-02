@@ -1,4 +1,4 @@
-import { apiCall } from "./client";
+import { apiCall, apiJson } from "./client";
 import {
   rememberLegacyId,
   rememberLegacyStringId,
@@ -85,18 +85,22 @@ function mapAcl(item: {
 export function getCharacters(
   page: number,
   page_size: number,
-  _scope: "mine" | "all" = "mine",
+  scope: "basic_visible" | "inherited_visible" | "manageable" = "inherited_visible",
 ): Promise<PageResp<CharacterRead>> {
-  return apiCall(async (client) => {
-    const items = (await client.listCharacters()).map(mapCharacter);
+  return apiCall(async () => {
+    const items = (await apiJson<any[]>(`/characters?scope=${scope}`)).map(mapCharacter);
     return makePage(items, page, page_size);
   });
 }
 
 export function getCharacter(id: number): Promise<CharacterRead> {
-  return apiCall(async (client) => {
-    const all = await client.listCharacters();
-    const found = all.find((item) => item.id === resolveActualId("character", id));
+  return apiCall(async () => {
+    const actualId = resolveActualId("character", id);
+    const [visible, manageable] = await Promise.all([
+      apiJson<any[]>("/characters?scope=inherited_visible"),
+      apiJson<any[]>("/characters?scope=manageable"),
+    ]);
+    const found = [...visible, ...manageable].find((item) => item.id === actualId);
     if (!found) {
       throw new Error("Character not found");
     }

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { getErrorMessage, localizeApiMessage, showErrorToast } from "@/api/client";
 import { getCharacters } from "@/api/characters";
-import { createCocoon, deleteCocoon, getCocoon, getCocoonTree, updateCocoon } from "@/api/cocoons";
+import { createCocoon, deleteCocoon, getCocoon, getCocoonTree, getCocoons, updateCocoon } from "@/api/cocoons";
 import { listModelProviders } from "@/api/providers";
 import { getSystemSettings } from "@/api/settings";
 import type { CharacterRead } from "@/api/types/catalog";
@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUserStore } from "@/store/useUserStore";
 
 type TreeNodeState = CocoonTreeNode & {
@@ -33,6 +34,7 @@ type TreeNodeState = CocoonTreeNode & {
 };
 
 type CocoonDialogMode = "create-root" | "create-child" | "edit";
+type CocoonTab = "own" | "manage";
 
 type CocoonFormState = {
   name: string;
@@ -113,6 +115,9 @@ export default function CocoonsPage() {
   const [rootIds, setRootIds] = useState<number[]>([]);
   const [rootMeta, setRootMeta] = useState({ page: 1, hasMore: false, isLoading: true });
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [tab, setTab] = useState<CocoonTab>("own");
+  const [manageableItems, setManageableItems] = useState<CocoonRead[]>([]);
+  const [manageQuery, setManageQuery] = useState("");
   const [characters, setCharacters] = useState<CharacterRead[]>([]);
   const [providers, setProviders] = useState<ModelProviderRead[]>([]);
   const [allowedModelIds, setAllowedModelIds] = useState<Set<number> | null>(null);
@@ -125,6 +130,7 @@ export default function CocoonsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const { confirm, confirmDialog } = useConfirmDialog();
   const canManageSystem = Boolean(userInfo?.can_manage_system);
+  const canShowManagementTab = Boolean(userInfo?.has_management_console || userInfo?.is_bootstrap_admin);
 
   const modelOptions = useMemo(() => {
     const source =
@@ -136,6 +142,18 @@ export default function CocoonsPage() {
         : providers;
     return buildModelOptions(source);
   }, [allowedModelIds, providers]);
+  const filteredManageItems = useMemo(() => {
+    const keyword = manageQuery.trim().toLowerCase();
+    if (!keyword) {
+      return manageableItems;
+    }
+    return manageableItems.filter((item) => {
+      const haystack = [item.name, item.owner_uid || "", item.character?.name || "", item.selected_model?.model_name || ""]
+        .join("\n")
+        .toLowerCase();
+      return haystack.includes(keyword);
+    });
+  }, [manageQuery, manageableItems]);
   const characterSelectOptions = useMemo(() => {
     const baseOptions =
       dialogMode === "create-child"
@@ -169,12 +187,15 @@ export default function CocoonsPage() {
   useEffect(() => {
     void fetchReferenceData();
     void loadTree(null, 1, true);
-  }, [canManageSystem]);
+    if (canShowManagementTab) {
+      void loadManageList();
+    }
+  }, [canManageSystem, canShowManagementTab]);
 
   async function fetchReferenceData() {
     try {
       const [characterResponse, providerResponse, settings] = await Promise.all([
-        getCharacters(1, 100, "all"),
+        getCharacters(1, 100, "inherited_visible"),
         listModelProviders(1, 100),
         canManageSystem ? getSystemSettings().catch(() => null) : Promise.resolve(null),
       ]);
@@ -183,6 +204,15 @@ export default function CocoonsPage() {
       setAllowedModelIds(settings?.allowed_model_ids?.length ? new Set(settings.allowed_model_ids) : null);
     } catch (error) {
       showErrorToast(error, t("cocoons.loadReferenceFailed"));
+    }
+  }
+
+  async function loadManageList() {
+    try {
+      const response = await getCocoons(1, 200, "manageable");
+      setManageableItems(response.items);
+    } catch (error) {
+      showErrorToast(error, t("cocoons.loadTreeFailed"));
     }
   }
 
@@ -345,6 +375,9 @@ export default function CocoonsPage() {
 
       setDialogOpen(false);
       await loadTree(null, 1);
+      if (canShowManagementTab) {
+        await loadManageList();
+      }
       if (dialogMode === "create-child" && selectedCocoonId) {
         setExpandedIds((prev) => new Set(prev).add(selectedCocoonId));
         await loadTree(selectedCocoonId, 1);
@@ -376,6 +409,9 @@ export default function CocoonsPage() {
       setSelectedCocoon(null);
       setSelectedCocoonId(null);
       await loadTree(null, 1, true);
+      if (canShowManagementTab) {
+        await loadManageList();
+      }
     } catch (error) {
       showErrorToast(error, t("cocoons.deleteFailed"));
     }
@@ -444,11 +480,22 @@ export default function CocoonsPage() {
       description={t("cocoons.description")}
       actions={
         <>
-          <Button variant="outline" onClick={openCreateRoot}>
-            <Plus className="mr-2 size-4" />
-            {t("cocoons.newRoot")}
-          </Button>
-          {selectedCocoon ? (
+          <Select value={tab} onValueChange={(value) => setTab(value as CocoonTab)}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="own">{t("cocoons.tabOwn")}</SelectItem>
+              {canShowManagementTab ? <SelectItem value="manage">{t("cocoons.tabManage")}</SelectItem> : null}
+            </SelectContent>
+          </Select>
+          {tab === "own" ? (
+            <Button variant="outline" onClick={openCreateRoot}>
+              <Plus className="mr-2 size-4" />
+              {t("cocoons.newRoot")}
+            </Button>
+          ) : null}
+          {tab === "own" && selectedCocoon ? (
             <Button onClick={openCreateChild}>
               <Plus className="mr-2 size-4" />
               {t("cocoons.newChild")}
@@ -461,11 +508,44 @@ export default function CocoonsPage() {
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Card className="min-h-[72vh] border-border/70 bg-card/90">
           <CardHeader>
-            <CardTitle>{t("cocoons.treeTitle")}</CardTitle>
-            <CardDescription>{t("cocoons.treeDescription")}</CardDescription>
+            <CardTitle>{tab === "manage" ? t("cocoons.manageListTitle") : t("cocoons.treeTitle")}</CardTitle>
+            <CardDescription>{tab === "manage" ? t("cocoons.manageListDescription") : t("cocoons.treeDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {rootMeta.isLoading && rootIds.length === 0 ? (
+            {tab === "manage" ? (
+              <>
+                <Input
+                  value={manageQuery}
+                  onChange={(event) => setManageQuery(event.target.value)}
+                  placeholder={t("cocoons.manageFilterPlaceholder")}
+                />
+                {filteredManageItems.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+                    {t("cocoons.treeEmpty")}
+                  </div>
+                ) : (
+                  filteredManageItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => void loadSelectedCocoon(item.id)}
+                      className={`w-full rounded-2xl border px-3 py-3 text-left text-sm transition ${
+                        selectedCocoonId === item.id
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border/70 bg-background/70 hover:border-primary/40 hover:bg-accent/30"
+                      }`}
+                    >
+                      <div className="font-medium">{item.name}</div>
+                      <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <span>#{item.id}</span>
+                        <span>{t("cocoons.ownerLabel", { owner: item.owner_uid || "-" })}</span>
+                        <span>{item.character?.name || "-"}</span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </>
+            ) : rootMeta.isLoading && rootIds.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
                 {t("cocoons.treeLoading")}
               </div>
@@ -476,7 +556,7 @@ export default function CocoonsPage() {
             ) : (
               rootIds.map((nodeId) => renderTreeNode(nodeId, 0))
             )}
-            {rootMeta.hasMore ? (
+            {tab === "own" && rootMeta.hasMore ? (
               <Button variant="ghost" size="sm" onClick={() => loadTree(null, rootMeta.page + 1)}>
                 {t("cocoons.loadMoreRoots")}
               </Button>
@@ -519,13 +599,17 @@ export default function CocoonsPage() {
                       <Badge variant="outline">{t("cocoons.structureNode")}</Badge>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Button onClick={() => navigate(`/cocoons/${selectedCocoon.id}`)}>
-                        <Sparkles className="mr-2 size-4" />
-                        {t("cocoons.enterWorkspace")}
-                      </Button>
-                      <Button variant="outline" onClick={() => navigate(`/merges?sourceCocoonId=${selectedCocoon.id}`)}>
-                        {t("cocoons.startMerge")}
-                      </Button>
+                      {tab === "own" || selectedCocoon.owner_uid === userInfo?.uid ? (
+                        <>
+                          <Button onClick={() => navigate(`/cocoons/${selectedCocoon.id}`)}>
+                            <Sparkles className="mr-2 size-4" />
+                            {t("cocoons.enterWorkspace")}
+                          </Button>
+                          <Button variant="outline" onClick={() => navigate(`/merges?sourceCocoonId=${selectedCocoon.id}`)}>
+                            {t("cocoons.startMerge")}
+                          </Button>
+                        </>
+                      ) : null}
                       <Button variant="outline" onClick={openEditCocoon}>
                         <Edit3 className="mr-2 size-4" />
                         {t("common.edit")}

@@ -54,6 +54,7 @@ class UserOut(ORMModel):
     username: str
     email: str | None
     role_id: str | None
+    primary_group_id: str | None
     permissions_json: dict[str, bool] = Field(default_factory=dict)
     timezone: str = "UTC"
     is_active: bool
@@ -63,11 +64,17 @@ class UserOut(ORMModel):
 class ManagedUserOut(UserOut):
     role_name: str | None = None
     effective_permissions: dict[str, bool] = Field(default_factory=dict)
+    primary_group_path: str | None = None
+    is_bootstrap_admin: bool = False
+    has_management_console: bool = False
 
 
 class CurrentUserOut(UserOut):
     role_name: str | None = None
     permissions: dict[str, bool] = Field(default_factory=dict)
+    primary_group_path: str | None = None
+    is_bootstrap_admin: bool = False
+    has_management_console: bool = False
 
 
 class ImBindTokenOut(UTCModel):
@@ -81,6 +88,7 @@ class UserCreate(BaseModel):
     email: EmailStr | None = None
     password: str = Field(min_length=4)
     role_id: str | None = None
+    primary_group_id: str | None = None
     permissions_json: dict[str, bool] = Field(default_factory=dict)
     timezone: str = "UTC"
     is_active: bool = True
@@ -95,6 +103,7 @@ class UserUpdate(BaseModel):
     username: str | None = Field(default=None, min_length=1)
     email: EmailStr | None = None
     role_id: str | None = None
+    primary_group_id: str | None = None
     permissions_json: dict[str, bool] | None = None
     timezone: str | None = None
     is_active: bool | None = None

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -17,12 +19,13 @@ router = APIRouter()
 
 @router.get("", response_model=list[CharacterOut])
 def list_characters(
+    scope: Literal["basic_visible", "inherited_visible", "manageable"] = "inherited_visible",
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     _=Depends(require_permission("characters:read")),
 ) -> list[Character]:
     items = db.info["container"].character_service.list_characters(db)
-    return db.info["container"].authorization_service.filter_visible_characters(db, user, items)
+    return db.info["container"].authorization_service.filter_visible_characters(db, user, items, scope=scope)
 
 
 @router.post("", response_model=CharacterOut)
@@ -43,7 +46,7 @@ def update_character(
     user: User = Depends(get_current_user),
     _=Depends(require_permission("characters:write")),
 ) -> Character:
-    db.info["container"].authorization_service.require_character_use(db, user, character_id)
+    db.info["container"].authorization_service.require_character_manage(db, user, character_id)
     return db.info["container"].character_service.update_character(db, character_id, payload)
 
 
@@ -54,7 +57,7 @@ def delete_character(
     user: User = Depends(get_current_user),
     _=Depends(require_permission("characters:write")),
 ) -> Character:
-    db.info["container"].authorization_service.require_character_use(db, user, character_id)
+    db.info["container"].authorization_service.require_character_manage(db, user, character_id)
     return db.info["container"].character_service.delete_character(db, character_id)
 
 
@@ -65,7 +68,7 @@ def list_character_acl(
     user: User = Depends(get_current_user),
     _=Depends(require_permission("characters:read")),
 ) -> list[CharacterAcl]:
-    db.info["container"].authorization_service.require_character_read(db, user, character_id)
+    db.info["container"].authorization_service.require_character_read(db, user, character_id, allow_manage=True)
     return db.info["container"].character_service.list_acl(db, character_id)
 
 
@@ -77,7 +80,7 @@ def create_character_acl(
     user: User = Depends(get_current_user),
     _=Depends(require_permission("characters:write")),
 ) -> CharacterAcl:
-    db.info["container"].authorization_service.require_character_use(db, user, character_id)
+    db.info["container"].authorization_service.require_character_manage(db, user, character_id)
     return db.info["container"].character_service.create_acl(db, character_id, payload)
 
 
@@ -89,5 +92,5 @@ def delete_character_acl(
     user: User = Depends(get_current_user),
     _=Depends(require_permission("characters:write")),
 ) -> CharacterAcl:
-    db.info["container"].authorization_service.require_character_use(db, user, character_id)
+    db.info["container"].authorization_service.require_character_manage(db, user, character_id)
     return db.info["container"].character_service.delete_acl(db, character_id, acl_id)

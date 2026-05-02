@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.models import Role, User
+from app.models import Role, User, UserGroupMember
 from app.services.access.group_service import GroupService
 from app.services.catalog.tag_policy import ensure_user_system_tag
 from app.services.security.encryption import hash_secret
@@ -20,6 +20,7 @@ class BootstrapAccessSeedService:
         admin_permissions = {
             "users:read": True,
             "users:write": True,
+            "management:access": True,
             "roles:read": True,
             "roles:write": True,
             "prompt_templates:read": True,
@@ -105,6 +106,7 @@ class BootstrapAccessSeedService:
         else:
             user_role.permissions_json = {**(user_role.permissions_json or {}), **user_permissions}
 
+        root_group = self.group_service.ensure_root_group(session)
         admin_user = session.scalar(select(User).where(User.username == settings.default_admin_username))
         if not admin_user:
             admin_user = User(
@@ -112,12 +114,20 @@ class BootstrapAccessSeedService:
                 email=settings.default_admin_email,
                 password_hash=hash_secret(settings.default_admin_password),
                 role_id=admin_role.id,
+                primary_group_id=root_group.id,
             )
             session.add(admin_user)
             session.flush()
         else:
             admin_user.role_id = admin_role.id
+            admin_user.primary_group_id = admin_user.primary_group_id or root_group.id
             admin_user.is_active = True
         ensure_user_system_tag(session, admin_user.id)
-        self.group_service.ensure_root_group(session)
+        if not session.scalar(
+            select(UserGroupMember).where(
+                UserGroupMember.group_id == root_group.id,
+                UserGroupMember.user_id == admin_user.id,
+            )
+        ):
+            session.add(UserGroupMember(group_id=root_group.id, user_id=admin_user.id, member_role="admin"))
         return admin_user

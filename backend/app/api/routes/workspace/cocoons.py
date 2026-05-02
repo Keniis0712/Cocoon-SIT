@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -143,12 +145,13 @@ def _delete_cocoon_subtree(db: Session, cocoon_ids: list[str]) -> None:
 
 @router.get("", response_model=list[CocoonOut])
 def list_cocoons(
+    scope: Literal["own", "manageable", "visible"] = "visible",
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     _=Depends(require_permission("cocoons:read")),
 ) -> list[Cocoon]:
     items = list(db.scalars(select(Cocoon).order_by(Cocoon.created_at.asc())).all())
-    return db.info["container"].authorization_service.filter_visible_cocoons(db, user, items)
+    return db.info["container"].authorization_service.filter_visible_cocoons(db, user, items, scope=scope)
 
 
 @router.post("", response_model=CocoonOut)
@@ -250,6 +253,7 @@ def update_cocoon(
         user,
         cocoon_id,
         write=True,
+        allow_manage=True,
     )
     for field in (
         "name",
@@ -276,7 +280,7 @@ def cocoon_tree(
     _=Depends(require_permission("cocoons:read")),
 ) -> list[CocoonTreeNode]:
     items = list(db.scalars(select(Cocoon).order_by(Cocoon.created_at.asc())).all())
-    items = db.info["container"].authorization_service.filter_visible_cocoons(db, user, items)
+    items = db.info["container"].authorization_service.filter_visible_cocoons(db, user, items, scope="own")
     return db.info["container"].cocoon_tree_service.build_tree(items)
 
 
@@ -292,6 +296,7 @@ def get_cocoon(
         user,
         cocoon_id,
         write=False,
+        allow_manage=True,
     )
 
 
@@ -342,6 +347,7 @@ def delete_cocoon(
         user,
         cocoon_id,
         write=True,
+        allow_manage=True,
     )
     subtree_ids = _collect_cocoon_subtree_ids(db, cocoon.id)
     _delete_cocoon_subtree(db, subtree_ids)

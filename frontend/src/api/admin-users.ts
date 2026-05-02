@@ -27,10 +27,14 @@ type ManagedUserResponse = {
   email: string | null;
   role_id: string | null;
   role_name: string | null;
+  primary_group_id: string | null;
+  primary_group_path?: string | null;
   permissions_json: Record<string, boolean>;
   effective_permissions: Record<string, boolean>;
   timezone: string;
   is_active: boolean;
+  is_bootstrap_admin?: boolean;
+  has_management_console?: boolean;
   created_at: string;
 };
 
@@ -49,11 +53,15 @@ function mapUser(user: ManagedUserResponse): AdminUserRead {
     email: user.email ?? null,
     parent_uid: null,
     user_path: null,
+    primary_group_id: user.primary_group_id ? rememberLegacyStringId("group", user.primary_group_id) : null,
+    primary_group_path: user.primary_group_path ?? null,
     invite_code: null,
     role: roleName,
     role_level: roleLevel(roleName),
     can_audit: Boolean(permissions["audits:read"]),
     is_active: user.is_active,
+    is_bootstrap_admin: Boolean(user.is_bootstrap_admin),
+    has_management_console: Boolean(user.has_management_console),
     timezone: user.timezone || "UTC",
     permissions_json: user.permissions_json || {},
     effective_permissions: permissions,
@@ -75,13 +83,17 @@ async function listManagedUsers() {
   return apiJson<ManagedUserResponse[]>("/users");
 }
 
+async function listScopedUsers(scope: "all" | "manageable") {
+  return apiJson<ManagedUserResponse[]>(`/users?scope=${scope}`);
+}
+
 export function listAdminUsers(
   page: number,
   page_size: number,
-  params?: { q?: string; role?: string },
+  params?: { q?: string; role?: string; scope?: "all" | "manageable" },
 ): Promise<PageResp<AdminUserRead>> {
   return apiCall(async () => {
-    const users = await listManagedUsers();
+    const users = params?.scope ? await listScopedUsers(params.scope) : await listManagedUsers();
     const items = users
       .map(mapUser)
       .filter((user) => {
@@ -108,6 +120,7 @@ export function createAdminUser(data: AdminUserCreatePayload): Promise<AdminUser
         email: data.email ?? null,
         password: data.password,
         role_id: role?.id ?? null,
+        primary_group_id: data.primary_group_id ? resolveActualId("group", data.primary_group_id) : undefined,
         timezone: data.timezone ?? "UTC",
         permissions_json: data.permissions_json || {},
         is_active: true,
@@ -126,6 +139,12 @@ export function updateAdminUser(userUid: string, data: AdminUserUpdatePayload): 
       body: JSON.stringify({
         email: data.email ?? null,
         role_id: data.role !== undefined ? role?.id ?? null : undefined,
+        primary_group_id:
+          data.primary_group_id === undefined
+            ? undefined
+            : data.primary_group_id
+              ? resolveActualId("group", data.primary_group_id)
+              : null,
         timezone: data.timezone ?? undefined,
         permissions_json: data.permissions_json ?? undefined,
         is_active: data.is_active ?? undefined,

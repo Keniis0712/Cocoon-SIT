@@ -1,6 +1,7 @@
 const KNOWN_PERMISSIONS = [
   "users:read",
   "users:write",
+  "management:access",
   "roles:read",
   "roles:write",
   "cocoons:read",

@@ -82,6 +82,7 @@ class AuthSessionService:
             email=payload.email,
             password_hash=hash_secret(payload.password),
             role_id=user_role.id,
+            primary_group_id=self.group_service.ensure_root_group(session).id,
             timezone=payload.timezone,
             is_active=True,
         )
@@ -89,6 +90,7 @@ class AuthSessionService:
         session.flush()
         ensure_user_system_tag(session, user.id)
         registration_group = self.group_service.resolve_registration_group(session, invite_code.registration_group_id)
+        user.primary_group_id = registration_group.id
         existing_membership = session.scalar(
             select(UserGroupMember).where(
                 UserGroupMember.group_id == registration_group.id,

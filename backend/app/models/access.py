@@ -25,6 +25,7 @@ class User(Base, TimestampMixin):
     email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role_id: Mapped[str | None] = mapped_column(ForeignKey("roles.id"), nullable=True)
+    primary_group_id: Mapped[str | None] = mapped_column(ForeignKey("user_groups.id"), nullable=True, default="root-group")
     permissions_json: Mapped[dict[str, bool]] = mapped_column(JSON, default=JsonDefaultMixin.json_dict)
     timezone: Mapped[str] = mapped_column(String(128), default="UTC", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -109,8 +110,22 @@ class UserGroup(Base, TimestampMixin):
 
 class UserGroupMember(Base, TimestampMixin):
     __tablename__ = "user_group_members"
+    __table_args__ = (
+        UniqueConstraint("group_id", "user_id", name="uq_user_group_members_group_user"),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
     group_id: Mapped[str] = mapped_column(ForeignKey("user_groups.id"), nullable=False)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
     member_role: Mapped[str] = mapped_column(String(32), default="member")
+
+
+class UserGroupManagementGrant(Base, TimestampMixin):
+    __tablename__ = "user_group_management_grants"
+    __table_args__ = (
+        UniqueConstraint("user_id", "group_id", name="uq_user_group_management_user_group"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    group_id: Mapped[str] = mapped_column(ForeignKey("user_groups.id"), nullable=False)

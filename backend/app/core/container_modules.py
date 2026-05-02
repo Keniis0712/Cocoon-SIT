@@ -75,7 +75,7 @@ def wire_infrastructure_services(container) -> None:
 
 def wire_security_services(container) -> None:
     container.secret_cipher = SecretCipher(container.settings.provider_master_key)
-    container.authorization_service = AuthorizationService()
+    container.authorization_service = AuthorizationService(container.settings)
     container.token_service = TokenService(container.settings)
     container.token_authentication_service = TokenAuthenticationService(container.token_service)
 
@@ -83,6 +83,7 @@ def wire_security_services(container) -> None:
 def wire_access_services(container) -> None:
     container.system_settings_service = SystemSettingsService(container.settings)
     container.group_service = GroupService()
+    container.authorization_service.group_service = container.group_service
     container.auth_session_service = AuthSessionService(
         container.token_service,
         container.settings,

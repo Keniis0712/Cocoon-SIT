@@ -229,7 +229,7 @@ export function useChatGroupWorkspaceController(roomId: string): ChatGroupWorksp
           getChatGroupState(roomId),
           listChatGroupMembers(roomId),
           listChatGroupMessages(roomId, null, 50),
-          getCharacters(1, 100, "all"),
+          getCharacters(1, 100, "inherited_visible"),
           listModelProviders(1, 100),
           listChatGroupWakeups(roomId, { status: "queued", only_ai: true, limit: 1 }),
           listTags(),

@@ -39,3 +39,15 @@ class GroupMemberOut(ORMModel):
     user_id: str
     member_role: str
     created_at: datetime
+
+
+class GroupManagementGrantCreate(BaseModel):
+    user_id: str
+    group_id: str
+
+
+class GroupManagementGrantOut(ORMModel):
+    id: str
+    user_id: str
+    group_id: str
+    created_at: datetime

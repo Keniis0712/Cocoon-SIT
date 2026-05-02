@@ -7,6 +7,7 @@ from app.models.access import (
     User,
     UserImBindToken,
     UserGroup,
+    UserGroupManagementGrant,
     UserGroupMember,
 )
 from app.models.audit import AuditArtifact, AuditLink, AuditRun, AuditStep
@@ -134,6 +135,7 @@ __all__ = [
     "User",
     "UserImBindToken",
     "UserGroup",
+    "UserGroupManagementGrant",
     "UserGroupMember",
     "WakeupTask",
     "new_id",

@@ -4,11 +4,15 @@ export interface AdminUserRead {
   email: string | null;
   parent_uid: string | null;
   user_path: string | null;
+  primary_group_id: string | null;
+  primary_group_path: string | null;
   invite_code: string | null;
   role: string | null;
   role_level: number;
   can_audit: boolean;
   is_active: boolean;
+  is_bootstrap_admin: boolean;
+  has_management_console: boolean;
   timezone: string;
   permissions_json: Record<string, boolean>;
   effective_permissions: Record<string, boolean>;
@@ -31,6 +35,7 @@ export interface AdminUserCreatePayload {
   role_level: number;
   can_audit: boolean;
   parent_uid?: string | null;
+  primary_group_id?: string | null;
   invite_quota_remaining?: number;
   invite_quota_unlimited?: boolean;
 }
@@ -44,6 +49,7 @@ export interface AdminUserUpdatePayload {
   can_audit?: boolean | null;
   is_active?: boolean | null;
   password?: string | null;
+  primary_group_id?: string | null;
   invite_quota_remaining?: number | null;
   invite_quota_unlimited?: boolean | null;
 }
@@ -87,6 +93,13 @@ export interface GroupUpdatePayload {
 
 export interface GroupMemberRead {
   id: number;
+  group_id: string;
+  user_uid: string;
+  created_at: string;
+}
+
+export interface GroupManagementGrantRead {
+  id: string;
   group_id: string;
   user_uid: string;
   created_at: string;

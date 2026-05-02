@@ -2,6 +2,7 @@ import { apiCall, apiJson } from "./client";
 import { rememberLegacyId, rememberLegacyStringId, resolveActualId } from "./id-map";
 import type {
   GroupCreatePayload,
+  GroupManagementGrantRead,
   GroupMemberRead,
   GroupRead,
   GroupUpdatePayload,
@@ -143,6 +144,56 @@ export function getGroupInviteSummary(gid: string): Promise<InviteSummary> {
       target_id: rememberLegacyStringId("group", summary.target_id),
       invite_quota_remaining: summary.invite_quota_remaining,
       invite_quota_unlimited: summary.invite_quota_unlimited,
+    };
+  });
+}
+
+export function listGroupManagementGrants(): Promise<GroupManagementGrantRead[]> {
+  return apiCall(async () => {
+    const items = await apiJson<{ id: string; group_id: string; user_id: string; created_at: string }[]>(
+      "/groups/management-grants",
+    );
+    return items.map((item) => ({
+      id: item.id,
+      group_id: rememberLegacyStringId("group", item.group_id),
+      user_uid: rememberLegacyStringId("user", item.user_id),
+      created_at: item.created_at,
+    }));
+  });
+}
+
+export function createGroupManagementGrant(user_uid: string, gid: string): Promise<GroupManagementGrantRead> {
+  return apiCall(async () => {
+    const item = await apiJson<{ id: string; group_id: string; user_id: string; created_at: string }>(
+      "/groups/management-grants",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: resolveActualId("user", user_uid),
+          group_id: resolveActualId("group", gid),
+        }),
+      },
+    );
+    return {
+      id: item.id,
+      group_id: rememberLegacyStringId("group", item.group_id),
+      user_uid: rememberLegacyStringId("user", item.user_id),
+      created_at: item.created_at,
+    };
+  });
+}
+
+export function deleteGroupManagementGrant(grantId: string): Promise<GroupManagementGrantRead> {
+  return apiCall(async () => {
+    const item = await apiJson<{ id: string; group_id: string; user_id: string; created_at: string }>(
+      `/groups/management-grants/${grantId}`,
+      { method: "DELETE" },
+    );
+    return {
+      id: item.id,
+      group_id: rememberLegacyStringId("group", item.group_id),
+      user_uid: rememberLegacyStringId("user", item.user_id),
+      created_at: item.created_at,
     };
   });
 }

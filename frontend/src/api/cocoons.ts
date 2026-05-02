@@ -277,9 +277,16 @@ function mapMemory(item: {
   };
 }
 
-export function getCocoons(page: number, page_size: number, _scope: "mine" | "all" = "mine"): Promise<PageResp<CocoonRead>> {
+export function getCocoons(
+  page: number,
+  page_size: number,
+  scope: "mine" | "all" | "own" | "manageable" | "visible" = "own",
+): Promise<PageResp<CocoonRead>> {
   return apiCall(async (client) => {
-    const items = await Promise.all((await client.listCocoons()).map((item) => mapCocoon(item)));
+    const normalizedScope =
+      scope === "mine" ? "own" : scope === "all" ? "manageable" : scope;
+    const rawItems = await apiJson<any[]>(`/cocoons?scope=${normalizedScope}`);
+    const items = await Promise.all(rawItems.map((item) => mapCocoon(item)));
     return makePage(items, page, page_size);
   });
 }
@@ -289,7 +296,7 @@ export function getCocoonTree(
   page_size: number,
   _max_depth: number,
   parent_id?: number | "",
-  _scope: "mine" | "all" = "mine",
+  _scope: "mine" | "own" = "own",
 ): Promise<CocoonTreeResponse> {
   return apiCall(async (client) => {
     const roots = (await client.getCocoonTree()).map(mapTreeNode);

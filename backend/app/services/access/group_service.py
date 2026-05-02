@@ -8,8 +8,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import User, UserGroup, UserGroupMember
-from app.schemas.access.groups import GroupCreate, GroupMemberCreate, GroupUpdate
+from app.models import User, UserGroup, UserGroupManagementGrant, UserGroupMember
+from app.schemas.access.groups import GroupCreate, GroupManagementGrantCreate, GroupMemberCreate, GroupUpdate
 
 ROOT_GROUP_ID = "root-group"
 ROOT_GROUP_NAME = "Root Group"
@@ -54,6 +54,41 @@ class GroupService:
         groups = list(session.scalars(select(UserGroup)).all())
         groups.sort(key=lambda item: (0 if item.id == ROOT_GROUP_ID else 1, -item.created_at.timestamp()))
         return groups
+
+    def list_descendant_group_ids(self, session: Session, root_group_ids: list[str] | set[str]) -> list[str]:
+        roots = [group_id for group_id in root_group_ids if group_id]
+        if not roots:
+            return []
+        children_by_parent: dict[str | None, list[str]] = {}
+        for group in self.list_groups(session):
+            children_by_parent.setdefault(group.parent_group_id, []).append(group.id)
+
+        ordered: list[str] = []
+        seen: set[str] = set()
+        queue = list(roots)
+        while queue:
+            current = queue.pop(0)
+            if current in seen:
+                continue
+            seen.add(current)
+            ordered.append(current)
+            queue.extend(children_by_parent.get(current, []))
+        return ordered
+
+    def list_ancestor_group_ids(self, session: Session, group_id: str | None) -> list[str]:
+        if not group_id:
+            return []
+        ordered: list[str] = []
+        current_group_id = group_id
+        guard = 0
+        while current_group_id and guard < 64:
+            ordered.append(current_group_id)
+            group = session.get(UserGroup, current_group_id)
+            if not group:
+                break
+            current_group_id = group.parent_group_id
+            guard += 1
+        return ordered
 
     def create_group(self, session: Session, payload: GroupCreate, user: User | None = None) -> UserGroup:
         """Create a user group under the requested parent, defaulting to the root group."""
@@ -165,6 +200,49 @@ class GroupService:
         group = session.get(UserGroup, requested_group_id)
         return group or root_group
 
+    def list_management_grants(self, session: Session) -> list[UserGroupManagementGrant]:
+        return list(
+            session.scalars(
+                select(UserGroupManagementGrant).order_by(UserGroupManagementGrant.created_at.asc())
+            ).all()
+        )
+
+    def create_management_grant(
+        self,
+        session: Session,
+        payload: GroupManagementGrantCreate,
+    ) -> UserGroupManagementGrant:
+        if not session.get(User, payload.user_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        self._require_group(session, payload.group_id)
+        existing = session.scalar(
+            select(UserGroupManagementGrant).where(
+                UserGroupManagementGrant.user_id == payload.user_id,
+                UserGroupManagementGrant.group_id == payload.group_id,
+            )
+        )
+        if existing:
+            return existing
+        grant = UserGroupManagementGrant(user_id=payload.user_id, group_id=payload.group_id)
+        session.add(grant)
+        session.flush()
+        return grant
+
+    def delete_management_grant(self, session: Session, grant_id: str) -> UserGroupManagementGrant:
+        grant = session.get(UserGroupManagementGrant, grant_id)
+        if not grant:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Management grant not found")
+        session.delete(grant)
+        session.flush()
+        return grant
+
+    def management_grant_group_ids_for_user(self, session: Session, user_id: str) -> list[str]:
+        return list(
+            session.scalars(
+                select(UserGroupManagementGrant.group_id).where(UserGroupManagementGrant.user_id == user_id)
+            ).all()
+        )
+
     def build_group_view(self, session: Session, group: UserGroup) -> GroupView:
         """Serialize a group together with a human-readable path."""
         return GroupView(
@@ -177,6 +255,14 @@ class GroupService:
             created_at=group.created_at,
             updated_at=group.updated_at,
         )
+
+    def group_path_by_id(self, session: Session, group_id: str | None) -> str | None:
+        if not group_id:
+            return None
+        group = session.get(UserGroup, group_id)
+        if not group:
+            return None
+        return self._group_path(session, group)
 
     def _require_group(self, session: Session, group_id: str) -> UserGroup:
         group = session.get(UserGroup, group_id)

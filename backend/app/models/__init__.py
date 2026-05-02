@@ -57,6 +57,7 @@ from app.models.entities import (
     User,
     UserImBindToken,
     UserGroup,
+    UserGroupManagementGrant,
     UserGroupMember,
     WakeupTask,
 )
@@ -120,6 +121,7 @@ __all__ = [
     "User",
     "UserImBindToken",
     "UserGroup",
+    "UserGroupManagementGrant",
     "UserGroupMember",
     "WakeupTask",
 ]

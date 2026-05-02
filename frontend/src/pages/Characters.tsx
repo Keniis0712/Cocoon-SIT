@@ -48,7 +48,8 @@ const EMPTY_FORM: CharacterPayload = {
   visibility: "private",
 };
 
-type ScopeMode = "mine" | "all";
+type CharacterTab = "visible" | "manage";
+type VisibleScopeMode = "basic_visible" | "inherited_visible";
 type EffectiveQueryMode = "user" | "group";
 type AclDraftEntry = CharacterAclEntryWrite & { localId: string };
 
@@ -81,7 +82,9 @@ export default function CharactersPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(12);
   const [totalPages, setTotalPages] = useState(1);
-  const [scope, setScope] = useState<ScopeMode>("all");
+  const [tab, setTab] = useState<CharacterTab>("visible");
+  const [visibleScope, setVisibleScope] = useState<VisibleScopeMode>("basic_visible");
+  const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -101,13 +104,15 @@ export default function CharactersPage() {
   const { confirm, confirmDialog } = useConfirmDialog();
 
   const canManageSystem = Boolean(userInfo?.can_manage_system);
+  const canShowManagementTab = Boolean(userInfo?.has_management_console || userInfo?.is_bootstrap_admin);
 
   async function fetchData() {
     setIsLoading(true);
     try {
+      const activeScope = tab === "manage" ? "manageable" : visibleScope;
       const [response, manageableResponse] = await Promise.all([
-        getCharacters(page, pageSize, scope),
-        getCharacters(1, 100, "mine"),
+        getCharacters(page, pageSize, activeScope),
+        getCharacters(1, 200, "manageable"),
       ]);
       setItems(response.items);
       setTotalPages(response.total_pages || 1);
@@ -119,14 +124,27 @@ export default function CharactersPage() {
 
   useEffect(() => {
     void fetchData();
-  }, [page, scope]);
+  }, [page, tab, visibleScope]);
+
+  const filteredItems = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+    if (!keyword) {
+      return items;
+    }
+    return items.filter((item) => {
+      const haystack = [item.name, item.description || "", item.owner_uid || "", item.personality_prompt]
+        .join("\n")
+        .toLowerCase();
+      return haystack.includes(keyword);
+    });
+  }, [items, query]);
 
   const visibleCountText = useMemo(() => {
-    if (items.length === 0) {
+    if (filteredItems.length === 0) {
       return t("characters.emptyStats");
     }
-    return t("characters.pageStats", { page, totalPages, count: items.length });
-  }, [items.length, page, t, totalPages]);
+    return t("characters.pageStats", { page, totalPages, count: filteredItems.length });
+  }, [filteredItems.length, page, t, totalPages]);
 
   const userLabels = useMemo(
     () => new Map(aclUsers.map((item) => [item.uid, `${item.username} / ${item.uid}`])),
@@ -233,7 +251,7 @@ export default function CharactersPage() {
       ]);
       setExistingAclEntries(aclResponse);
       setAclUsers(usersResponse.items);
-      setAclGroups(groupsResponse.items.filter((group) => canManageSystem || group.owner_uid === userInfo?.uid));
+      setAclGroups(groupsResponse.items);
     } catch (error) {
       setAclOpen(false);
       showErrorToast(error, t("characters.aclLoadFailed"));
@@ -351,9 +369,9 @@ export default function CharactersPage() {
       actions={
         <div className="flex flex-wrap gap-2">
           <Select
-            value={scope}
+            value={tab}
             onValueChange={(value) => {
-              setScope(value as ScopeMode);
+              setTab(value as CharacterTab);
               setPage(1);
             }}
           >
@@ -361,10 +379,37 @@ export default function CharactersPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="mine">{t("characters.scopeMine")}</SelectItem>
-              <SelectItem value="all">{t("characters.scopeAll")}</SelectItem>
+              <SelectItem value="visible">{t("characters.tabVisible")}</SelectItem>
+              {canShowManagementTab ? (
+                <SelectItem value="manage">{t("characters.tabManage")}</SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
+          {tab === "visible" ? (
+            <Select
+              value={visibleScope}
+              onValueChange={(value) => {
+                setVisibleScope(value as VisibleScopeMode);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="basic_visible">{t("characters.scopeBasicVisible")}</SelectItem>
+                <SelectItem value="inherited_visible">{t("characters.scopeInheritedVisible")}</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : null}
+          {tab === "manage" ? (
+            <Input
+              className="w-56"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t("characters.manageFilterPlaceholder")}
+            />
+          ) : null}
           <Button onClick={openCreateDialog}>
             <Plus className="mr-2 size-4" />
             {t("characters.newCharacter")}
@@ -397,7 +442,7 @@ export default function CharactersPage() {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((item) => (
+          {filteredItems.map((item) => (
             <Card key={item.id} className="border-border/70 bg-card/90">
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">

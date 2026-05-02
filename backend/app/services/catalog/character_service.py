@@ -27,6 +27,7 @@ class CharacterService:
         )
         session.add(character)
         session.flush()
+        self._sync_public_visibility_acl(session, character)
         return character
 
     def update_character(self, session: Session, character_id: str, payload: CharacterUpdate) -> Character:
@@ -40,6 +41,7 @@ class CharacterService:
             character.prompt_summary = payload.prompt_summary
         if payload.settings_json is not None:
             character.settings_json = payload.settings_json
+        self._sync_public_visibility_acl(session, character)
         session.flush()
         return character
 
@@ -60,7 +62,7 @@ class CharacterService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Character not found")
         acl = CharacterAcl(
             character_id=character_id,
-            subject_type=payload.subject_type,
+            subject_type=(payload.subject_type or "").strip().upper(),
             subject_id=payload.subject_id,
             can_read=payload.can_read,
             can_use=payload.can_use,
@@ -93,3 +95,28 @@ class CharacterService:
         session.delete(acl)
         session.flush()
         return acl
+
+    def _sync_public_visibility_acl(self, session: Session, character: Character) -> None:
+        visibility = str((character.settings_json or {}).get("visibility") or "private").strip().lower()
+        existing_acl = session.scalar(
+            select(CharacterAcl).where(
+                CharacterAcl.character_id == character.id,
+                CharacterAcl.subject_type == "AUTHENTICATED_ALL",
+            )
+        )
+        if visibility == "public":
+            if existing_acl:
+                existing_acl.can_read = True
+                existing_acl.can_use = False
+            else:
+                session.add(
+                    CharacterAcl(
+                        character_id=character.id,
+                        subject_type="AUTHENTICATED_ALL",
+                        subject_id="*",
+                        can_read=True,
+                        can_use=False,
+                    )
+                )
+        elif existing_acl:
+            session.delete(existing_acl)

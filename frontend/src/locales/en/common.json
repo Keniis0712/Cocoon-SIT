@@ -85,6 +85,7 @@
     "groupParentCycle": "Group parent would create a cycle",
     "usersCannotEditSelf": "Users cannot change their own role, permissions, or active status",
     "bootstrapAdminManaged": "Bootstrap admin role, permissions, and active status are managed by configuration",
+    "bootstrapAdminRequired": "Only bootstrap admin can perform this action",
     "characterNotFound": "Character not found",
     "characterAccessDenied": "Character access denied",
     "characterInUse": "Character is still used by an existing cocoon",

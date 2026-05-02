@@ -12,7 +12,11 @@ type AuthMeProfileResponse = {
   email: string | null;
   role_id: string | null;
   role_name: string | null;
+  primary_group_id: string | null;
+  primary_group_path?: string | null;
   is_active: boolean;
+  is_bootstrap_admin?: boolean;
+  has_management_console?: boolean;
   created_at: string;
   timezone: string;
   permissions: PermissionMap;
@@ -27,11 +31,15 @@ export interface SessionUser {
   username: string;
   parent_uid: string | null;
   user_path: string | null;
+  primary_group_id?: string | null;
+  primary_group_path?: string | null;
   role: string;
   role_level: number;
   can_audit: boolean;
   can_manage_system: boolean;
   can_manage_users: boolean;
+  has_management_console?: boolean;
+  is_bootstrap_admin?: boolean;
   can_manage_prompts: boolean;
   can_manage_providers: boolean;
   timezone: string;
@@ -46,11 +54,15 @@ export interface MeResponse {
   email: string | null;
   parent_uid: string | null;
   user_path: string | null;
+  primary_group_id?: string | null;
+  primary_group_path?: string | null;
   role: string;
   role_level: number;
   can_audit: boolean;
   can_manage_system: boolean;
   can_manage_users: boolean;
+  has_management_console?: boolean;
+  is_bootstrap_admin?: boolean;
   can_manage_prompts: boolean;
   can_manage_providers: boolean;
   timezone: string;
@@ -89,6 +101,8 @@ function buildMeResponse(profile: AuthMeProfileResponse): MeResponse {
     email: profile.email ?? null,
     parent_uid: null,
     user_path: null,
+    primary_group_id: profile.primary_group_id ? rememberLegacyStringId("group", profile.primary_group_id) : null,
+    primary_group_path: profile.primary_group_path ?? null,
     role: roleName,
     role_level: roleLevel(roleName),
     can_audit: Boolean(permissions["audits:read"]),
@@ -100,6 +114,8 @@ function buildMeResponse(profile: AuthMeProfileResponse): MeResponse {
         permissions["artifacts:cleanup"],
     ),
     can_manage_users: Boolean(permissions["users:read"] || permissions["users:write"]),
+    has_management_console: Boolean(profile.has_management_console),
+    is_bootstrap_admin: Boolean(profile.is_bootstrap_admin),
     can_manage_prompts: Boolean(
       permissions["prompt_templates:read"] || permissions["prompt_templates:write"],
     ),
@@ -118,11 +134,15 @@ export function buildSessionPatch(profile: MeResponse): Partial<SessionUser> {
     username: profile.username,
     parent_uid: profile.parent_uid,
     user_path: profile.user_path,
+    primary_group_id: profile.primary_group_id,
+    primary_group_path: profile.primary_group_path,
     role: profile.role,
     role_level: profile.role_level,
     can_audit: profile.can_audit,
     can_manage_system: profile.can_manage_system,
     can_manage_users: profile.can_manage_users,
+    has_management_console: profile.has_management_console,
+    is_bootstrap_admin: profile.is_bootstrap_admin,
     can_manage_prompts: profile.can_manage_prompts,
     can_manage_providers: profile.can_manage_providers,
     timezone: profile.timezone,

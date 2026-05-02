@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings
 from app.models import (
     AuditRun,
     Character,
@@ -15,14 +18,31 @@ from app.models import (
     Cocoon,
     Role,
     User,
+    UserGroup,
+    UserGroupManagementGrant,
     UserGroupMember,
 )
+from app.services.access.group_service import GroupService
+from app.services.security.rbac import get_effective_permission_map
 
 
 class AuthorizationService:
     """Applies object-level access rules for characters, cocoons, and derived resources."""
 
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        group_service: GroupService | None = None,
+    ) -> None:
+        self.settings = settings or SimpleNamespace(default_admin_username="admin")
+        self.group_service = group_service or GroupService()
+
+    def is_bootstrap_admin(self, user: User) -> bool:
+        return user.username == self.settings.default_admin_username
+
     def is_admin(self, session: Session, user: User) -> bool:
+        if self.is_bootstrap_admin(user):
+            return True
         if not user.role_id:
             return False
         role = session.get(Role, user.role_id)
@@ -36,22 +56,96 @@ class AuthorizationService:
             ).all()
         }
 
-    def can_read_character(self, session: Session, user: User, character: Character) -> bool:
+    def _primary_group_ancestor_ids(self, session: Session, user: User) -> set[str]:
+        return set(self.group_service.list_ancestor_group_ids(session, user.primary_group_id))
+
+    def _normalize_subject_type(self, subject_type: str | None) -> str:
+        return (subject_type or "").strip().upper()
+
+    def _iter_character_acl(self, session: Session, character_id: str) -> list[CharacterAcl]:
+        return list(session.scalars(select(CharacterAcl).where(CharacterAcl.character_id == character_id)).all())
+
+    def _character_acl_matches(self, session: Session, user: User, acl: CharacterAcl, *, inherited: bool) -> bool:
+        subject_type = self._normalize_subject_type(acl.subject_type)
+        if subject_type == "AUTHENTICATED_ALL":
+            return True
+        if subject_type == "USER":
+            return acl.subject_id == user.id
+        if subject_type == "ROLE":
+            return bool(user.role_id and acl.subject_id == user.role_id)
+        if subject_type == "GROUP":
+            return acl.subject_id in self._group_ids_for_user(session, user.id)
+        if subject_type == "SUBTREE" and inherited:
+            return acl.subject_id in self._primary_group_ancestor_ids(session, user)
+        return False
+
+    def has_management_permission(self, session: Session, user: User) -> bool:
+        if self.is_bootstrap_admin(user):
+            return True
+        permissions = get_effective_permission_map(session, user)
+        return bool(permissions.get("management:access"))
+
+    def manageable_group_ids(self, session: Session, user: User) -> list[str]:
+        if self.is_bootstrap_admin(user):
+            return [item.id for item in session.scalars(select(UserGroup)).all()]
+        if not self.has_management_permission(session, user):
+            return []
+        grant_roots = list(
+            session.scalars(
+                select(UserGroupManagementGrant.group_id).where(UserGroupManagementGrant.user_id == user.id)
+            ).all()
+        )
+        return self.group_service.list_descendant_group_ids(session, grant_roots)
+
+    def has_management_console(self, session: Session, user: User) -> bool:
+        if self.is_bootstrap_admin(user):
+            return True
+        if not self.has_management_permission(session, user):
+            return False
+        return bool(
+            session.scalar(
+                select(UserGroupManagementGrant.id).where(UserGroupManagementGrant.user_id == user.id).limit(1)
+            )
+        )
+
+    def list_manageable_user_ids(self, session: Session, user: User) -> list[str]:
+        if self.is_bootstrap_admin(user):
+            return [item.id for item in session.scalars(select(User.id).select_from(User)).all()]
+        manageable_groups = self.manageable_group_ids(session, user)
+        if not manageable_groups:
+            return [user.id]
+        user_ids = list(
+            session.scalars(
+                select(User.id).where(User.primary_group_id.in_(manageable_groups))
+            ).all()
+        )
+        if user.id not in user_ids:
+            user_ids.append(user.id)
+        return user_ids
+
+    def can_manage_user_scope(self, session: Session, user: User, target_user_id: str | None) -> bool:
+        if not target_user_id:
+            return False
+        if self.is_admin(session, user):
+            return True
+        if target_user_id == user.id:
+            return True
+        if not self.has_management_console(session, user):
+            return False
+        target = session.get(User, target_user_id)
+        if not target:
+            return False
+        return target.primary_group_id in set(self.manageable_group_ids(session, user))
+
+    def can_read_character(self, session: Session, user: User, character: Character, *, inherited: bool = True) -> bool:
         if self.is_admin(session, user):
             return True
         if character.created_by_user_id == user.id:
             return True
-        group_ids = self._group_ids_for_user(session, user.id)
-        for acl in session.scalars(
-            select(CharacterAcl).where(CharacterAcl.character_id == character.id)
-        ).all():
+        for acl in self._iter_character_acl(session, character.id):
             if not acl.can_read:
                 continue
-            if acl.subject_type == "user" and acl.subject_id == user.id:
-                return True
-            if acl.subject_type == "role" and user.role_id and acl.subject_id == user.role_id:
-                return True
-            if acl.subject_type == "group" and acl.subject_id in group_ids:
+            if self._character_acl_matches(session, user, acl, inherited=inherited):
                 return True
         return False
 
@@ -60,25 +154,35 @@ class AuthorizationService:
             return True
         if character.created_by_user_id == user.id:
             return True
-        group_ids = self._group_ids_for_user(session, user.id)
-        for acl in session.scalars(
-            select(CharacterAcl).where(CharacterAcl.character_id == character.id)
-        ).all():
+        for acl in self._iter_character_acl(session, character.id):
             if not acl.can_use:
                 continue
-            if acl.subject_type == "user" and acl.subject_id == user.id:
-                return True
-            if acl.subject_type == "role" and user.role_id and acl.subject_id == user.role_id:
-                return True
-            if acl.subject_type == "group" and acl.subject_id in group_ids:
+            if self._character_acl_matches(session, user, acl, inherited=True):
                 return True
         return False
 
-    def require_character_read(self, session: Session, user: User, character_id: str) -> Character:
+    def can_manage_character(self, session: Session, user: User, character: Character) -> bool:
+        if self.is_admin(session, user):
+            return True
+        if character.created_by_user_id == user.id:
+            return True
+        return self.can_manage_user_scope(session, user, character.created_by_user_id)
+
+    def require_character_read(
+        self,
+        session: Session,
+        user: User,
+        character_id: str,
+        *,
+        inherited: bool = True,
+        allow_manage: bool = False,
+    ) -> Character:
         character = session.get(Character, character_id)
         if not character:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Character not found")
-        if not self.can_read_character(session, user, character):
+        if allow_manage and self.can_manage_character(session, user, character):
+            return character
+        if not self.can_read_character(session, user, character, inherited=inherited):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Character access denied")
         return character
 
@@ -90,13 +194,49 @@ class AuthorizationService:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Character access denied")
         return character
 
-    def filter_visible_characters(self, session: Session, user: User, characters: list[Character]) -> list[Character]:
-        return [item for item in characters if self.can_read_character(session, user, item)]
+    def require_character_manage(self, session: Session, user: User, character_id: str) -> Character:
+        character = session.get(Character, character_id)
+        if not character:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Character not found")
+        if not self.can_manage_character(session, user, character):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Character management denied")
+        return character
 
-    def can_access_cocoon(self, session: Session, user: User, cocoon: Cocoon, *, write: bool) -> bool:
+    def filter_visible_characters(
+        self,
+        session: Session,
+        user: User,
+        characters: list[Character],
+        *,
+        scope: str = "inherited_visible",
+    ) -> list[Character]:
+        if scope == "basic_visible":
+            return [item for item in characters if self.can_read_character(session, user, item, inherited=False)]
+        if scope == "manageable":
+            return [item for item in characters if self.can_manage_character(session, user, item)]
+        return [item for item in characters if self.can_read_character(session, user, item, inherited=True)]
+
+    def can_manage_cocoon(self, session: Session, user: User, cocoon: Cocoon) -> bool:
         if self.is_admin(session, user):
             return True
         if cocoon.owner_user_id == user.id:
+            return True
+        return self.can_manage_user_scope(session, user, cocoon.owner_user_id)
+
+    def can_access_cocoon(
+        self,
+        session: Session,
+        user: User,
+        cocoon: Cocoon,
+        *,
+        write: bool,
+        allow_manage: bool = False,
+    ) -> bool:
+        if self.is_admin(session, user):
+            return True
+        if cocoon.owner_user_id == user.id:
+            return True
+        if allow_manage and self.can_manage_cocoon(session, user, cocoon):
             return True
         character = session.get(Character, cocoon.character_id)
         if not character:
@@ -105,15 +245,43 @@ class AuthorizationService:
             return self.can_use_character(session, user, character)
         return self.can_read_character(session, user, character)
 
-    def require_cocoon_access(self, session: Session, user: User, cocoon_id: str, *, write: bool) -> Cocoon:
+    def require_cocoon_access(
+        self,
+        session: Session,
+        user: User,
+        cocoon_id: str,
+        *,
+        write: bool,
+        allow_manage: bool = False,
+    ) -> Cocoon:
         cocoon = session.get(Cocoon, cocoon_id)
         if not cocoon:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cocoon not found")
-        if not self.can_access_cocoon(session, user, cocoon, write=write):
+        if not self.can_access_cocoon(session, user, cocoon, write=write, allow_manage=allow_manage):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cocoon access denied")
         return cocoon
 
-    def filter_visible_cocoons(self, session: Session, user: User, cocoons: list[Cocoon], *, write: bool = False) -> list[Cocoon]:
+    def require_cocoon_manage(self, session: Session, user: User, cocoon_id: str) -> Cocoon:
+        cocoon = session.get(Cocoon, cocoon_id)
+        if not cocoon:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cocoon not found")
+        if not self.can_manage_cocoon(session, user, cocoon):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cocoon management denied")
+        return cocoon
+
+    def filter_visible_cocoons(
+        self,
+        session: Session,
+        user: User,
+        cocoons: list[Cocoon],
+        *,
+        write: bool = False,
+        scope: str = "visible",
+    ) -> list[Cocoon]:
+        if scope == "own":
+            return [item for item in cocoons if item.owner_user_id == user.id]
+        if scope == "manageable":
+            return [item for item in cocoons if self.can_manage_cocoon(session, user, item)]
         return [item for item in cocoons if self.can_access_cocoon(session, user, item, write=write)]
 
     def require_pull_merge_access(

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models import User
 from app.schemas.access.auth import CurrentUserUpdate, UserCreate, UserUpdate
+from app.services.access.group_service import GroupService
 from app.services.catalog.tag_policy import ensure_user_system_tag
 from app.services.security.encryption import hash_secret
 
@@ -18,6 +19,7 @@ class UserService:
 
     def __init__(self, settings: Settings):
         self.settings = settings
+        self.group_service = GroupService()
 
     def list_users(self, session: Session) -> list[User]:
         """Return users ordered by creation time."""
@@ -30,6 +32,7 @@ class UserService:
             email=payload.email,
             password_hash=hash_secret(payload.password),
             role_id=payload.role_id,
+            primary_group_id=self.group_service.resolve_registration_group(session, payload.primary_group_id).id,
             permissions_json=payload.permissions_json,
             timezone=payload.timezone,
             is_active=payload.is_active,
@@ -51,6 +54,13 @@ class UserService:
             user.email = payload.email
         if payload.role_id is not None:
             user.role_id = payload.role_id
+        if payload.primary_group_id is not None:
+            if not self._is_bootstrap_admin(actor):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only bootstrap admin can reassign primary groups",
+                )
+            user.primary_group_id = self.group_service.resolve_registration_group(session, payload.primary_group_id).id
         if payload.permissions_json is not None:
             user.permissions_json = payload.permissions_json
         if payload.timezone is not None:
