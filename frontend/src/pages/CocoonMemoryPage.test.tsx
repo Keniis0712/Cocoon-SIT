@@ -9,7 +9,10 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   getCocoon: vi.fn(),
   getCocoonMemories: vi.fn(),
+  updateCocoonMemory: vi.fn(),
+  reorganizeCocoonMemories: vi.fn(),
   deleteCocoonMemory: vi.fn(),
+  listTags: vi.fn(),
   confirm: vi.fn(),
   showErrorToast: vi.fn(),
   toastSuccess: vi.fn(),
@@ -23,7 +26,13 @@ vi.mock("react-router-dom", () => ({
 vi.mock("@/api/cocoons", () => ({
   getCocoon: mocks.getCocoon,
   getCocoonMemories: mocks.getCocoonMemories,
+  updateCocoonMemory: mocks.updateCocoonMemory,
+  reorganizeCocoonMemories: mocks.reorganizeCocoonMemories,
   deleteCocoonMemory: mocks.deleteCocoonMemory,
+}));
+
+vi.mock("@/api/tags", () => ({
+  listTags: mocks.listTags,
 }));
 
 vi.mock("@/api/client", () => ({
@@ -103,6 +112,32 @@ describe("CocoonMemoryPage", () => {
       id: 1,
       name: "Root Cocoon",
     });
+    mocks.listTags.mockResolvedValue([
+      {
+        id: 1,
+        actual_id: "tag-default-id",
+        tag_id: "default",
+        name: "default",
+        brief: "Default memory boundary",
+        visibility_mode: "private",
+        is_system: true,
+        visible_chat_group_ids: [],
+        created_at: "2026-04-26T10:00:00Z",
+        updated_at: "2026-04-26T10:00:00Z",
+      },
+      {
+        id: 2,
+        actual_id: "tag-focus-id",
+        tag_id: "focus",
+        name: "focus",
+        brief: "Focus mode",
+        visibility_mode: "private",
+        is_system: false,
+        visible_chat_group_ids: [],
+        created_at: "2026-04-26T10:00:00Z",
+        updated_at: "2026-04-26T10:00:00Z",
+      },
+    ]);
     mocks.getCocoonMemories.mockResolvedValue({
       overview: {
         total: 1,
@@ -147,6 +182,8 @@ describe("CocoonMemoryPage", () => {
       total_pages: 1,
     });
     mocks.deleteCocoonMemory.mockResolvedValue({});
+    mocks.updateCocoonMemory.mockResolvedValue({});
+    mocks.reorganizeCocoonMemories.mockResolvedValue({ status: "queued" });
   });
 
   it("redirects invalid cocoon ids back to the cocoon list", async () => {
@@ -242,5 +279,16 @@ describe("CocoonMemoryPage", () => {
       expect(screen.queryByText("Conversation summary")).not.toBeInTheDocument();
     });
     expect(mocks.toastSuccess).toHaveBeenCalledWith("memoryDeleted");
+  });
+
+  it("opens a dedicated tag popup and shows the default tag", async () => {
+    render(<CocoonMemoryPage />);
+
+    expect(await screen.findByText("Conversation summary")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "common.edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "memoryManageTags" }));
+
+    expect(await screen.findAllByText("default")).not.toHaveLength(0);
+    expect(screen.getByText("Default memory boundary")).toBeInTheDocument();
   });
 });

@@ -397,3 +397,20 @@ def test_memory_service_resolve_memory_tag_labels_keeps_default_system_tag_visib
         labels = service.resolve_memory_tag_labels(session, stored)
 
     assert labels == ["default"]
+
+
+def test_memory_service_resolve_or_create_memory_tags_keeps_default_system_tag():
+    session_factory = make_sqlite_session_factory()
+    service = MemoryService()
+
+    with session_factory() as session:
+        resolved = service.resolve_or_create_memory_tags(
+            session,
+            owner_user_id="owner-1",
+            tag_refs=["default", "focus"],
+        )
+
+        tags = session.query(TagRegistry).order_by(TagRegistry.tag_id.asc()).all()
+
+    assert [tag.tag_id for tag in tags] == ["default", "focus"]
+    assert len(resolved) == 2

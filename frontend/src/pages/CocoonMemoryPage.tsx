@@ -12,6 +12,8 @@ import {
   reorganizeCocoonMemories,
   updateCocoonMemory,
 } from "@/api/cocoons";
+import { listTags } from "@/api/tags";
+import type { TagRead } from "@/api/types";
 import type { CocoonRead, MemoryChunkRead, MemoryOverviewRead } from "@/api/types/cocoons";
 import { useConfirmDialog } from "@/components/composes/useConfirmDialog";
 import PageFrame from "@/components/PageFrame";
@@ -26,13 +28,6 @@ import { Textarea } from "@/components/ui/textarea";
 
 function formatTime(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString() : "-";
-}
-
-function parseTagsInput(value: string) {
-  return value
-    .split(/[,\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
 }
 
 function humanizeMeta(value: string | null | undefined) {
@@ -78,10 +73,13 @@ export default function CocoonMemoryPage() {
   const [overview, setOverview] = useState<MemoryOverviewRead | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [availableTags, setAvailableTags] = useState<TagRead[]>([]);
   const [editing, setEditing] = useState<MemoryChunkRead | null>(null);
   const [editContent, setEditContent] = useState("");
   const [editSummary, setEditSummary] = useState("");
-  const [editTags, setEditTags] = useState("");
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [isTagPickerOpen, setIsTagPickerOpen] = useState(false);
+  const [tagQuery, setTagQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isReorganizeOpen, setIsReorganizeOpen] = useState(false);
   const [reorganizeInstructions, setReorganizeInstructions] = useState("");
@@ -100,24 +98,35 @@ export default function CocoonMemoryPage() {
     if (!editing) {
       setEditContent("");
       setEditSummary("");
-      setEditTags("");
+      setEditTags([]);
+      setIsTagPickerOpen(false);
+      setTagQuery("");
       return;
     }
     setEditContent(editing.content || "");
     setEditSummary(editing.summary || "");
-    setEditTags((editing.tags || []).join(", "));
+    setEditTags(editing.tags || []);
   }, [editing]);
 
   async function load() {
     setIsLoading(true);
     try {
-      const [cocoonResp, memoryResp] = await Promise.all([
+      const [cocoonResp, memoryResp, tagResp] = await Promise.all([
         getCocoon(cocoonId),
         getCocoonMemories(cocoonId),
+        listTags(),
       ]);
       setCocoon(cocoonResp);
       setItems(memoryResp.items);
       setOverview(memoryResp.overview);
+      setAvailableTags(
+        tagResp.slice().sort((left, right) => {
+          if (left.is_system !== right.is_system) {
+            return left.is_system ? -1 : 1;
+          }
+          return left.name.localeCompare(right.name);
+        }),
+      );
       setSelectedIds((prev) => prev.filter((id) => memoryResp.items.some((item) => item.id === id)));
     } catch (error) {
       console.error(error);
@@ -155,7 +164,7 @@ export default function CocoonMemoryPage() {
       await updateCocoonMemory(cocoonId, editing.id, {
         content: editContent,
         summary: editSummary || null,
-        tags_json: parseTagsInput(editTags),
+        tags_json: editTags,
       });
       setEditing(null);
       await load();
@@ -191,6 +200,35 @@ export default function CocoonMemoryPage() {
   const byPool = Object.entries(overview?.by_pool || {});
   const byType = Object.entries(overview?.by_type || {});
   const byStatus = Object.entries(overview?.by_status || {});
+  const normalizedTagQuery = tagQuery.trim().toLowerCase();
+  const filteredTags = availableTags.filter((tag) => {
+    if (!normalizedTagQuery) {
+      return true;
+    }
+    return tag.name.toLowerCase().includes(normalizedTagQuery) || tag.brief.toLowerCase().includes(normalizedTagQuery);
+  });
+  const canAddTag = Boolean(
+    tagQuery.trim()
+      && !editTags.some((tag) => tag.toLowerCase() === tagQuery.trim().toLowerCase())
+      && !availableTags.some((tag) => tag.name.toLowerCase() === tagQuery.trim().toLowerCase()),
+  );
+
+  function toggleEditTag(tagName: string) {
+    setEditTags((prev) => (
+      prev.includes(tagName)
+        ? prev.filter((item) => item !== tagName)
+        : [...prev, tagName]
+    ));
+  }
+
+  function handleAddTagDraft() {
+    const normalized = tagQuery.trim();
+    if (!normalized) {
+      return;
+    }
+    setEditTags((prev) => (prev.includes(normalized) ? prev : [...prev, normalized]));
+    setTagQuery("");
+  }
 
   return (
     <PageFrame
@@ -380,11 +418,20 @@ export default function CocoonMemoryPage() {
             </div>
             <div className="grid gap-2">
               <Label>{t("memoryTags", { defaultValue: "Tags" })}</Label>
-              <Input
-                value={editTags}
-                onChange={(event) => setEditTags(event.target.value)}
-                placeholder={t("memoryTagsPlaceholder", { defaultValue: "Comma-separated tags" })}
-              />
+              <div className="flex min-h-12 flex-wrap gap-2 rounded-xl border border-border/70 p-3">
+                {editTags.length ? editTags.map((tag) => (
+                  <Badge key={`edit-tag-${tag}`} variant="outline">
+                    {tag}
+                  </Badge>
+                )) : (
+                  <span className="text-sm text-muted-foreground">
+                    {t("memoryNoTagsYet", { defaultValue: "No tags yet." })}
+                  </span>
+                )}
+              </div>
+              <Button type="button" variant="outline" onClick={() => setIsTagPickerOpen(true)}>
+                {t("memoryManageTags", { defaultValue: "Manage tags" })}
+              </Button>
             </div>
           </div>
           <DialogFooter>
@@ -393,6 +440,92 @@ export default function CocoonMemoryPage() {
             </Button>
             <Button onClick={() => void handleSaveEdit()} disabled={isSaving}>
               {isSaving ? t("common.saving", { defaultValue: "Saving..." }) : t("common.save", { defaultValue: "Save" })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isTagPickerOpen} onOpenChange={setIsTagPickerOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("memoryTagPickerTitle", { defaultValue: "Select memory tags" })}</DialogTitle>
+            <DialogDescription>
+              {t("memoryTagPickerDescription", {
+                defaultValue: "Choose existing tags, including the default boundary tag, or add a new one.",
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label>{t("memorySelectedTags", { defaultValue: "Selected tags" })}</Label>
+              <div className="flex min-h-12 flex-wrap gap-2 rounded-xl border border-border/70 p-3">
+                {editTags.length ? editTags.map((tag) => (
+                  <Badge key={`selected-tag-${tag}`} variant="secondary">
+                    {tag}
+                  </Badge>
+                )) : (
+                  <span className="text-sm text-muted-foreground">
+                    {t("memoryNoTagsYet", { defaultValue: "No tags yet." })}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>{t("memoryTagSearch", { defaultValue: "Search or add tag" })}</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={tagQuery}
+                  onChange={(event) => setTagQuery(event.target.value)}
+                  placeholder={t("memoryTagSearchPlaceholder", { defaultValue: "Search tags or type a new one" })}
+                />
+                <Button type="button" variant="outline" onClick={handleAddTagDraft} disabled={!tagQuery.trim()}>
+                  {t("addTag", { defaultValue: "Add tag" })}
+                </Button>
+              </div>
+              {canAddTag ? (
+                <div className="text-xs text-muted-foreground">
+                  {t("memoryTagNewHint", {
+                    value: tagQuery.trim(),
+                    defaultValue: `Add "${tagQuery.trim()}" as a new tag when you save.`,
+                  })}
+                </div>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <Label>{t("memoryAvailableTags", { defaultValue: "Available tags" })}</Label>
+              <div className="max-h-80 space-y-2 overflow-y-auto rounded-xl border border-border/70 p-3">
+                {filteredTags.length ? filteredTags.map((tag) => {
+                  const checked = editTags.includes(tag.name);
+                  return (
+                    <label
+                      key={tag.actual_id}
+                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 px-3 py-2"
+                    >
+                      <Checkbox checked={checked} onCheckedChange={() => toggleEditTag(tag.name)} />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">{tag.name}</span>
+                          {tag.is_system ? (
+                            <Badge variant="outline">
+                              {t("memorySystemTag", { defaultValue: "system" })}
+                            </Badge>
+                          ) : null}
+                        </div>
+                        {tag.brief ? <div className="text-sm text-muted-foreground">{tag.brief}</div> : null}
+                      </div>
+                    </label>
+                  );
+                }) : (
+                  <div className="text-sm text-muted-foreground">
+                    {t("memoryNoMatchingTags", { defaultValue: "No matching tags." })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsTagPickerOpen(false)}>
+              {t("common.done", { defaultValue: "Done" })}
             </Button>
           </DialogFooter>
         </DialogContent>

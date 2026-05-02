@@ -26,6 +26,7 @@ from app.models.identity import new_id
 from app.models.vector import PGVector
 from app.services.catalog.tag_policy import (
     SYSTEM_TAG_SLUG,
+    ensure_user_system_tag,
     get_tag_by_any_ref,
     is_tag_visible_in_target,
     resolve_tag_owner_user_id_for_target,
@@ -240,9 +241,11 @@ class MemoryService:
         seen: set[str] = set()
         for raw_tag in tag_refs or []:
             tag_ref = str(raw_tag or "").strip()
-            if not tag_ref or tag_ref == "default":
+            if not tag_ref:
                 continue
             tag = get_tag_by_any_ref(session, tag_ref, owner_user_id=owner_user_id)
+            if tag is None and tag_ref == SYSTEM_TAG_SLUG:
+                tag = ensure_user_system_tag(session, owner_user_id)
             if tag is None and not self._looks_like_internal_tag_ref(tag_ref):
                 tag = TagRegistry(
                     owner_user_id=owner_user_id,
@@ -256,7 +259,7 @@ class MemoryService:
                 )
                 session.add(tag)
                 session.flush()
-            if tag is None or tag.is_hidden or tag.id in seen:
+            if tag is None or (not self._should_expose_tag_label(tag)) or tag.id in seen:
                 continue
             seen.add(tag.id)
             resolved.append(tag.id)
