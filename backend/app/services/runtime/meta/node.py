@@ -213,23 +213,23 @@ class MetaNode:
         event_type = context.runtime_event.event_type
         if event_type == "wakeup":
             reason = str(context.runtime_event.payload.get("reason") or "scheduled wakeup")
-        return MetaDecision(
-            decision="reply",
-            relation_delta=0,
-            persona_patch={"last_wakeup_reason": reason[:120]},
-            tag_ops=[],
-            internal_thought="Fallback wakeup meta decision.",
-            event_summary=None,
-            next_wakeup_hints=[],
-            cancel_wakeup_task_ids=[],
-            generation_brief=None,
-            used_memory_ids=[],
-            session_update={},
-            task_state_update={},
-            fact_cache_ops=[],
-            memory_ops=[],
-            request_mode="meta_reply",
-        )
+            return MetaDecision(
+                decision="reply",
+                relation_delta=0,
+                persona_patch={"last_wakeup_reason": reason[:120]},
+                tag_ops=[],
+                internal_thought="Fallback wakeup meta decision.",
+                event_summary=reason[:240],
+                next_wakeup_hints=[],
+                cancel_wakeup_task_ids=[],
+                generation_brief=None,
+                used_memory_ids=[],
+                session_update={},
+                task_state_update={},
+                fact_cache_ops=[],
+                memory_ops=[],
+                request_mode="meta_reply",
+            )
         if event_type == "pull":
             return MetaDecision(
                 decision="reply",

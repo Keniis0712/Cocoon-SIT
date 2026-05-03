@@ -24,6 +24,7 @@ def _build_context(*, event_type: str = "chat", latest_user: str = "hello", targ
         conversation=conversation,
         character=SimpleNamespace(),
         session_state=SimpleNamespace(),
+        task_state=None,
         visible_messages=visible_messages,
         memory_context=[],
         external_context={
@@ -62,7 +63,7 @@ def test_meta_node_fallback_decision_covers_runtime_events():
 
     assert wakeup.decision == "reply"
     assert wakeup.persona_patch == {"last_wakeup_reason": "scheduled wakeup"}
-    assert wakeup.event_summary is None
+    assert wakeup.event_summary == "scheduled wakeup"
     assert pull.persona_patch == {"last_pull_source": "source-1"}
     assert merge.persona_patch == {"last_merge_source": "source-1"}
     assert silent.decision == "silence"
